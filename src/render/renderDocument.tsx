@@ -1,9 +1,19 @@
-import type { CourseDocument, ObjectId } from '@core/model/types';
+import type { CourseDocument, ObjectId, SceneObject } from '@core/model/types';
 import { isLayerVisible } from '@core/model/document';
+import { LAYER_ORDER } from '@core/model/types';
 import { pageSize } from '@core/scale/units';
 import { ArenaLayer } from './layers/ArenaLayer';
 import { GridLayer } from './layers/GridLayer';
+import { OrnamentLayer } from './layers/OrnamentLayer';
 import { color, stroke } from './style/tokens';
+
+/** Ordem de empilhamento: camada primeiro, depois z dentro da camada. */
+function sortForRender(doc: CourseDocument): SceneObject[] {
+  return [...doc.objects].sort((a, b) => {
+    const byLayer = LAYER_ORDER.indexOf(a.layer) - LAYER_ORDER.indexOf(b.layer);
+    return byLayer !== 0 ? byLayer : a.z - b.z;
+  });
+}
 
 export type RenderMode = 'screen' | 'paper';
 
@@ -67,8 +77,11 @@ export function RenderDocument(opts: RenderOptions) {
         />
       )}
 
-      {doc.objects.map((obj) => {
+      {sortForRender(doc).map((obj) => {
         if (!isLayerVisible(doc, obj.layer) || !obj.visible) return null;
+        const onPointerDown = opts.onObjectPointerDown
+          ? (e: React.PointerEvent) => opts.onObjectPointerDown!(obj.id, e)
+          : undefined;
         switch (obj.kind) {
           case 'arena':
             return (
@@ -78,11 +91,17 @@ export function RenderDocument(opts: RenderOptions) {
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
                 selected={isSelected(obj.id)}
-                onPointerDown={
-                  opts.onObjectPointerDown
-                    ? (e) => opts.onObjectPointerDown!(obj.id, e)
-                    : undefined
-                }
+                onPointerDown={onPointerDown}
+              />
+            );
+          case 'ornament':
+            return (
+              <OrnamentLayer
+                key={obj.id}
+                ornament={obj}
+                printScale={doc.page.printScale}
+                originMm={doc.originMm}
+                onPointerDown={onPointerDown}
               />
             );
           default:

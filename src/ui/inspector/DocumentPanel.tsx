@@ -3,6 +3,7 @@ import { GRID_STEPS } from '@core/geometry/snap';
 import { PAGE_FORMATS, STANDARD_SCALES, formatMeters } from '@core/scale/units';
 import type { Orientation, PageFormat } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
+import { ObjectPanel } from './ObjectPanel';
 
 export function DocumentPanel() {
   const { doc, apply } = useDocumentStore();
@@ -10,6 +11,7 @@ export function DocumentPanel() {
 
   return (
     <aside className="panel">
+      <ObjectPanel />
       <h2>Documento</h2>
 
       <section>

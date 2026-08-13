@@ -1,0 +1,171 @@
+import { bringToFront, sendToBack, setLocked, setObjectPosition, setObjectRotation, deleteObjects } from '@core/commands/ops';
+import { ORNAMENTS } from '@core/library/ornaments';
+import { getBounds, getPosition, getRotation, unionBounds } from '@core/model/transform';
+import type { OrnamentType, SceneObject } from '@core/model/types';
+import { formatMeters } from '@core/scale/units';
+import { useDocumentStore } from '@store/documentStore';
+import { useEditorStore } from '@store/editorStore';
+import { NumberField } from './NumberField';
+
+const KIND_LABEL: Record<SceneObject['kind'], string> = {
+  arena: 'Pista',
+  obstacle: 'Obstáculo',
+  path: 'Traçado',
+  text: 'Texto',
+  infobox: 'Quadro técnico',
+  heighttable: 'Tabela de alturas',
+  image: 'Imagem de fundo',
+  ornament: 'Ornamento',
+};
+
+export function ObjectPanel() {
+  const { doc, apply } = useDocumentStore();
+  const { selection, clearSelection } = useEditorStore();
+  const objs = doc.objects.filter((o) => selection.includes(o.id));
+
+  if (objs.length === 0) return null;
+
+  const single = objs.length === 1 ? objs[0]! : null;
+  const bounds = unionBounds(objs.map((o) => getBounds(o, doc.page.printScale)));
+
+  return (
+    <section className="object-panel">
+      <h3>
+        {single ? KIND_LABEL[single.kind] : `${objs.length} objetos selecionados`}
+      </h3>
+
+      {single && (
+        <>
+          <NumberField
+            label="X"
+            unit="m"
+            value={getPosition(single, doc.page.printScale).x}
+            decimals={3}
+            step={0.1}
+            disabled={single.locked}
+            onCommit={(v) =>
+              apply('Posição X', (d) =>
+                setObjectPosition(d, single.id, {
+                  x: v,
+                  y: getPosition(single, d.page.printScale).y,
+                }),
+              )
+            }
+          />
+          <NumberField
+            label="Y"
+            unit="m"
+            value={getPosition(single, doc.page.printScale).y}
+            decimals={3}
+            step={0.1}
+            disabled={single.locked}
+            onCommit={(v) =>
+              apply('Posição Y', (d) =>
+                setObjectPosition(d, single.id, {
+                  x: getPosition(single, d.page.printScale).x,
+                  y: v,
+                }),
+              )
+            }
+          />
+          {getRotation(single) !== null && (
+            <NumberField
+              label="Rotação"
+              unit="°"
+              value={getRotation(single)!}
+              decimals={1}
+              step={1}
+              disabled={single.locked}
+              onCommit={(v) => apply('Rotação', (d) => setObjectRotation(d, single.id, v))}
+            />
+          )}
+          {single.kind === 'ornament' && (
+            <>
+              <label className="field">
+                <span>Tipo</span>
+                <select
+                  value={single.type}
+                  disabled={single.locked}
+                  onChange={(e) =>
+                    apply('Tipo do ornamento', (d) => {
+                      const o = d.objects.find((x) => x.id === single.id);
+                      if (o?.kind === 'ornament') o.type = e.target.value as OrnamentType;
+                    })
+                  }
+                >
+                  {ORNAMENTS.map((o) => (
+                    <option key={o.type} value={o.type}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
+              <NumberField
+                label="Tamanho"
+                unit="m"
+                value={single.sizeM}
+                decimals={2}
+                step={0.1}
+                min={0.1}
+                disabled={single.locked}
+                onCommit={(v) =>
+                  apply('Tamanho do ornamento', (d) => {
+                    const o = d.objects.find((x) => x.id === single.id);
+                    if (o?.kind === 'ornament') o.sizeM = v;
+                  })
+                }
+              />
+              <label className="field">
+                <span>Cor</span>
+                <input
+                  type="color"
+                  value={single.color}
+                  disabled={single.locked}
+                  onChange={(e) =>
+                    apply('Cor do ornamento', (d) => {
+                      const o = d.objects.find((x) => x.id === single.id);
+                      if (o?.kind === 'ornament') o.color = e.target.value;
+                    })
+                  }
+                />
+              </label>
+            </>
+          )}
+        </>
+      )}
+
+      {bounds && (
+        <p className="note">
+          {formatMeters(bounds.max.x - bounds.min.x)} × {formatMeters(bounds.max.y - bounds.min.y)} m
+        </p>
+      )}
+
+      <div className="row-buttons">
+        <button onClick={() => apply('Trazer para frente', (d) => bringToFront(d, selection))}>
+          Frente
+        </button>
+        <button onClick={() => apply('Enviar para trás', (d) => sendToBack(d, selection))}>
+          Trás
+        </button>
+      </div>
+      <div className="row-buttons">
+        <button
+          onClick={() =>
+            apply(objs.every((o) => o.locked) ? 'Desbloquear' : 'Bloquear', (d) =>
+              setLocked(d, selection, !objs.every((o) => o.locked)),
+            )
+          }
+        >
+          {objs.every((o) => o.locked) ? 'Desbloquear' : 'Bloquear'}
+        </button>
+        <button
+          className="danger"
+          onClick={() => {
+            apply('Excluir', (d) => deleteObjects(d, selection));
+            clearSelection();
+          }}
+        >
+          Excluir
+        </button>
+      </div>
+    </section>
+  );
+}

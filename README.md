@@ -37,7 +37,7 @@ nem toca no DOM.
 | 0 | Scaffold, store, camadas | ✅ |
 | 1 | Coordenadas em metros, viewport, grid, régua, snap | ✅ |
 | 2 | Exportação PDF vetorial, impressão, página e escala | ✅ |
-| 3 | Objetos: seleção, mover, girar, undo/redo | — |
+| 3 | Objetos: seleção, mover, girar, undo/redo | ✅ |
 | 4 | Persistência: novo/abrir/salvar + migrações | — |
 | 5 | Pista: retângulo, polígono, desenho livre | — |
 | 6 | Imagem de fundo + calibração de escala | — |

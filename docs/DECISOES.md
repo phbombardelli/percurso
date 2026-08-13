@@ -99,11 +99,24 @@ ferramenta ativa) é efêmero: não entra no arquivo nem no histórico.
 transacional e correto. `mergeKey` coalesce um gesto contínuo (arrastar,
 girar) em **uma única entrada de undo**, não uma por pixel.
 
-## 9. Gestos contínuos não passam pelo React
+## 9. Gestos contínuos são limitados a um quadro, com flush no fim
 
-Arrastar, girar e mover a vista escrevem `transform` direto no nó DOM via
-ref e só fazem *commit* de um comando ao soltar o mouse. Mantém 60 fps e é
-o que sustenta a decisão 8. (A implementar na fase 3.)
+Arrastar e girar aplicam a alteração no documento no máximo uma vez por
+`requestAnimationFrame`, todas coalescidas em **uma** entrada de desfazer
+pela decisão 8. Ao soltar o ponteiro, o gesto faz *flush* do último valor
+pendente de forma síncrona: sem isso, o movimento final se perde quando o
+quadro não chega a rodar (aba em segundo plano) — falha encontrada na
+verificação da fase 3.
+
+O plano original era escrever `transform` direto no nó DOM durante o gesto
+e só tocar o modelo ao soltar. Não foi necessário: com algumas dezenas de
+objetos, a reconciliação do React por quadro é barata. A otimização
+continua possível sem mudar nada fora de `useObjectGestures`, e só deve
+ser feita se a medição em um croqui real acusar perda de quadros.
+
+Complemento: `setPointerCapture` **nunca pode derrubar um gesto**. Ele
+lança quando o ponteiro já foi liberado, e o gesto precisa estar
+registrado antes da chamada, não depois.
 
 ## 10. Toda a matemática de viewport usa o tamanho do SVG, não do contêiner
 
@@ -112,12 +125,19 @@ um lugar e outro em outro desloca cursor e zoom em meia régua — bug real
 encontrado na verificação da fase 1. `Canvas.tsx` deriva `size` uma vez e
 usa em todos os pontos.
 
-## 11. Escalas redondas
+## 11. O laço de seleção seleciona por contenção
+
+Selecionar por interseção arrastaria a pista junto em qualquer laço
+desenhado sobre ela — a pista cobre toda a área de trabalho. Só entra na
+seleção o objeto inteiramente contido no retângulo, como em qualquer
+editor gráfico.
+
+## 12. Escalas redondas
 
 "Ajustar ao papel" nunca devolve 1:237. Arredonda para a escala redonda
 imediatamente superior (`STANDARD_SCALES`), como em desenho técnico.
 
-## 12. Trocar escala ou formato não move o desenho sozinho
+## 13. Trocar escala ou formato não move o desenho sozinho
 
 `centerOnPage` é uma ação explícita do usuário. Reposicionamento automático
 é surpresa ruim em ferramenta técnica.

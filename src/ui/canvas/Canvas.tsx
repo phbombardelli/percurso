@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { addObject, deleteObjects, duplicateObjects } from '@core/commands/ops';
 import { snapPoint, toMillimeterPrecision } from '@core/geometry/snap';
 import type { Vec2 } from '@core/geometry/vec';
+import { createOrnament } from '@core/library/ornaments';
+import { deepClone } from '@core/model/clone';
+import { newId } from '@core/model/ids';
 import { pageRectMm } from '@core/model/document';
+import { translate } from '@core/model/transform';
+import type { SceneObject } from '@core/model/types';
 import {
   fitToRect,
   metersPerPixel as mppOf,
@@ -17,12 +23,15 @@ import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 import { useElementSize } from '@ui/hooks/useElementSize';
 import { RULER_SIZE, Rulers } from './Rulers';
+import { SelectionOverlay } from './SelectionOverlay';
+import { useObjectGestures } from './useObjectGestures';
 
 const ZOOM_STEP = 1.12;
+const PASTE_OFFSET_M = 1;
 
 export function Canvas() {
   const doc = useDocumentStore((s) => s.doc);
-  const { viewport, setViewport, tool, selection, setSelection, cursorM, setCursor, showPageFrame } =
+  const { viewport, setViewport, tool, setTool, selection, setSelection, cursorM, setCursor, showPageFrame } =
     useEditorStore();
 
   const { ref, size: wrapSize } = useElementSize<HTMLDivElement>();
@@ -44,16 +53,21 @@ export function Canvas() {
 
   const localPoint = useCallback((e: { clientX: number; clientY: number }): Vec2 => {
     const rect = svgRef.current?.getBoundingClientRect();
-    return rect
-      ? { x: e.clientX - rect.left, y: e.clientY - rect.top }
-      : { x: 0, y: 0 };
+    return rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : { x: 0, y: 0 };
   }, []);
+
+  const toModel = useCallback(
+    (e: { clientX: number; clientY: number }): Vec2 =>
+      screenToModel(localPoint(e), viewport, size, doc.page.printScale, doc.originMm),
+    [localPoint, viewport, size, doc.page.printScale, doc.originMm],
+  );
+
+  const gestures = useObjectGestures(toModel);
 
   const fitPage = useCallback(() => {
     if (size.width > 0) setViewport(fitToRect(pageRectMm(doc), size));
   }, [doc, size, setViewport]);
 
-  // Enquadra a página no primeiro layout válido.
   const didFit = useRef(false);
   useEffect(() => {
     if (!didFit.current && size.width > 0 && size.height > 0 && wrapSize.width > 0) {
@@ -77,41 +91,66 @@ export function Canvas() {
     (e: React.PointerEvent) => {
       if (wantsPan(e)) {
         e.preventDefault();
-        (e.target as Element).setPointerCapture?.(e.pointerId);
         panState.current = { pointerId: e.pointerId, last: { x: e.clientX, y: e.clientY } };
+        try {
+          (e.target as Element).setPointerCapture?.(e.pointerId);
+        } catch {
+          /* segue sem captura */
+        }
         return;
       }
-      // Clique no vazio limpa a seleção; objetos param o evento antes daqui.
-      if (e.button === 0 && selection.length > 0) setSelection([]);
+      if (e.button !== 0) return;
+
+      if (tool === 'ornament') {
+        const raw = toModel(e);
+        const p = doc.grid.snap && !useEditorStore.getState().snapSuspended
+          ? snapPoint(raw, doc.grid.snapStepM)
+          : raw;
+        const ornament = createOrnament(useEditorStore.getState().ornamentType, {
+          x: toMillimeterPrecision(p.x),
+          y: toMillimeterPrecision(p.y),
+        });
+        useDocumentStore.getState().apply('Inserir ornamento', (d) => addObject(d, ornament));
+        setSelection([ornament.id]);
+        if (!e.shiftKey) setTool('select');
+        return;
+      }
+
+      gestures.beginMarquee(e);
     },
-    [tool, selection, setSelection],
+    [tool, doc.grid, toModel, gestures, setSelection, setTool],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
       const pan = panState.current;
       if (pan && pan.pointerId === e.pointerId) {
-        setViewport(
-          panBy(viewport, { x: e.clientX - pan.last.x, y: e.clientY - pan.last.y }),
-        );
+        setViewport(panBy(viewport, { x: e.clientX - pan.last.x, y: e.clientY - pan.last.y }));
         pan.last = { x: e.clientX, y: e.clientY };
         return;
       }
-      const raw = screenToModel(localPoint(e), viewport, size, doc.page.printScale, doc.originMm);
+      gestures.onPointerMove(e);
+
+      const raw = toModel(e);
       const snapped =
         doc.grid.snap && !useEditorStore.getState().snapSuspended
           ? snapPoint(raw, doc.grid.snapStepM)
           : raw;
       setCursor({ x: toMillimeterPrecision(snapped.x), y: toMillimeterPrecision(snapped.y) });
     },
-    [viewport, size, doc, setViewport, setCursor, localPoint],
+    [viewport, doc.grid, setViewport, setCursor, toModel, gestures],
   );
 
-  const endPan = useCallback((e: React.PointerEvent) => {
-    if (panState.current?.pointerId === e.pointerId) panState.current = null;
-  }, []);
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (panState.current?.pointerId === e.pointerId) panState.current = null;
+      gestures.onPointerUp();
+    },
+    [gestures],
+  );
 
-  // Atalhos de teclado do canvas.
+  /* ------------------------------------------------------------ teclado */
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -119,6 +158,8 @@ export function Canvas() {
 
       const ed = useEditorStore.getState();
       const st = useDocumentStore.getState();
+      const ctrl = e.ctrlKey || e.metaKey;
+      const sel = ed.selection;
 
       if (e.code === 'Space') {
         spaceDown.current = true;
@@ -126,27 +167,83 @@ export function Canvas() {
       }
       if (e.altKey) ed.setSnapSuspended(true);
 
-      const ctrl = e.ctrlKey || e.metaKey;
-      if (ctrl && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      const key = e.key.toLowerCase();
+
+      if (ctrl && key === 'z' && !e.shiftKey) {
         e.preventDefault();
         st.undo();
-      } else if (ctrl && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+      } else if (ctrl && (key === 'y' || (key === 'z' && e.shiftKey))) {
         e.preventDefault();
         st.redo();
-      } else if (e.key === '0' && ctrl) {
+      } else if (ctrl && key === 'a') {
         e.preventDefault();
-        fitPage();
-      } else if (e.key === 'g' || e.key === 'G') {
+        ed.setSelection(st.doc.objects.filter((o) => !o.locked && o.visible).map((o) => o.id));
+      } else if (ctrl && key === 'c') {
+        ed.setClipboard(
+          st.doc.objects.filter((o) => sel.includes(o.id)).map((o) => deepClone(o)),
+        );
+      } else if (ctrl && key === 'v') {
+        if (ed.clipboard.length === 0) return;
+        const copies = ed.clipboard.map((o) => ({
+          ...deepClone(o),
+          id: newId(o.kind.slice(0, 3)),
+        })) as SceneObject[];
+        st.apply('Colar', (d) => {
+          for (const c of copies) {
+            addObject(d, c);
+            const added = d.objects[d.objects.length - 1]!;
+            added.id = c.id;
+            translate(added, { x: PASTE_OFFSET_M, y: PASTE_OFFSET_M }, d.page.printScale);
+          }
+        });
+        ed.setSelection(copies.map((c) => c.id));
+      } else if (ctrl && key === 'd') {
+        e.preventDefault();
+        if (sel.length === 0) return;
+        let created: string[] = [];
+        st.apply('Duplicar', (d) => {
+          created = duplicateObjects(d, sel, { x: PASTE_OFFSET_M, y: PASTE_OFFSET_M });
+        });
+        ed.setSelection(created);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (sel.length === 0) return;
+        e.preventDefault();
+        st.apply('Excluir', (d) => deleteObjects(d, sel));
+        ed.clearSelection();
+      } else if (e.key.startsWith('Arrow')) {
+        if (sel.length === 0) return;
+        e.preventDefault();
+        const base = st.doc.grid.snap ? st.doc.grid.snapStepM : 0.1;
+        const step = e.shiftKey ? base * 10 : base;
+        const d: Vec2 = {
+          x: e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0,
+          y: e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0,
+        };
+        st.apply(
+          'Mover',
+          (draft) => {
+            for (const obj of draft.objects) {
+              if (sel.includes(obj.id) && !obj.locked) translate(obj, d, draft.page.printScale);
+            }
+          },
+          'teclado-mover',
+        );
+      } else if (key === 'g') {
         st.apply('Alternar grid', (d) => {
           d.grid.visible = !d.grid.visible;
         });
-      } else if (e.key === 's' || e.key === 'S') {
-        if (ctrl) return;
+      } else if (key === 's' && !ctrl) {
         st.apply('Alternar snap', (d) => {
           d.grid.snap = !d.grid.snap;
         });
+      } else if (key === 'v' && !ctrl) {
+        ed.setTool('select');
       } else if (e.key === 'Escape') {
+        ed.setTool('select');
         ed.clearSelection();
+      } else if (e.key === '0' && ctrl) {
+        e.preventDefault();
+        fitPage();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -163,6 +260,8 @@ export function Canvas() {
 
   const mpp = mppOf(viewport, doc.page.printScale);
   const box = viewBox(viewport, size);
+  const cursor =
+    tool === 'pan' ? 'grab' : tool === 'ornament' ? 'crosshair' : 'default';
 
   return (
     <div className="canvas-wrap" ref={ref}>
@@ -173,12 +272,12 @@ export function Canvas() {
           width={size.width}
           height={size.height}
           viewBox={viewBoxAttr(viewport, size)}
-          style={{ background: color.canvasBg, cursor: tool === 'pan' ? 'grab' : 'default' }}
+          style={{ background: color.canvasBg, cursor }}
           onWheel={handleWheel}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
-          onPointerUp={endPan}
-          onPointerCancel={endPan}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           onPointerLeave={() => setCursor(null)}
         >
           <RenderDocument
@@ -189,9 +288,19 @@ export function Canvas() {
             metersPerPixel={mpp}
             showPageFrame={showPageFrame}
             onObjectPointerDown={(id, e) => {
-              if (wantsPan(e)) return;
+              if (wantsPan(e) || tool !== 'select' || e.button !== 0) return;
               e.stopPropagation();
-              setSelection(e.shiftKey ? [...new Set([...selection, id])] : [id]);
+              gestures.beginDrag(e, id);
+            }}
+          />
+          <SelectionOverlay
+            doc={doc}
+            selection={selection}
+            zoom={viewport.zoom}
+            marquee={gestures.marquee}
+            onRotateHandleDown={(e) => {
+              e.stopPropagation();
+              gestures.beginRotate(e);
             }}
           />
         </svg>
@@ -208,3 +317,4 @@ export function Canvas() {
     </div>
   );
 }
+
