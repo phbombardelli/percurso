@@ -50,18 +50,43 @@ certo, no papel sai diferente".
 
 ## 6. Restrições de SVG impostas pela exportação em PDF
 
-O conversor SVG→PDF (`svg2pdf.js`, fase 2) não suporta tudo. Valem desde o
-primeiro commit, porque retroagi-las depois é caro:
+Verificadas na fase 2 com PDFs reais gerados e inspecionados
+(`svg2pdf.js` 2.x + `jsPDF` 4.2.1). Valem desde o primeiro commit, porque
+retroagi-las depois é caro.
 
-1. **Nenhum `<foreignObject>`** na árvore exportável. Quadro técnico e
-   tabela de alturas são `<rect>` + `<text>` + `<line>` nativos.
-2. **Estilo por atributos de apresentação inline**, não por classe CSS.
-3. **Sem `filter`, `mask` ou gradiente complexo.**
-4. **Símbolos como `<symbol>`/`<use>`.**
-5. **Fonte única com métricas conhecidas** (Helvetica no MVP; embutir TTF
-   depois, se necessário).
+**Funciona, confirmado no PDF:**
+
+- Acentuação completa em Helvetica/WinAnsi (`Obstáculo`, `Combinação`,
+  `Três`, `Água`, `Ângulo`, `°`, `×`, `·`).
+- Corpo de texto de 1,8 mm a 7 mm; espessuras de 0,13 mm a 1,0 mm.
+- Tracejados, inclusive sobre curva de Bézier.
+- `transform` com `rotate` em grupo e em texto; `text-anchor` e
+  `dominant-baseline`.
+- Imagem raster embutida por data URL — vira `/Subtype /Image` de verdade.
+- Página em milímetros exatos: A4 paisagem sai `MediaBox` 841,89 × 595,28 pt
+  e A3 paisagem 1190,55 × 841,89 pt.
+
+**Não funciona — proibido na árvore exportável:**
+
+1. **`<foreignObject>`.** Quadro técnico e tabela de alturas são `<rect>` +
+   `<text>` + `<line>` nativos.
+2. **`<symbol>` + `<use>`.** Gera um Form XObject com `BBox [0 0 0 0]`: o
+   conteúdo some do PDF. Símbolos de obstáculo são **grupos `<g>` diretos**,
+   repetidos por instância. Com ~40 obstáculos o custo de DOM é irrelevante
+   perto do risco.
+3. **Travessão `—`, meia-risca `–` e sinal de menos `−`.** O travessão e a
+   meia-risca desaparecem; o `−` sai como `"`. Usar hífen ASCII `-`.
+   Vale para "não informado" na tabela de alturas.
+4. **Estilo por classe CSS externa** — usar atributos de apresentação inline.
+5. **`filter`, `mask`, gradiente complexo.**
+
+Fonte única com métricas conhecidas (Helvetica no MVP; embutir TTF depois,
+se necessário).
 
 O overlay de seleção fica **fora** do grupo exportável.
+
+Ao atualizar `svg2pdf.js` ou `jsPDF`, reexecutar a folha de diagnóstico
+(`exportDiagnosticPdf`) e reconferir esta lista.
 
 ## 7. Estado de edição separado do documento
 

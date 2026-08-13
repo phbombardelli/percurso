@@ -1,13 +1,29 @@
+import { useState } from 'react';
 import { pageRectMm } from '@core/model/document';
+import { exportDocumentPdf } from '@platform/exportPdf';
+import { printDocument } from '@platform/print';
 import { fitToRect, MAX_ZOOM, MIN_ZOOM, ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 import { clamp } from '@core/geometry/vec';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 
 export function Toolbar() {
-  const { doc, undo, redo, canUndo, canRedo, apply, dirty } = useDocumentStore();
+  const { doc, undo, redo, canUndo, canRedo, apply, dirty, fileName } = useDocumentStore();
   const { viewport, setViewport, tool, setTool, showPageFrame, togglePageFrame } =
     useEditorStore();
+  const [busy, setBusy] = useState(false);
+
+  const exportPdf = async () => {
+    setBusy(true);
+    try {
+      await exportDocumentPdf(doc, (fileName ?? 'croqui').replace(/\.[^.]+$/, ''));
+    } catch (err) {
+      console.error(err);
+      window.alert('Não foi possível gerar o PDF. Detalhes no console.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const zoomBy = (factor: number) =>
     setViewport({ ...viewport, zoom: clamp(viewport.zoom * factor, MIN_ZOOM, MAX_ZOOM) });
@@ -23,7 +39,7 @@ export function Toolbar() {
       <div className="toolbar-group">
         <span className="brand">Percurso</span>
         <span className="doc-name">
-          {useDocumentStore.getState().fileName ?? 'Sem título'}
+          {fileName ?? 'Sem título'}
           {dirty ? ' •' : ''}
         </span>
       </div>
@@ -32,8 +48,12 @@ export function Toolbar() {
         <button disabled title="Fase 4">Novo</button>
         <button disabled title="Fase 4">Abrir</button>
         <button disabled title="Fase 4">Salvar</button>
-        <button disabled title="Fase 12">Exportar PDF</button>
-        <button disabled title="Fase 12">Imprimir</button>
+        <button onClick={exportPdf} disabled={busy} title="Exportar croqui em PDF vetorial">
+          {busy ? 'Exportando…' : 'Exportar PDF'}
+        </button>
+        <button onClick={() => printDocument(doc)} title="Imprimir pelo navegador">
+          Imprimir
+        </button>
       </div>
 
       <div className="toolbar-group">
