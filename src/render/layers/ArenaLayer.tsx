@@ -1,0 +1,142 @@
+import type { Vec2 } from '@core/geometry/vec';
+import { polygonPathD, rectanglePoints } from '@core/geometry/outline';
+import { mmPerMeter } from '@core/scale/units';
+import type { Arena } from '@core/model/types';
+import { color, font, stroke, text } from '@render/style/tokens';
+
+interface Props {
+  arena: Arena;
+  printScale: number;
+  originMm: Vec2;
+  selected: boolean;
+  onPointerDown?: (e: React.PointerEvent) => void;
+}
+
+const TICK_MM = 1.3;
+const TICK_MAJOR_MM = 2.2;
+const LABEL_GAP_MM = 1.2;
+
+export function ArenaLayer({ arena, printScale, originMm, selected, onPointerDown }: Props) {
+  if (!arena.visible) return null;
+  const k = mmPerMeter(printScale);
+  const toPaper = (p: Vec2): Vec2 => ({ x: originMm.x + p.x * k, y: originMm.y + p.y * k });
+
+  const points =
+    arena.shape === 'rectangle'
+      ? rectanglePoints(arena.origin, arena.widthM, arena.heightM)
+      : arena.points;
+
+  const d = polygonPathD(points, arena.corner.style, arena.corner.radiusM * k, toPaper);
+
+  return (
+    <g data-object={arena.id} data-kind="arena">
+      <path
+        d={d}
+        fill={arena.style.fill}
+        stroke={selected ? color.selection : arena.style.stroke}
+        strokeWidth={arena.style.strokeMm}
+        strokeLinejoin="round"
+        onPointerDown={onPointerDown}
+        style={{ cursor: 'pointer' }}
+      />
+      {arena.perimeterRuler.visible && (
+        <PerimeterRuler arena={arena} k={k} toPaper={toPaper} />
+      )}
+    </g>
+  );
+}
+
+/**
+ * Régua de metros impressa no perímetro da pista, como nos croquis FEI.
+ * Faz parte do desenho (vai para o PDF), diferente da régua da interface.
+ */
+function PerimeterRuler({
+  arena,
+  k,
+  toPaper,
+}: {
+  arena: Arena;
+  k: number;
+  toPaper: (p: Vec2) => Vec2;
+}) {
+  const { stepM, labelEveryM, sides } = arena.perimeterRuler;
+  if (!(stepM > 0)) return null;
+
+  const x0 = arena.origin.x;
+  const y0 = arena.origin.y;
+  const x1 = x0 + arena.widthM;
+  const y1 = y0 + arena.heightM;
+
+  const ticks: JSX.Element[] = [];
+  const isLabel = (m: number) => labelEveryM > 0 && Math.abs(m % labelEveryM) < stepM / 1000;
+
+  const push = (
+    key: string,
+    from: Vec2,
+    to: Vec2,
+    label: string | null,
+    labelAt: Vec2,
+    anchor: 'middle' | 'start' | 'end',
+    baseline: 'auto' | 'hanging' | 'middle',
+  ) => {
+    const a = toPaper(from);
+    const b = toPaper(to);
+    ticks.push(
+      <g key={key}>
+        <line
+          x1={a.x}
+          y1={a.y}
+          x2={b.x}
+          y2={b.y}
+          stroke={color.arenaLine}
+          strokeWidth={stroke.hairline}
+        />
+        {label != null && (
+          <text
+            x={toPaper(labelAt).x}
+            y={toPaper(labelAt).y}
+            fontFamily={font.family}
+            fontSize={text.tiny}
+            fill={color.ink}
+            textAnchor={anchor}
+            dominantBaseline={baseline}
+          >
+            {label}
+          </text>
+        )}
+      </g>,
+    );
+  };
+
+  const tickM = TICK_MM / k;
+  const tickMajorM = TICK_MAJOR_MM / k;
+  const gapM = LABEL_GAP_MM / k;
+
+  for (let m = 0; m <= arena.widthM + 1e-9; m += stepM) {
+    const major = isLabel(m);
+    const len = major ? tickMajorM : tickM;
+    const x = x0 + m;
+    const label = major && m > 0 && m < arena.widthM ? String(Math.round(m)) : null;
+    if (sides.top) {
+      push(`t${m}`, { x, y: y0 }, { x, y: y0 - len }, label, { x, y: y0 - len - gapM }, 'middle', 'auto');
+    }
+    if (sides.bottom) {
+      push(`b${m}`, { x, y: y1 }, { x, y: y1 + len }, label, { x, y: y1 + len + gapM }, 'middle', 'hanging');
+    }
+  }
+
+  for (let m = 0; m <= arena.heightM + 1e-9; m += stepM) {
+    const major = isLabel(m);
+    const len = major ? tickMajorM : tickM;
+    const y = y0 + m;
+    const label = major && m > 0 && m < arena.heightM ? String(Math.round(m)) : null;
+    if (sides.left) {
+      push(`l${m}`, { x: x0, y }, { x: x0 - len, y }, label, { x: x0 - len - gapM, y }, 'end', 'middle');
+    }
+    if (sides.right) {
+      push(`r${m}`, { x: x1, y }, { x: x1 + len, y }, label, { x: x1 + len + gapM, y }, 'start', 'middle');
+    }
+  }
+
+  return <g data-part="perimeter-ruler" pointerEvents="none">{ticks}</g>;
+}

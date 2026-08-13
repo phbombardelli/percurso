@@ -1,0 +1,63 @@
+# Percurso
+
+Editor gráfico vetorial para croquis de percurso de salto de equitação.
+Aplicação web local, offline, sem servidor e sem nuvem.
+
+## Rodar
+
+```bash
+npm install
+npm run dev
+```
+
+Abre em `http://localhost:5173`.
+
+```bash
+npm test          # testes do núcleo (geometria, escala, coordenadas)
+npm run build     # gera dist/ estático, abre por file:// sem servidor
+```
+
+## Estrutura
+
+```
+src/core/       modelo, geometria, escala, comandos — puro, sem DOM, testável
+src/render/     doc → SVG, modo tela ou papel — a mesma função para PDF
+src/ui/         React: toolbars, canvas, painéis
+src/store/      documento (salvo) + editor (efêmero)
+src/platform/   arquivo, PDF, impressão
+```
+
+Dependência unidirecional: `ui → render → core`. `core` não importa React
+nem toca no DOM.
+
+## Estado
+
+| Fase | Entrega | Status |
+|---|---|---|
+| 0 | Scaffold, store, camadas | ✅ |
+| 1 | Coordenadas em metros, viewport, grid, régua, snap | ✅ |
+| 2 | Spike de PDF + página e escala de impressão | — |
+| 3 | Objetos: seleção, mover, girar, undo/redo | — |
+| 4 | Persistência: novo/abrir/salvar + migrações | — |
+| 5 | Pista: retângulo, polígono, desenho livre | — |
+| 6 | Imagem de fundo + calibração de escala | — |
+| 7 | Obstáculos + propriedades + setas | — |
+| 8 | Traçados, curvas, comprimento | — |
+| 9 | Detecção de interferência | — |
+| 10 | Textos, quadro técnico, tabela de alturas | — |
+| 11 | Ornamentação | — |
+| 12 | Impressão, PDF, ajustar ao papel | — |
+
+Decisões técnicas em [docs/DECISOES.md](docs/DECISOES.md).
+
+## Atalhos
+
+| | |
+|---|---|
+| roda do mouse | zoom sob o cursor |
+| espaço ou botão do meio | mover a vista |
+| Alt | suspender o snap |
+| G / S | grid / snap |
+| Ctrl+Z / Ctrl+Y | desfazer / refazer |
+| Ctrl+0 | ajustar página |
+| Esc | limpar seleção |
