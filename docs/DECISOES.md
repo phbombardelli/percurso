@@ -142,6 +142,45 @@ imediatamente superior (`STANDARD_SCALES`), como em desenho técnico.
 `centerOnPage` é uma ação explícita do usuário. Reposicionamento automático
 é surpresa ruim em ferramenta técnica.
 
+## 14. Arquivo de projeto em JSON legível, com envelope versionado
+
+`.pcs` é JSON indentado, não um binário nem um zip. Um croqui é documento
+de trabalho que pode precisar ser recuperado anos depois, possivelmente
+sem este programa à mão; formato legível é seguro de graça, e o custo em
+tamanho é irrelevante (um croqui completo dá alguns kB, e as imagens de
+fundo já vão embutidas como data URL de todo jeito).
+
+O envelope (`format`, `schemaVersion`, `savedAt`, `appVersion`) fica
+separado do documento para que a versão possa ser lida **antes** de
+qualquer tentativa de interpretar o conteúdo. A ordem na leitura é:
+analisar → conferir envelope → **migrar** → validar. Migrar antes de
+validar é o que permite abrir um arquivo antigo que já não passaria na
+validação de hoje.
+
+Migrações são funções sobre JSON cru, nunca sobre os tipos do modelo — os
+tipos vão continuar mudando, e uma migração antiga escrita sobre eles
+deixaria de compilar. Uma vez publicada, uma migração nunca mais muda.
+
+## 15. Na leitura, geometria é erro; acessório é aviso
+
+- Página, escala, coordenadas, rotações: **erro**, a abertura para. Abrir
+  em silêncio um croqui com medidas erradas é pior do que não abrir.
+- Camada faltando, objeto de tipo desconhecido (gravado por versão mais
+  nova), campo acessório ausente: **aviso**, o resto do arquivo abre.
+
+Nunca "consertar" uma coordenada em silêncio.
+
+## 16. Gravar por cima quando o navegador permite
+
+Com a File System Access API (Chrome, Edge), "Salvar" grava no mesmo
+arquivo. Sem ela (Firefox, Safari), cai para download — o usuário perde o
+"salvar por cima", não o trabalho. É por isso que o estado "não salvo"
+precisa ficar visível na barra superior, e que existe confirmação antes de
+descartar alterações e aviso do navegador ao fechar.
+
+Não há salvamento automático nem rascunho local, por pedido explícito: o
+usuário decide quando salvar.
+
 ---
 
 ## Ordem das fases

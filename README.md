@@ -38,7 +38,7 @@ nem toca no DOM.
 | 1 | Coordenadas em metros, viewport, grid, régua, snap | ✅ |
 | 2 | Exportação PDF vetorial, impressão, página e escala | ✅ |
 | 3 | Objetos: seleção, mover, girar, undo/redo | ✅ |
-| 4 | Persistência: novo/abrir/salvar + migrações | — |
+| 4 | Persistência: novo/abrir/salvar + migrações | ✅ |
 | 5 | Pista: retângulo, polígono, desenho livre | — |
 | 6 | Imagem de fundo + calibração de escala | — |
 | 7 | Obstáculos + propriedades + setas | — |
@@ -59,5 +59,10 @@ Decisões técnicas em [docs/DECISOES.md](docs/DECISOES.md).
 | Alt | suspender o snap |
 | G / S | grid / snap |
 | Ctrl+Z / Ctrl+Y | desfazer / refazer |
+| Ctrl+N / Ctrl+O | novo / abrir |
+| Ctrl+S / Ctrl+Shift+S | salvar / salvar como |
+| Ctrl+C / V / D | copiar / colar / duplicar |
+| setas / Shift+setas | mover pelo passo do snap / 10x |
+| Delete | excluir a seleção |
 | Ctrl+0 | ajustar página |
 | Esc | limpar seleção |

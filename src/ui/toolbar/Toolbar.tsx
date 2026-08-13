@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { pageRectMm } from '@core/model/document';
 import { exportDocumentPdf } from '@platform/exportPdf';
 import { printDocument } from '@platform/print';
+import {
+  newDocument,
+  openDocument,
+  saveDocument,
+  saveDocumentAs,
+} from '@ui/actions/documentActions';
 import { fitToRect, MAX_ZOOM, MIN_ZOOM, ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 import { clamp } from '@core/geometry/vec';
 import { useDocumentStore } from '@store/documentStore';
@@ -45,9 +51,12 @@ export function Toolbar() {
       </div>
 
       <div className="toolbar-group">
-        <button disabled title="Fase 4">Novo</button>
-        <button disabled title="Fase 4">Abrir</button>
-        <button disabled title="Fase 4">Salvar</button>
+        <button onClick={newDocument} title="Novo croqui (Ctrl+N)">Novo</button>
+        <button onClick={() => void openDocument()} title="Abrir projeto (Ctrl+O)">Abrir</button>
+        <button onClick={() => void saveDocument()} title="Salvar (Ctrl+S)">Salvar</button>
+        <button onClick={() => void saveDocumentAs()} title="Salvar como (Ctrl+Shift+S)">
+          Salvar como
+        </button>
         <button onClick={exportPdf} disabled={busy} title="Exportar croqui em PDF vetorial">
           {busy ? 'Exportando…' : 'Exportar PDF'}
         </button>

@@ -21,6 +21,12 @@ import { RenderDocument } from '@render/renderDocument';
 import { color } from '@render/style/tokens';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
+import {
+  newDocument,
+  openDocument,
+  saveDocument,
+  saveDocumentAs,
+} from '@ui/actions/documentActions';
 import { useElementSize } from '@ui/hooks/useElementSize';
 import { RULER_SIZE, Rulers } from './Rulers';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -169,7 +175,16 @@ export function Canvas() {
 
       const key = e.key.toLowerCase();
 
-      if (ctrl && key === 'z' && !e.shiftKey) {
+      if (ctrl && key === 's') {
+        e.preventDefault();
+        void (e.shiftKey ? saveDocumentAs() : saveDocument());
+      } else if (ctrl && key === 'o') {
+        e.preventDefault();
+        void openDocument();
+      } else if (ctrl && key === 'n') {
+        e.preventDefault();
+        newDocument();
+      } else if (ctrl && key === 'z' && !e.shiftKey) {
         e.preventDefault();
         st.undo();
       } else if (ctrl && (key === 'y' || (key === 'z' && e.shiftKey))) {
@@ -232,7 +247,7 @@ export function Canvas() {
         st.apply('Alternar grid', (d) => {
           d.grid.visible = !d.grid.visible;
         });
-      } else if (key === 's' && !ctrl) {
+      } else if (key === 's') {
         st.apply('Alternar snap', (d) => {
           d.grid.snap = !d.grid.snap;
         });

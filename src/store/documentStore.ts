@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { applyPatches, enablePatches, produceWithPatches, type Patch } from 'immer';
 import type { CourseDocument } from '@core/model/types';
 import { createDocument } from '@core/model/document';
+import type { FileHandleLike } from '@platform/fileSystem';
 
 enablePatches();
 
@@ -21,16 +22,18 @@ interface DocumentState {
   future: HistoryEntry[];
   dirty: boolean;
   fileName: string | null;
+  /** Arquivo aberto, quando o navegador permite gravar por cima. */
+  fileHandle: FileHandleLike | null;
 
   /** Única porta de entrada para mutar o documento. */
   apply: (label: string, recipe: (draft: CourseDocument) => void, mergeKey?: string) => void;
   /** Mutação sem histórico — só para carregar/trocar o documento inteiro. */
-  replace: (doc: CourseDocument, fileName?: string | null) => void;
+  replace: (doc: CourseDocument, file?: { name: string | null; handle: FileHandleLike | null }) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
-  markSaved: (fileName?: string | null) => void;
+  markSaved: (file: { name: string; handle: FileHandleLike | null }) => void;
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
@@ -39,6 +42,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   future: [],
   dirty: false,
   fileName: null,
+  fileHandle: null,
 
   apply: (label, recipe, mergeKey) => {
     const state = get();
@@ -65,8 +69,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     set({ doc: nextDoc, past, future: [], dirty: true });
   },
 
-  replace: (doc, fileName = null) =>
-    set({ doc, past: [], future: [], dirty: false, fileName }),
+  replace: (doc, file) =>
+    set({
+      doc,
+      past: [],
+      future: [],
+      dirty: false,
+      fileName: file?.name ?? null,
+      fileHandle: file?.handle ?? null,
+    }),
 
   undo: () => {
     const { past, future, doc } = get();
@@ -94,6 +105,5 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   canUndo: () => get().past.length > 0,
   canRedo: () => get().future.length > 0,
-  markSaved: (fileName) =>
-    set((s) => ({ dirty: false, fileName: fileName === undefined ? s.fileName : fileName })),
+  markSaved: ({ name, handle }) => set({ dirty: false, fileName: name, fileHandle: handle }),
 }));
