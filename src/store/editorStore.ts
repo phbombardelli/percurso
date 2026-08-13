@@ -9,7 +9,7 @@ import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
  * zoom, seleção e ferramenta ativa não são dados do croqui.
  */
 
-export type Tool = 'select' | 'pan' | 'ornament';
+export type Tool = 'select' | 'pan' | 'ornament' | 'arena-rect' | 'arena-polygon';
 
 interface EditorState {
   tool: Tool;
@@ -24,6 +24,13 @@ interface EditorState {
   clipboard: SceneObject[];
   /** Tipo de ornamento que a ferramenta de inserção vai criar. */
   ornamentType: OrnamentType;
+  /**
+   * Desenho em andamento (contorno da pista): vértices já fixados e o
+   * ponto sob o cursor. Some ao concluir ou cancelar — nunca vira dado.
+   */
+  draft: { points: Vec2[]; cursor: Vec2 | null } | null;
+  /** Modo de edição de vértices do contorno selecionado. */
+  editingVertices: boolean;
 
   setTool: (tool: Tool) => void;
   setViewport: (vp: Viewport) => void;
@@ -35,6 +42,11 @@ interface EditorState {
   togglePageFrame: () => void;
   setClipboard: (objs: SceneObject[]) => void;
   setOrnamentType: (t: OrnamentType) => void;
+  startDraft: (first: Vec2) => void;
+  addDraftPoint: (p: Vec2) => void;
+  setDraftCursor: (p: Vec2 | null) => void;
+  clearDraft: () => void;
+  setEditingVertices: (v: boolean) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -46,6 +58,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   showPageFrame: true,
   clipboard: [],
   ornamentType: 'arvore',
+  draft: null,
+  editingVertices: false,
 
   setTool: (tool) => set({ tool }),
   setViewport: (viewport) => set({ viewport }),
@@ -62,4 +76,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   togglePageFrame: () => set((s) => ({ showPageFrame: !s.showPageFrame })),
   setClipboard: (clipboard) => set({ clipboard }),
   setOrnamentType: (ornamentType) => set({ ornamentType }),
+  startDraft: (first) => set({ draft: { points: [first], cursor: first } }),
+  addDraftPoint: (p) =>
+    set((s) => (s.draft ? { draft: { ...s.draft, points: [...s.draft.points, p] } } : {})),
+  setDraftCursor: (cursor) => set((s) => (s.draft ? { draft: { ...s.draft, cursor } } : {})),
+  clearDraft: () => set({ draft: null }),
+  setEditingVertices: (editingVertices) => set({ editingVertices }),
 }));

@@ -1,6 +1,6 @@
 import type { Vec2 } from '@core/geometry/vec';
 import { rotate } from '@core/geometry/vec';
-import { rectanglePoints } from '@core/geometry/outline';
+import { arenaPoints } from './arena';
 import { paperToMeters } from '@core/scale/units';
 import type { Meters, PrintScale } from '@core/scale/units';
 import type { SceneObject } from './types';
@@ -117,13 +117,8 @@ export function rotateAround(
 
 export function getBounds(obj: SceneObject, printScale: PrintScale): Bounds {
   switch (obj.kind) {
-    case 'arena': {
-      const pts =
-        obj.shape === 'rectangle'
-          ? rectanglePoints(obj.origin, obj.widthM, obj.heightM)
-          : obj.points;
-      return boundsOf(pts);
-    }
+    case 'arena':
+      return boundsOf(arenaPoints(obj));
     case 'obstacle': {
       const halfW = obj.faceWidthM / 2;
       const halfD = Math.max(obj.spreadM ?? 0, 0.6) / 2;

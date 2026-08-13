@@ -12,6 +12,9 @@ interface Props {
   zoom: number;
   marquee: Marquee | null;
   onRotateHandleDown: (e: React.PointerEvent) => void;
+  /** Some quando nada na seleção tem rotação própria (o caso da pista). */
+  showRotate: boolean;
+  children?: React.ReactNode;
 }
 
 const HANDLE_PX = 7;
@@ -21,7 +24,15 @@ const ROTATE_GAP_PX = 22;
  * Alças e realces de seleção. Fica FORA do grupo exportável: nada daqui
  * pode aparecer no PDF (docs/DECISOES.md, decisão 6).
  */
-export function SelectionOverlay({ doc, selection, zoom, marquee, onRotateHandleDown }: Props) {
+export function SelectionOverlay({
+  doc,
+  selection,
+  zoom,
+  marquee,
+  onRotateHandleDown,
+  showRotate,
+  children,
+}: Props) {
   const k = mmPerMeter(doc.page.printScale);
   const toPaper = (p: Vec2): Vec2 => ({
     x: doc.originMm.x + p.x * k,
@@ -60,9 +71,12 @@ export function SelectionOverlay({ doc, selection, zoom, marquee, onRotateHandle
           min={toPaper(bounds.min)}
           max={toPaper(bounds.max)}
           mm={mm}
+          showRotate={showRotate}
           onRotateHandleDown={onRotateHandleDown}
         />
       )}
+
+      {children}
 
       {marquee && (
         <rect
@@ -84,11 +98,13 @@ function SelectionFrame({
   min,
   max,
   mm,
+  showRotate,
   onRotateHandleDown,
 }: {
   min: Vec2;
   max: Vec2;
   mm: (px: number) => number;
+  showRotate: boolean;
   onRotateHandleDown: (e: React.PointerEvent) => void;
 }) {
   const pad = mm(3);
@@ -128,25 +144,29 @@ function SelectionFrame({
           strokeWidth={mm(1)}
         />
       ))}
-      <line
-        x1={x + w / 2}
-        y1={y}
-        x2={rotateAt.x}
-        y2={rotateAt.y}
-        stroke={color.selection}
-        strokeWidth={mm(1)}
-      />
-      <circle
-        cx={rotateAt.x}
-        cy={rotateAt.y}
-        r={mm(HANDLE_PX) / 1.6}
-        fill="#ffffff"
-        stroke={color.selection}
-        strokeWidth={mm(1.2)}
-        pointerEvents="all"
-        style={{ cursor: 'grab' }}
-        onPointerDown={onRotateHandleDown}
-      />
+      {showRotate && (
+        <>
+          <line
+            x1={x + w / 2}
+            y1={y}
+            x2={rotateAt.x}
+            y2={rotateAt.y}
+            stroke={color.selection}
+            strokeWidth={mm(1)}
+          />
+          <circle
+            cx={rotateAt.x}
+            cy={rotateAt.y}
+            r={mm(HANDLE_PX) / 1.6}
+            fill="#ffffff"
+            stroke={color.selection}
+            strokeWidth={mm(1.2)}
+            pointerEvents="all"
+            style={{ cursor: 'grab' }}
+            onPointerDown={onRotateHandleDown}
+          />
+        </>
+      )}
     </g>
   );
 }

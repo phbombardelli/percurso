@@ -1,5 +1,6 @@
 import type { Vec2 } from '@core/geometry/vec';
-import { polygonPathD, rectanglePoints } from '@core/geometry/outline';
+import { arenaExtent, arenaPoints } from '@core/model/arena';
+import { polygonPathD } from '@core/geometry/outline';
 import { mmPerMeter } from '@core/scale/units';
 import type { Arena } from '@core/model/types';
 import { color, font, stroke, text } from '@render/style/tokens';
@@ -21,12 +22,12 @@ export function ArenaLayer({ arena, printScale, originMm, selected, onPointerDow
   const k = mmPerMeter(printScale);
   const toPaper = (p: Vec2): Vec2 => ({ x: originMm.x + p.x * k, y: originMm.y + p.y * k });
 
-  const points =
-    arena.shape === 'rectangle'
-      ? rectanglePoints(arena.origin, arena.widthM, arena.heightM)
-      : arena.points;
-
-  const d = polygonPathD(points, arena.corner.style, arena.corner.radiusM * k, toPaper);
+  const d = polygonPathD(
+    arenaPoints(arena),
+    arena.corner.style,
+    arena.corner.radiusM * k,
+    toPaper,
+  );
 
   return (
     <g data-object={arena.id} data-kind="arena">
@@ -62,10 +63,13 @@ function PerimeterRuler({
   const { stepM, labelEveryM, sides } = arena.perimeterRuler;
   if (!(stepM > 0)) return null;
 
-  const x0 = arena.origin.x;
-  const y0 = arena.origin.y;
-  const x1 = x0 + arena.widthM;
-  const y1 = y0 + arena.heightM;
+  // Pela caixa envolvente: num contorno irregular, a régua continua sendo
+  // uma referência retilínea, como nos croquis impressos.
+  const extent = arenaExtent(arena);
+  const x0 = extent.origin.x;
+  const y0 = extent.origin.y;
+  const x1 = x0 + extent.widthM;
+  const y1 = y0 + extent.heightM;
 
   const ticks: JSX.Element[] = [];
   const isLabel = (m: number) => labelEveryM > 0 && Math.abs(m % labelEveryM) < stepM / 1000;
@@ -112,11 +116,11 @@ function PerimeterRuler({
   const tickMajorM = TICK_MAJOR_MM / k;
   const gapM = LABEL_GAP_MM / k;
 
-  for (let m = 0; m <= arena.widthM + 1e-9; m += stepM) {
+  for (let m = 0; m <= extent.widthM + 1e-9; m += stepM) {
     const major = isLabel(m);
     const len = major ? tickMajorM : tickM;
     const x = x0 + m;
-    const label = major && m > 0 && m < arena.widthM ? String(Math.round(m)) : null;
+    const label = major && m > 0 && m < extent.widthM ? String(Math.round(m)) : null;
     if (sides.top) {
       push(`t${m}`, { x, y: y0 }, { x, y: y0 - len }, label, { x, y: y0 - len - gapM }, 'middle', 'auto');
     }
@@ -125,11 +129,11 @@ function PerimeterRuler({
     }
   }
 
-  for (let m = 0; m <= arena.heightM + 1e-9; m += stepM) {
+  for (let m = 0; m <= extent.heightM + 1e-9; m += stepM) {
     const major = isLabel(m);
     const len = major ? tickMajorM : tickM;
     const y = y0 + m;
-    const label = major && m > 0 && m < arena.heightM ? String(Math.round(m)) : null;
+    const label = major && m > 0 && m < extent.heightM ? String(Math.round(m)) : null;
     if (sides.left) {
       push(`l${m}`, { x: x0, y }, { x: x0 - len, y }, label, { x: x0 - len - gapM, y }, 'end', 'middle');
     }

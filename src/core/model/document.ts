@@ -1,6 +1,6 @@
 import type { Vec2 } from '@core/geometry/vec';
 import { fitScale, pageSize, usableArea } from '@core/scale/units';
-import { newId } from './ids';
+import { createRectangleArena } from './arena';
 import type {
   Arena,
   CourseDocument,
@@ -29,29 +29,8 @@ export function defaultLayers(): Layer[] {
   }));
 }
 
-export function createArena(widthM = 80, heightM = 40): Arena {
-  return {
-    id: newId('arena'),
-    kind: 'arena',
-    layer: 'arena',
-    locked: false,
-    visible: true,
-    z: 0,
-    shape: 'rectangle',
-    origin: { x: 0, y: 0 },
-    widthM,
-    heightM,
-    points: [],
-    corner: { style: 'chamfer', radiusM: 4 },
-    perimeterRuler: {
-      visible: true,
-      stepM: 5,
-      labelEveryM: 5,
-      sides: { top: true, right: true, bottom: true, left: true },
-    },
-    style: { strokeMm: 0.5, fill: '#ffffff', stroke: '#1a1a1a' },
-  };
-}
+export const createArena = (widthM = 80, heightM = 40): Arena =>
+  createRectangleArena({ x: 0, y: 0 }, widthM, heightM);
 
 /** Documento novo: A3 paisagem, pista 80×40 centralizada na área útil. */
 export function createDocument(): CourseDocument {

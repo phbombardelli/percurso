@@ -167,6 +167,14 @@ button.danger:hover:not(:disabled) { background: #fdefef; border-color: #d08080;
 }
 .tool-options button { padding: 2px 6px; font-size: 12px; }
 
+.side-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+  margin: 4px 0 2px;
+  font-size: 12px;
+}
+
 /* ----------------------------------------------------------- statusbar */
 
 .statusbar {

@@ -181,6 +181,28 @@ descartar alterações e aviso do navegador ao fechar.
 Não há salvamento automático nem rascunho local, por pedido explícito: o
 usuário decide quando salvar.
 
+## 17. Uma única fonte para o contorno da pista
+
+`arenaPoints()` é a única forma de obter os vértices. O desenho, a
+envoltória, o teste de clique, o perímetro e a área consomem essa função —
+antes o retângulo era reconstruído em cada lugar, e bastaria um deles
+esquecer o caso do polígono para o clique deixar de bater com o traço.
+
+A régua de perímetro usa a **caixa envolvente**, não o contorno: mesmo num
+contorno irregular ela continua sendo uma referência retilínea, como nos
+croquis impressos.
+
+Converter retângulo em contorno livre é caminho de mão única. O contrário
+teria de jogar fora o desenho do usuário para caber num retângulo.
+
+## 18. Estado que o evento consulta, e não o que o render capturou
+
+Manipuladores de ponteiro leem a ferramenta ativa de
+`useEditorStore.getState()` no instante do evento. Lida do render, o
+primeiro clique logo depois de trocar de ferramenta ainda usaria a
+anterior — o React só re-renderiza no microtask seguinte. Falha real
+encontrada na verificação da fase 5.
+
 ---
 
 ## Ordem das fases

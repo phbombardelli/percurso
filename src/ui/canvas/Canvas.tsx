@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { insertArenaVertex } from '@core/commands/arenaOps';
 import { addObject, deleteObjects, duplicateObjects } from '@core/commands/ops';
 import { snapPoint, toMillimeterPrecision } from '@core/geometry/snap';
-import type { Vec2 } from '@core/geometry/vec';
+import { distance, type Vec2 } from '@core/geometry/vec';
 import { createOrnament } from '@core/library/ornaments';
+import { createPolygonArena, createRectangleArena } from '@core/model/arena';
 import { deepClone } from '@core/model/clone';
 import { newId } from '@core/model/ids';
 import { pageRectMm } from '@core/model/document';
-import { translate } from '@core/model/transform';
+import { getRotation, translate } from '@core/model/transform';
 import type { SceneObject } from '@core/model/types';
+import { mmPerMeter } from '@core/scale/units';
 import {
   fitToRect,
   metersPerPixel as mppOf,
@@ -28,6 +31,7 @@ import {
   saveDocumentAs,
 } from '@ui/actions/documentActions';
 import { useElementSize } from '@ui/hooks/useElementSize';
+import { ArenaDraft, ArenaHandles } from './ArenaHandles';
 import { RULER_SIZE, Rulers } from './Rulers';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useObjectGestures } from './useObjectGestures';
@@ -37,8 +41,19 @@ const PASTE_OFFSET_M = 1;
 
 export function Canvas() {
   const doc = useDocumentStore((s) => s.doc);
-  const { viewport, setViewport, tool, setTool, selection, setSelection, cursorM, setCursor, showPageFrame } =
-    useEditorStore();
+  const {
+    viewport,
+    setViewport,
+    tool,
+    setTool,
+    selection,
+    setSelection,
+    cursorM,
+    setCursor,
+    showPageFrame,
+    draft,
+    editingVertices,
+  } = useEditorStore();
 
   const { ref, size: wrapSize } = useElementSize<HTMLDivElement>();
   /**
@@ -70,6 +85,55 @@ export function Canvas() {
 
   const gestures = useObjectGestures(toModel);
 
+  /** Ponto do modelo já alinhado ao grid, quando o snap está ativo. */
+  const snapped = useCallback(
+    (p: Vec2): Vec2 => {
+      const use = doc.grid.snap && !useEditorStore.getState().snapSuspended;
+      const out = use ? snapPoint(p, doc.grid.snapStepM) : p;
+      return { x: toMillimeterPrecision(out.x), y: toMillimeterPrecision(out.y) };
+    },
+    [doc.grid.snap, doc.grid.snapStepM],
+  );
+
+  /** Tolerância de fechamento do contorno: 10 px, convertidos para metros. */
+  const closeToleranceM = useCallback(
+    () => 10 * mppOf(viewport, doc.page.printScale),
+    [viewport, doc.page.printScale],
+  );
+
+  const finishPolygon = useCallback(() => {
+    const ed = useEditorStore.getState();
+    const points = ed.draft?.points ?? [];
+    ed.clearDraft();
+    if (points.length < 3) return;
+    const arena = createPolygonArena(points);
+    useDocumentStore.getState().apply('Desenhar pista', (d) => addObject(d, arena));
+    ed.setSelection([arena.id]);
+    ed.setEditingVertices(true);
+    ed.setTool('select');
+  }, []);
+
+  const finishRectangle = useCallback(() => {
+    const ed = useEditorStore.getState();
+    const draft = ed.draft;
+    ed.clearDraft();
+    if (!draft?.cursor) return;
+    const a = draft.points[0]!;
+    const b = draft.cursor;
+    const widthM = Math.abs(b.x - a.x);
+    const heightM = Math.abs(b.y - a.y);
+    // Arrasto muito curto costuma ser clique acidental.
+    if (widthM < 2 || heightM < 2) return;
+    const arena = createRectangleArena(
+      { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) },
+      widthM,
+      heightM,
+    );
+    useDocumentStore.getState().apply('Criar pista', (d) => addObject(d, arena));
+    ed.setSelection([arena.id]);
+    ed.setTool('select');
+  }, []);
+
   const fitPage = useCallback(() => {
     if (size.width > 0) setViewport(fitToRect(pageRectMm(doc), size));
   }, [doc, size, setViewport]);
@@ -90,11 +154,19 @@ export function Canvas() {
     [viewport, size, setViewport, localPoint],
   );
 
+  /**
+   * A ferramenta ativa é lida no momento do evento, e não do render. Se
+   * viesse do render, o primeiro clique logo depois de trocar de
+   * ferramenta ainda usaria a anterior.
+   */
+  const activeTool = () => useEditorStore.getState().tool;
+
   const wantsPan = (e: React.PointerEvent) =>
-    tool === 'pan' || e.button === 1 || spaceDown.current;
+    activeTool() === 'pan' || e.button === 1 || spaceDown.current;
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      const tool = activeTool();
       if (wantsPan(e)) {
         e.preventDefault();
         panState.current = { pointerId: e.pointerId, last: { x: e.clientX, y: e.clientY } };
@@ -107,15 +179,33 @@ export function Canvas() {
       }
       if (e.button !== 0) return;
 
+      if (tool === 'arena-rect') {
+        useEditorStore.getState().startDraft(snapped(toModel(e)));
+        return;
+      }
+
+      if (tool === 'arena-polygon') {
+        const ed = useEditorStore.getState();
+        const p = snapped(toModel(e));
+        if (!ed.draft) {
+          ed.startDraft(p);
+          return;
+        }
+        // Clicar de volta no primeiro vértice fecha o contorno.
+        const first = ed.draft.points[0]!;
+        if (ed.draft.points.length >= 3 && distance(first, p) <= closeToleranceM()) {
+          finishPolygon();
+          return;
+        }
+        ed.addDraftPoint(p);
+        return;
+      }
+
       if (tool === 'ornament') {
-        const raw = toModel(e);
-        const p = doc.grid.snap && !useEditorStore.getState().snapSuspended
-          ? snapPoint(raw, doc.grid.snapStepM)
-          : raw;
-        const ornament = createOrnament(useEditorStore.getState().ornamentType, {
-          x: toMillimeterPrecision(p.x),
-          y: toMillimeterPrecision(p.y),
-        });
+        const ornament = createOrnament(
+          useEditorStore.getState().ornamentType,
+          snapped(toModel(e)),
+        );
         useDocumentStore.getState().apply('Inserir ornamento', (d) => addObject(d, ornament));
         setSelection([ornament.id]);
         if (!e.shiftKey) setTool('select');
@@ -124,7 +214,7 @@ export function Canvas() {
 
       gestures.beginMarquee(e);
     },
-    [tool, doc.grid, toModel, gestures, setSelection, setTool],
+    [toModel, snapped, closeToleranceM, finishPolygon, gestures, setSelection, setTool],
   );
 
   const handlePointerMove = useCallback(
@@ -137,22 +227,20 @@ export function Canvas() {
       }
       gestures.onPointerMove(e);
 
-      const raw = toModel(e);
-      const snapped =
-        doc.grid.snap && !useEditorStore.getState().snapSuspended
-          ? snapPoint(raw, doc.grid.snapStepM)
-          : raw;
-      setCursor({ x: toMillimeterPrecision(snapped.x), y: toMillimeterPrecision(snapped.y) });
+      const p = snapped(toModel(e));
+      setCursor(p);
+      if (useEditorStore.getState().draft) useEditorStore.getState().setDraftCursor(p);
     },
-    [viewport, doc.grid, setViewport, setCursor, toModel, gestures],
+    [viewport, setViewport, setCursor, toModel, gestures, snapped],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       if (panState.current?.pointerId === e.pointerId) panState.current = null;
+      if (activeTool() === 'arena-rect') finishRectangle();
       gestures.onPointerUp();
     },
-    [gestures],
+    [gestures, finishRectangle],
   );
 
   /* ------------------------------------------------------------ teclado */
@@ -174,6 +262,20 @@ export function Canvas() {
       if (e.altKey) ed.setSnapSuspended(true);
 
       const key = e.key.toLowerCase();
+
+      // O contorno em construção tem prioridade sobre os atalhos gerais.
+      if (ed.draft) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          finishPolygon();
+          return;
+        }
+        if (e.key === 'Escape') {
+          ed.clearDraft();
+          ed.setTool('select');
+          return;
+        }
+      }
 
       if (ctrl && key === 's') {
         e.preventDefault();
@@ -255,6 +357,7 @@ export function Canvas() {
         ed.setTool('select');
       } else if (e.key === 'Escape') {
         ed.setTool('select');
+        ed.setEditingVertices(false);
         ed.clearSelection();
       } else if (e.key === '0' && ctrl) {
         e.preventDefault();
@@ -275,8 +378,18 @@ export function Canvas() {
 
   const mpp = mppOf(viewport, doc.page.printScale);
   const box = viewBox(viewport, size);
-  const cursor =
-    tool === 'pan' ? 'grab' : tool === 'ornament' ? 'crosshair' : 'default';
+  const cursor = tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
+
+  const k = mmPerMeter(doc.page.printScale);
+  const toPaper = (p: Vec2): Vec2 => ({
+    x: doc.originMm.x + p.x * k,
+    y: doc.originMm.y + p.y * k,
+  });
+  const selectedObjects = doc.objects.filter((o) => selection.includes(o.id));
+  const selectedArena =
+    selectedObjects.length === 1 && selectedObjects[0]!.kind === 'arena'
+      ? selectedObjects[0]
+      : null;
 
   return (
     <div className="canvas-wrap" ref={ref}>
@@ -303,7 +416,7 @@ export function Canvas() {
             metersPerPixel={mpp}
             showPageFrame={showPageFrame}
             onObjectPointerDown={(id, e) => {
-              if (wantsPan(e) || tool !== 'select' || e.button !== 0) return;
+              if (wantsPan(e) || activeTool() !== 'select' || e.button !== 0) return;
               e.stopPropagation();
               gestures.beginDrag(e, id);
             }}
@@ -313,11 +426,38 @@ export function Canvas() {
             selection={selection}
             zoom={viewport.zoom}
             marquee={gestures.marquee}
+            showRotate={selectedObjects.some((o) => getRotation(o) !== null)}
             onRotateHandleDown={(e) => {
               e.stopPropagation();
               gestures.beginRotate(e);
             }}
-          />
+          >
+            {selectedArena && (
+              <ArenaHandles
+                arena={selectedArena}
+                toPaper={toPaper}
+                zoom={viewport.zoom}
+                editingVertices={editingVertices}
+                onVertexDown={(e, i) => gestures.beginVertexDrag(e, selectedArena.id, i)}
+                onCornerDown={(e, c) => gestures.beginResize(e, selectedArena.id, c)}
+                onEdgeDoubleClick={(i) =>
+                  useDocumentStore
+                    .getState()
+                    .apply('Inserir vértice', (d) => {
+                      insertArenaVertex(d, selectedArena.id, i);
+                    })
+                }
+              />
+            )}
+            {draft && (
+              <ArenaDraft
+                points={draft.points}
+                cursor={draft.cursor}
+                toPaper={toPaper}
+                zoom={viewport.zoom}
+              />
+            )}
+          </SelectionOverlay>
         </svg>
       </div>
 

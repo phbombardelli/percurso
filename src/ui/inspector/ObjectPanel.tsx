@@ -5,6 +5,7 @@ import type { OrnamentType, SceneObject } from '@core/model/types';
 import { formatMeters } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
+import { ArenaPanel } from './ArenaPanel';
 import { NumberField } from './NumberField';
 
 const KIND_LABEL: Record<SceneObject['kind'], string> = {
@@ -79,6 +80,7 @@ export function ObjectPanel() {
               onCommit={(v) => apply('Rotação', (d) => setObjectRotation(d, single.id, v))}
             />
           )}
+          {single.kind === 'arena' && <ArenaPanel arena={single} />}
           {single.kind === 'ornament' && (
             <>
               <label className="field">

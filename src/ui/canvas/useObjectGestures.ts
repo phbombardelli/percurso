@@ -1,10 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { angleOf, normalizeAngle, type Vec2 } from '@core/geometry/vec';
-import { snapAngle } from '@core/geometry/snap';
-import {
-  moveObjectsSnapped,
-  rotateObjects,
-} from '@core/commands/ops';
+import { snapAngle, snapPoint } from '@core/geometry/snap';
+import { moveObjectsSnapped, rotateObjects } from '@core/commands/ops';
+import { moveArenaVertex, resizeArenaByCorner } from '@core/commands/arenaOps';
 import { getBounds, boundsCenter, boundsContains, unionBounds } from '@core/model/transform';
 import type { ObjectId } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
@@ -18,7 +16,9 @@ export interface Marquee {
 type Gesture =
   | { kind: 'drag'; anchorId: ObjectId; startM: Vec2; applied: Vec2 }
   | { kind: 'rotate'; pivot: Vec2; startAngle: number; applied: number }
-  | { kind: 'marquee'; startM: Vec2 };
+  | { kind: 'marquee'; startM: Vec2 }
+  | { kind: 'vertex'; arenaId: ObjectId; index: number }
+  | { kind: 'resize'; arenaId: ObjectId; corner: 0 | 1 | 2 | 3 };
 
 /**
  * Gestos sobre objetos: arrastar, girar e seleção por retângulo.
@@ -84,6 +84,23 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
 
       const store = useDocumentStore.getState();
       const { selection } = useEditorStore.getState();
+
+      // Vértice e alça de canto arrastam para uma posição absoluta, e não
+      // por deslocamento: o snap precisa valer para o ponto de destino.
+      if (current.kind === 'vertex' || current.kind === 'resize') {
+        const step = snapStep();
+        const target = step > 0 ? snapPoint(p, step) : p;
+        const { arenaId } = current;
+        store.apply(
+          current.kind === 'vertex' ? 'Mover vértice' : 'Redimensionar pista',
+          (doc) =>
+            current.kind === 'vertex'
+              ? moveArenaVertex(doc, arenaId, current.index, target)
+              : resizeArenaByCorner(doc, arenaId, current.corner, target),
+          `gesto-${current.kind}`,
+        );
+        return;
+      }
 
       if (current.kind === 'drag') {
         const total = { x: p.x - current.startM.x, y: p.y - current.startM.y };
@@ -165,6 +182,24 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
     [toModel],
   );
 
+  const beginVertexDrag = useCallback(
+    (e: React.PointerEvent, arenaId: ObjectId, index: number) => {
+      gesture.current = { kind: 'vertex', arenaId, index };
+      pending.current = toModel(e);
+      capture(e.target as Element, e.pointerId);
+    },
+    [toModel],
+  );
+
+  const beginResize = useCallback(
+    (e: React.PointerEvent, arenaId: ObjectId, corner: 0 | 1 | 2 | 3) => {
+      gesture.current = { kind: 'resize', arenaId, corner };
+      pending.current = toModel(e);
+      capture(e.target as Element, e.pointerId);
+    },
+    [toModel],
+  );
+
   const beginMarquee = useCallback(
     (e: React.PointerEvent) => {
       const start = toModel(e);
@@ -228,5 +263,14 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
     return g !== null;
   }, [applyPending, updateMarquee]);
 
-  return { beginDrag, beginRotate, beginMarquee, onPointerMove, onPointerUp, marquee };
+  return {
+    beginDrag,
+    beginRotate,
+    beginMarquee,
+    beginVertexDrag,
+    beginResize,
+    onPointerMove,
+    onPointerUp,
+    marquee,
+  };
 }

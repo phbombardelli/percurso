@@ -6,7 +6,6 @@ import { useEditorStore } from '@store/editorStore';
  * correspondente passa a existir no modelo.
  */
 const PENDING: { icon: string; label: string; phase: number }[] = [
-  { icon: '▭', label: 'Pista', phase: 5 },
   { icon: '🖼', label: 'Imagem de fundo', phase: 6 },
   { icon: '⌗', label: 'Calibrar escala', phase: 6 },
   { icon: '▬', label: 'Obstáculo', phase: 7 },
@@ -27,6 +26,24 @@ export function Sidebar() {
           <span className="label">{t.label}</span>
         </button>
       ))}
+
+      <button
+        className={tool === 'arena-rect' ? 'active' : ''}
+        onClick={() => setTool(tool === 'arena-rect' ? 'select' : 'arena-rect')}
+        title="Arraste na área de trabalho para definir a pista. As dimensões exatas se digitam no painel."
+      >
+        <span className="icon">▭</span>
+        <span className="label">Pista</span>
+      </button>
+
+      <button
+        className={tool === 'arena-polygon' ? 'active' : ''}
+        onClick={() => setTool(tool === 'arena-polygon' ? 'select' : 'arena-polygon')}
+        title="Clique para marcar cada vértice. Enter fecha o contorno, Esc cancela."
+      >
+        <span className="icon">⬠</span>
+        <span className="label">Contorno livre</span>
+      </button>
 
       <button
         className={tool === 'ornament' ? 'active' : ''}
