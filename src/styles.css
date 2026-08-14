@@ -167,6 +167,17 @@ button.danger:hover:not(:disabled) { background: #fdefef; border-color: #d08080;
 }
 .tool-options button { padding: 2px 6px; font-size: 12px; }
 
+.calibration-box {
+  border: 1px solid #e6c3c3;
+  background: #fdf6f6;
+  border-radius: 3px;
+  padding: 6px 7px;
+  margin: 6px 0;
+}
+.calibration-box .note { margin-top: 0; }
+
+.field input[type="range"] { width: 108px; padding: 0; }
+
 .side-toggles {
   display: grid;
   grid-template-columns: 1fr 1fr;

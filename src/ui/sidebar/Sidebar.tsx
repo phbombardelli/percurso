@@ -1,4 +1,5 @@
 import { ORNAMENTS } from '@core/library/ornaments';
+import { importBackgroundImage } from '@ui/actions/imageActions';
 import { useEditorStore } from '@store/editorStore';
 
 /**
@@ -6,8 +7,6 @@ import { useEditorStore } from '@store/editorStore';
  * correspondente passa a existir no modelo.
  */
 const PENDING: { icon: string; label: string; phase: number }[] = [
-  { icon: '🖼', label: 'Imagem de fundo', phase: 6 },
-  { icon: '⌗', label: 'Calibrar escala', phase: 6 },
   { icon: '▬', label: 'Obstáculo', phase: 7 },
   { icon: '✎', label: 'Traçado', phase: 8 },
   { icon: 'T', label: 'Texto', phase: 10 },
@@ -26,6 +25,14 @@ export function Sidebar() {
           <span className="label">{t.label}</span>
         </button>
       ))}
+
+      <button
+        onClick={() => void importBackgroundImage()}
+        title="Importa PNG, JPG ou WEBP como camada de referência. O arquivo fica embutido no projeto."
+      >
+        <span className="icon">🖼</span>
+        <span className="label">Imagem de fundo</span>
+      </button>
 
       <button
         className={tool === 'arena-rect' ? 'active' : ''}

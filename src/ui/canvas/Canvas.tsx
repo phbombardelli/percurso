@@ -32,6 +32,7 @@ import {
 } from '@ui/actions/documentActions';
 import { useElementSize } from '@ui/hooks/useElementSize';
 import { ArenaDraft, ArenaHandles } from './ArenaHandles';
+import { CalibrationOverlay } from './CalibrationOverlay';
 import { RULER_SIZE, Rulers } from './Rulers';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useObjectGestures } from './useObjectGestures';
@@ -53,6 +54,7 @@ export function Canvas() {
     showPageFrame,
     draft,
     editingVertices,
+    calibration,
   } = useEditorStore();
 
   const { ref, size: wrapSize } = useElementSize<HTMLDivElement>();
@@ -179,6 +181,13 @@ export function Canvas() {
       }
       if (e.button !== 0) return;
 
+      if (tool === 'calibrate') {
+        // Sem snap: a mira segue exatamente onde o usuário clicou sobre a
+        // imagem. Alinhar ao grid aqui falsearia a própria calibração.
+        useEditorStore.getState().setCalibrationPoint(toModel(e));
+        return;
+      }
+
       if (tool === 'arena-rect') {
         useEditorStore.getState().startDraft(snapped(toModel(e)));
         return;
@@ -227,7 +236,10 @@ export function Canvas() {
       }
       gestures.onPointerMove(e);
 
-      const p = snapped(toModel(e));
+      // Durante a calibração o cursor não é alinhado ao grid: a mira tem
+      // de cair exatamente sobre a referência da imagem.
+      const raw = toModel(e);
+      const p = activeTool() === 'calibrate' ? raw : snapped(raw);
       setCursor(p);
       if (useEditorStore.getState().draft) useEditorStore.getState().setDraftCursor(p);
     },
@@ -356,6 +368,10 @@ export function Canvas() {
       } else if (key === 'v' && !ctrl) {
         ed.setTool('select');
       } else if (e.key === 'Escape') {
+        if (ed.calibration) {
+          ed.cancelCalibration();
+          return;
+        }
         ed.setTool('select');
         ed.setEditingVertices(false);
         ed.clearSelection();
@@ -447,6 +463,15 @@ export function Canvas() {
                       insertArenaVertex(d, selectedArena.id, i);
                     })
                 }
+              />
+            )}
+            {calibration && (
+              <CalibrationOverlay
+                pointA={calibration.pointA}
+                pointB={calibration.pointB}
+                cursor={cursorM}
+                toPaper={toPaper}
+                zoom={viewport.zoom}
               />
             )}
             {draft && (

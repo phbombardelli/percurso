@@ -173,6 +173,8 @@ function checkGeometry(obj: Record<string, unknown>, index: number): void {
     case 'image':
       if (!isPoint(obj.origin)) fail('a origem');
       if (!isFiniteNumber(obj.metersPerPixel) || obj.metersPerPixel <= 0) fail('a escala');
+      if (!isFiniteNumber(obj.widthPx) || !isFiniteNumber(obj.heightPx)) fail('as dimensões');
+      if (typeof obj.assetId !== 'string') fail('a referência ao arquivo');
       break;
     case 'path':
       if (!Array.isArray(obj.nodes) || obj.nodes.length === 0) fail('a lista de nós');

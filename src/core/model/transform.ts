@@ -150,11 +150,15 @@ export function getBounds(obj: SceneObject, printScale: PrintScale): Bounds {
       };
     }
     case 'image': {
-      const size = paperToMeters(1, printScale); // placeholder até a fase 6
-      return {
-        min: obj.origin,
-        max: { x: obj.origin.x + size, y: obj.origin.y + size },
-      };
+      const w = obj.widthPx * obj.metersPerPixel;
+      const h = obj.heightPx * obj.metersPerPixel;
+      const corners = [
+        { x: 0, y: 0 },
+        { x: w, y: 0 },
+        { x: w, y: h },
+        { x: 0, y: h },
+      ].map((c) => add(rotate(c, obj.rotation), obj.origin));
+      return boundsOf(corners);
     }
     case 'infobox': {
       const pos = getPosition(obj, printScale);

@@ -4,6 +4,7 @@ import { LAYER_ORDER } from '@core/model/types';
 import { pageSize } from '@core/scale/units';
 import { ArenaLayer } from './layers/ArenaLayer';
 import { GridLayer } from './layers/GridLayer';
+import { ImageLayer } from './layers/ImageLayer';
 import { OrnamentLayer } from './layers/OrnamentLayer';
 import { color, stroke } from './style/tokens';
 
@@ -91,6 +92,17 @@ export function RenderDocument(opts: RenderOptions) {
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
                 selected={isSelected(obj.id)}
+                onPointerDown={onPointerDown}
+              />
+            );
+          case 'image':
+            return (
+              <ImageLayer
+                key={obj.id}
+                image={obj}
+                asset={doc.assets[obj.assetId]}
+                printScale={doc.page.printScale}
+                originMm={doc.originMm}
                 onPointerDown={onPointerDown}
               />
             );

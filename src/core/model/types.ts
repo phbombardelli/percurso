@@ -187,6 +187,12 @@ export interface BackgroundImage extends BaseObject {
   origin: Vec2;
   /** Escala resultante da calibração: metros por pixel da imagem. */
   metersPerPixel: number;
+  /**
+   * Dimensões em pixels, copiadas do arquivo. Ficam no objeto para que a
+   * envoltória e o desenho não dependam de o asset estar carregado.
+   */
+  widthPx: number;
+  heightPx: number;
   rotation: number;
   opacity: number;
   /** Registro da calibração feita, para poder revisar/refazer. */

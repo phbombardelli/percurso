@@ -203,6 +203,31 @@ primeiro clique logo depois de trocar de ferramenta ainda usaria a
 anterior — o React só re-renderiza no microtask seguinte. Falha real
 encontrada na verificação da fase 5.
 
+## 19. A escala da imagem é um número só
+
+`metersPerPixel` relaciona o pixel do arquivo ao metro do terreno. Todas as
+formas de ajustar — calibrar pela barra do mapa, digitar a largura em
+metros — desembocam nele, e o desenho aplica esse único fator num único
+`transform`. Guardar largura e escala em separado seria convidar os dois a
+divergirem.
+
+Na calibração, o **ponto A fica parado**: é o que o usuário acabou de
+mirar, e vê-lo saltar ao confirmar a distância seria desconcertante. A
+origem da imagem é recalculada em torno dele.
+
+O clique da calibração **não usa snap**. Alinhar a mira ao grid falsearia
+a própria medição de referência.
+
+## 20. O arquivo da imagem fica embutido no projeto
+
+Data URL dentro do `.pcs`. O requisito é funcionar offline, e um croqui
+que depende de um arquivo solto na pasta do usuário deixa de abrir no
+primeiro backup mal feito. Em troca: limite de 12 MB por imagem, e o
+arquivo é apagado junto quando nenhuma imagem o referencia mais.
+
+O preenchimento da pista pode ser desligado — de outro modo, o branco
+opaco taparia a imagem de referência.
+
 ---
 
 ## Ordem das fases

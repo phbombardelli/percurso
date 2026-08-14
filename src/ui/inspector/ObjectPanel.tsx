@@ -6,6 +6,7 @@ import { formatMeters } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 import { ArenaPanel } from './ArenaPanel';
+import { ImagePanel } from './ImagePanel';
 import { NumberField } from './NumberField';
 
 const KIND_LABEL: Record<SceneObject['kind'], string> = {
@@ -81,6 +82,7 @@ export function ObjectPanel() {
             />
           )}
           {single.kind === 'arena' && <ArenaPanel arena={single} />}
+          {single.kind === 'image' && <ImagePanel image={single} />}
           {single.kind === 'ornament' && (
             <>
               <label className="field">

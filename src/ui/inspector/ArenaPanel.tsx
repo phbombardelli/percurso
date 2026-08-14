@@ -166,17 +166,35 @@ export function ArenaPanel({ arena }: { arena: Arena }) {
         disabled={arena.locked}
         onCommit={(v) => apply('Traço da pista', (d) => setArenaStyle(d, arena.id, { strokeMm: v }))}
       />
-      <label className="field">
-        <span>Preenchimento</span>
+      <label className="check">
         <input
-          type="color"
-          value={arena.style.fill}
+          type="checkbox"
+          checked={arena.style.fill !== 'none'}
           disabled={arena.locked}
           onChange={(e) =>
-            apply('Cor da pista', (d) => setArenaStyle(d, arena.id, { fill: e.target.value }))
+            apply('Preenchimento da pista', (d) =>
+              setArenaStyle(d, arena.id, { fill: e.target.checked ? '#ffffff' : 'none' }),
+            )
           }
         />
+        Preenchimento
       </label>
+      {arena.style.fill !== 'none' && (
+        <label className="field">
+          <span>Cor</span>
+          <input
+            type="color"
+            value={arena.style.fill}
+            disabled={arena.locked}
+            onChange={(e) =>
+              apply('Cor da pista', (d) => setArenaStyle(d, arena.id, { fill: e.target.value }))
+            }
+          />
+        </label>
+      )}
+      <p className="note dim">
+        Desligue o preenchimento para a imagem de fundo aparecer sob a pista.
+      </p>
 
       <p className="note">
         Perímetro {formatMeters(arenaPerimeter(arena), 1)} m · área{' '}
