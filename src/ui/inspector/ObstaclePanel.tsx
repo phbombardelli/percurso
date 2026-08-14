@@ -3,6 +3,7 @@ import {
   resetLabel,
   setBarAppearance,
   setLiverpool,
+  setWings,
   flipArrow,
   removeElement,
   setArrow,
@@ -25,6 +26,7 @@ import {
 import type { BarStyle, Obstacle, ObstacleType } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
 import { NumberField } from './NumberField';
+import { WingStyleField } from './WingStyleField';
 
 const LETRAS: Obstacle['letter'][] = ['', 'A', 'B', 'C'];
 
@@ -172,6 +174,17 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
 
       {hasBars(obstacle.type) && (
         <>
+          <h3>Suporte</h3>
+          <WingStyleField
+            wings={obstacle.wings}
+            disabled={travado}
+            onChange={(patch, rotulo) => apply(rotulo, (d) => setWings(d, obstacle.id, patch))}
+          />
+          <p className="note dim">
+            O paraflanco é o painel lateral que sustenta as varas. Sem ele o
+            obstáculo parece uma vara solta no chão.
+          </p>
+
           <h3>Varas</h3>
           <label className="field">
             <span>Estilo</span>
@@ -288,16 +301,16 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
                 }
               />
               <NumberField
-                label="Sobra nos lados"
+                label="Comprimento"
                 unit="m"
-                value={obstacle.liverpool.overhangM}
+                value={obstacle.liverpool.widthM}
                 decimals={2}
-                step={0.05}
-                min={0}
+                step={0.1}
+                min={0.1}
                 disabled={travado}
                 onCommit={(v) =>
-                  apply('Sobra do liverpool', (d) =>
-                    setLiverpool(d, obstacle.id, { overhangM: v }),
+                  apply('Comprimento do liverpool', (d) =>
+                    setLiverpool(d, obstacle.id, { widthM: v }),
                   )
                 }
               />
@@ -317,8 +330,9 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
                 />
               </label>
               <p className="note dim">
-                Negativo põe a água antes do obstáculo; positivo, depois. Ela
-                fica sempre paralela à frente.
+                Padrão 3,00 × 0,50 m: mais estreita que a vara de 3,50 m, com as
+                pontas dela para fora. Deslocamento negativo põe a água antes do
+                obstáculo; positivo, depois. Fica sempre paralela à frente.
               </p>
             </>
           )}

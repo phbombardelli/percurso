@@ -8,6 +8,7 @@ import type {
   Obstacle,
   ObstacleType,
   ObjectId,
+  WingsAppearance,
 } from '@core/model/types';
 
 /**
@@ -159,8 +160,20 @@ export function setLiverpool(
   if (!obstacle) return;
   if (patch.enabled === true && !acceptsLiverpool(obstacle.type)) return;
   obstacle.liverpool = { ...obstacle.liverpool, ...patch };
-  if (!(obstacle.liverpool.spreadM > 0)) obstacle.liverpool.spreadM = 2;
-  if (obstacle.liverpool.overhangM < 0) obstacle.liverpool.overhangM = 0;
+  if (!(obstacle.liverpool.spreadM > 0)) obstacle.liverpool.spreadM = 0.5;
+  if (!(obstacle.liverpool.widthM > 0)) obstacle.liverpool.widthM = 3;
+}
+
+export function setWings(
+  doc: CourseDocument,
+  id: ObjectId,
+  patch: Partial<WingsAppearance>,
+): void {
+  const obstacle = obstacleOf(doc, id);
+  if (!obstacle) return;
+  obstacle.wings = { ...obstacle.wings, ...patch };
+  if (!(obstacle.wings.widthM > 0)) obstacle.wings.widthM = 0.4;
+  if (!(obstacle.wings.depthM > 0)) obstacle.wings.depthM = 0.9;
 }
 
 /** Devolve o rótulo ao posicionamento automático. */

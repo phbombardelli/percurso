@@ -16,7 +16,9 @@ export type Tool =
   | 'arena-rect'
   | 'arena-polygon'
   | 'calibrate'
-  | 'obstacle';
+  | 'obstacle'
+  | 'timing-start'
+  | 'timing-finish';
 
 interface EditorState {
   tool: Tool;

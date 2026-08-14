@@ -12,6 +12,7 @@ import {
   nextObstacleNumber,
   obstacleExtent,
   obstacleLabel,
+  wingDepth,
 } from '@core/library/obstacles';
 import { createDocument } from '@core/model/document';
 import { getBounds } from '@core/model/transform';
@@ -24,6 +25,7 @@ import {
   setBarAppearance,
   setLabelOffset,
   setLiverpool,
+  setWings,
   flipArrow,
   removeElement,
   renumberByInsertion,
@@ -250,6 +252,43 @@ describe('geometria da seta', () => {
   });
 });
 
+describe('paraflanco', () => {
+  it('é o suporte padrão: obstáculo novo não nasce com vara solta no chão', () => {
+    expect(createObstacle('vertical', { x: 0, y: 0 }).wings.style).toBe('paraflanco');
+  });
+
+  it('a vara padrão mede 3,50 m nos tipos de vara', () => {
+    for (const tipo of ['vertical', 'oxer', 'triplice', 'plano'] as const) {
+      expect(createObstacle(tipo, { x: 0, y: 0 }).faceWidthM).toBe(3.5);
+    }
+  });
+
+  it('acompanha a largura de salto, para o oxer ficar apoiado dos dois lados', () => {
+    const vertical = createObstacle('vertical', { x: 0, y: 0 });
+    const oxer = createObstacle('oxer', { x: 0, y: 0 });
+    const triplice = createObstacle('triplice', { x: 0, y: 0 });
+    expect(wingDepth(oxer)).toBeGreaterThan(wingDepth(vertical));
+    expect(wingDepth(triplice)).toBeGreaterThan(wingDepth(oxer));
+    // Sempre além das varas, nunca aquém.
+    expect(wingDepth(oxer)).toBeGreaterThan(oxer.spreadM!);
+  });
+
+  it('a vara no chão continua disponível', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setWings(d, o.id, { style: 'nenhum' }));
+    expect(obs(doc, o.id).wings.style).toBe('nenhum');
+  });
+
+  it('recusa dimensão degenerada', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setWings(d, o.id, { widthM: 0, depthM: -1 }));
+    expect(obs(doc, o.id).wings.widthM).toBe(0.4);
+    expect(obs(doc, o.id).wings.depthM).toBe(0.9);
+  });
+});
+
 describe('estilo das varas', () => {
   it('só os tipos com vara aceitam estilo', () => {
     expect(hasBars('vertical')).toBe(true);
@@ -281,6 +320,28 @@ describe('estilo das varas', () => {
 });
 
 describe('liverpool como opção', () => {
+  it('nasce 3,00 x 0,50 m, mais estreito que a vara de 3,50 m', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    expect(o.liverpool.widthM).toBe(3);
+    expect(o.liverpool.spreadM).toBe(0.5);
+    // As pontas da vara ficam para fora da água.
+    expect(o.liverpool.widthM).toBeLessThan(o.faceWidthM);
+  });
+
+  it('o comprimento é ajustável, e a extensão acompanha quando ele passa da vara', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setLiverpool(d, o.id, { enabled: true, widthM: 5 }));
+    expect(obstacleExtent(obs(doc, o.id)).halfWidthM).toBeCloseTo(2.5, 9);
+  });
+
+  it('com a lâmina menor que a vara, quem manda na extensão é a vara', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setLiverpool(d, o.id, { enabled: true, widthM: 3 }));
+    expect(obstacleExtent(obs(doc, o.id)).halfWidthM).toBeCloseTo(1.75, 9);
+  });
+
   it('deixou de ser um tipo de obstáculo', () => {
     expect(OBSTACLES.map((o) => o.type)).not.toContain('liverpool');
   });
@@ -313,12 +374,12 @@ describe('liverpool como opção', () => {
     let doc = docCom(o);
     const antes = getBounds(obs(doc, o.id), 250);
     doc = edit(doc, (d) =>
-      setLiverpool(d, o.id, { enabled: true, spreadM: 3, offsetM: 0.5, overhangM: 0.25 }),
+      setLiverpool(d, o.id, { enabled: true, spreadM: 3, offsetM: 0.5, widthM: 4 }),
     );
     const ext = obstacleExtent(obs(doc, o.id));
     expect(ext.frontM).toBeCloseTo(-1, 9); // 0,5 - 3/2
     expect(ext.backM).toBeCloseTo(2, 9); // 0,5 + 3/2
-    expect(ext.halfWidthM).toBeCloseTo(3.5 / 2 + 0.25, 9);
+    expect(ext.halfWidthM).toBeCloseTo(2, 9); // a lâmina de 4 m manda
     const depois = getBounds(obs(doc, o.id), 250);
     expect(depois.max.y - depois.min.y).toBeGreaterThan(antes.max.y - antes.min.y);
   });
@@ -326,7 +387,7 @@ describe('liverpool como opção', () => {
   it('a seta começa além da água, não em cima dela', () => {
     const seca = createObstacle('vertical', { x: 0, y: 0 });
     const molhada = createObstacle('vertical', { x: 0, y: 0 });
-    molhada.liverpool = { enabled: true, spreadM: 3, offsetM: -1, overhangM: 0.25, color: '#2b7fd4' };
+    molhada.liverpool = { enabled: true, widthM: 3, spreadM: 3, offsetM: -1, color: '#2b7fd4' };
     expect(Math.abs(arrowGeometry(molhada, 5).shaft.y1)).toBeGreaterThan(
       Math.abs(arrowGeometry(seca, 5).shaft.y1),
     );
@@ -367,7 +428,7 @@ describe('posição dos rótulos', () => {
   it('a água desloca as alturas junto', () => {
     const o = createObstacle('oxer', { x: 0, y: 0 });
     const antes = labelOffset(o, 'heightLabel').y;
-    o.liverpool = { enabled: true, spreadM: 3, offsetM: 1.5, overhangM: 0.25, color: '#2b7fd4' };
+    o.liverpool = { enabled: true, widthM: 3, spreadM: 3, offsetM: 1.5, color: '#2b7fd4' };
     expect(labelOffset(o, 'heightLabel').y).toBeGreaterThan(antes);
   });
 
@@ -383,19 +444,30 @@ describe('posição dos rótulos', () => {
 });
 
 describe('envoltória', () => {
-  it('cobre a frente e a largura de salto', () => {
-    const o = createObstacle('oxer', { x: 20, y: 10 }); // 3,5 x 1,5
+  it('cobre a frente e a profundidade do paraflanco', () => {
+    const o = createObstacle('oxer', { x: 20, y: 10 }); // frente 3,5, salto 1,5
     const doc = docCom(o);
     const b = getBounds(obs(doc, o.id), 250);
+    const prof = wingDepth(obs(doc, o.id));
     expect(b.min.x).toBeCloseTo(20 - 1.75, 9);
     expect(b.max.x).toBeCloseTo(20 + 1.75, 9);
-    expect(b.min.y).toBeCloseTo(10 - 0.75, 9);
-    expect(b.max.y).toBeCloseTo(10 + 0.75, 9);
+    // O paraflanco ultrapassa as varas: é ele quem manda na profundidade.
+    expect(b.max.y - b.min.y).toBeCloseTo(prof, 9);
+    expect(prof).toBeGreaterThan(1.5);
+  });
+
+  it('sem paraflanco, a envoltória volta a ser só as varas', () => {
+    const o = createObstacle('oxer', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setWings(d, o.id, { style: 'nenhum' }));
+    const b = getBounds(obs(doc, o.id), 250);
+    expect(b.max.y - b.min.y).toBeCloseTo(1.5, 9);
   });
 
   it('acompanha a rotação', () => {
     const o = createObstacle('oxer', { x: 0, y: 0 });
     let doc = docCom(o);
+    doc = edit(doc, (d) => setWings(d, o.id, { style: 'nenhum' }));
     doc = edit(doc, (d) => rotateObjects(d, [o.id], 90));
     const b = getBounds(obs(doc, o.id), 250);
     // Girado 90°, largura e profundidade trocam de eixo.

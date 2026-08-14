@@ -280,6 +280,32 @@ Mexer na posicao pelo painel desliga o automatico; um botao devolve.
 
 O texto em si nunca gira (decisao 23).
 
+## 26. Paraflanco e o suporte padrao
+
+Sem o painel lateral o obstaculo parece uma vara solta no chao. O suporte
+tem tres formas: `paraflanco` (padrao), `pilar` (so o montante) e `nenhum`
+— a vara no chao existe em pista de verdade e continua disponivel.
+
+A profundidade do paraflanco acompanha a largura de salto, para o oxer
+ficar apoiado dos dois lados, e entra na envoltoria: e ele, nao a vara,
+quem define ate onde vai o corpo do obstaculo.
+
+## 27. Dimensoes que vem da pista, nao do desenho
+
+Vara: 3,50 m. Liverpool: 3,00 x 0,50 m — mais estreito que a vara de
+proposito, para as pontas dela ficarem para fora da agua, como se monta na
+pista. Os dois sao ajustaveis.
+
+O comprimento da lamina e proprio, nao derivado da vara. Quando ele passa
+da vara, e ele quem manda na extensao do obstaculo; quando e menor, manda
+a vara.
+
+## 28. Linha de cronometragem e entidade propria
+
+Partida e chegada nao sao obstaculo: nao tem altura, nao recebem numero de
+percurso e nao entram na tabela de alturas. Compartilham o sistema local e
+o paraflanco, entao a seta continua perpendicular por construcao.
+
 ---
 
 ## Ordem das fases

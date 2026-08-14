@@ -250,6 +250,109 @@ describe('migração 1 → 2, com arquivo do formato antigo', () => {
   });
 });
 
+describe('migração 2 → 3, aparência do obstáculo', () => {
+  const arquivoV2 = (liverpool: Record<string, unknown>) =>
+    JSON.stringify({
+      format: FILE_FORMAT,
+      schemaVersion: 2,
+      savedAt: '2026-02-01T00:00:00.000Z',
+      appVersion: '0.1.0',
+      document: {
+        ...JSON.parse(JSON.stringify(createDocument())),
+        objects: [
+          {
+            id: 'obs-antigo',
+            kind: 'obstacle',
+            layer: 'obstacles',
+            locked: false,
+            visible: true,
+            z: 0,
+            type: 'oxer',
+            pos: { x: 10, y: 10 },
+            rotation: 0,
+            faceWidthM: 3.5,
+            spreadM: 1.5,
+            number: '5',
+            letter: '',
+            elements: [{ height: 1.3 }, { height: 1.4 }],
+            bar: { style: 'lisa', color: '#ffffff', accent: '#c62828', stripes: 6 },
+            liverpool,
+            arrow: { visible: true, reversed: false, lengthMm: 6 },
+            heightLabel: { visible: true, auto: true, offsetM: { x: 0, y: 0 } },
+            numberLabel: { visible: true, auto: true, offsetM: { x: 0, y: 0 } },
+            note: '',
+          },
+        ],
+      },
+    });
+
+  it('a sobra nos lados vira comprimento equivalente, sem mudar o desenho', () => {
+    const texto = arquivoV2({
+      enabled: true,
+      spreadM: 2,
+      offsetM: 0,
+      overhangM: 0.25,
+      color: '#2b7fd4',
+    });
+    const { document } = deserialize(texto);
+    const o = document.objects.find((x): x is Obstacle => x.kind === 'obstacle')!;
+    // 3,50 de frente + 0,25 de cada lado = 4,00 de lâmina.
+    expect(o.liverpool.widthM).toBe(4);
+    expect(o.liverpool.spreadM).toBe(2);
+    expect('overhangM' in o.liverpool).toBe(false);
+  });
+
+  it('croqui antigo não ganha paraflanco sozinho', () => {
+    const { document } = deserialize(
+      arquivoV2({ enabled: false, spreadM: 2, offsetM: 0, overhangM: 0, color: '#2b7fd4' }),
+    );
+    const o = document.objects.find((x): x is Obstacle => x.kind === 'obstacle')!;
+    expect(o.wings.style).toBe('pilar');
+  });
+
+  it('a cadeia 1 → 3 roda inteira, num arquivo da primeira versão', () => {
+    const v1 = JSON.stringify({
+      format: FILE_FORMAT,
+      schemaVersion: 1,
+      savedAt: '2026-01-01T00:00:00.000Z',
+      appVersion: '0.1.0',
+      document: {
+        ...JSON.parse(JSON.stringify(createDocument())),
+        objects: [
+          {
+            id: 'obs-v1',
+            kind: 'obstacle',
+            layer: 'obstacles',
+            locked: false,
+            visible: true,
+            z: 0,
+            type: 'liverpool',
+            pos: { x: 5, y: 5 },
+            rotation: 30,
+            faceWidthM: 3.5,
+            spreadM: 2,
+            number: '2',
+            letter: '',
+            elements: [{ height: 1.2 }],
+            arrow: { visible: true, reversed: false, lengthMm: 6 },
+            heightLabel: { visible: true, offsetM: { x: 0, y: 2.2 } },
+            numberLabel: { visible: true, offsetM: { x: 0, y: -2.2 } },
+            note: '',
+          },
+        ],
+      },
+    });
+    const { document, warnings } = deserialize(v1);
+    const o = document.objects.find((x): x is Obstacle => x.kind === 'obstacle')!;
+    expect(warnings).toEqual([]);
+    expect(o.type).toBe('oxer');
+    expect(o.liverpool.enabled).toBe(true);
+    expect(o.wings.style).toBe('pilar');
+    expect(o.rotation).toBe(30);
+    expect(document.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+});
+
 describe('nome de arquivo sugerido', () => {
   it('tira acentos e espaços do título', () => {
     const doc = produce(createDocument(), (d) => {

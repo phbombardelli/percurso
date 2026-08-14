@@ -78,6 +78,24 @@ export function Sidebar() {
       )}
 
       <button
+        className={tool === 'timing-start' ? 'active' : ''}
+        onClick={() => setTool(tool === 'timing-start' ? 'select' : 'timing-start')}
+        title="Linha de partida: dois paraflancos, o traço entre eles e a seta de passagem."
+      >
+        <span className="icon">⇥</span>
+        <span className="label">Partida</span>
+      </button>
+
+      <button
+        className={tool === 'timing-finish' ? 'active' : ''}
+        onClick={() => setTool(tool === 'timing-finish' ? 'select' : 'timing-finish')}
+        title="Linha de chegada."
+      >
+        <span className="icon">⇤</span>
+        <span className="label">Chegada</span>
+      </button>
+
+      <button
         className={tool === 'ornament' ? 'active' : ''}
         onClick={() => setTool(tool === 'ornament' ? 'select' : 'ornament')}
         title="Clique na pista para inserir. Shift mantém a ferramenta ativa."

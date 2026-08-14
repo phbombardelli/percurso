@@ -60,8 +60,47 @@ function withAuto(raw: unknown): Record<string, unknown> {
   };
 }
 
+/**
+ * 2 → 3. Os obstáculos ganharam paraflanco, e a lâmina de água passou a
+ * ter comprimento próprio em vez de "sobra nos lados".
+ *
+ * O que estava desenhado continua igual: `overhangM` vira o comprimento
+ * equivalente (frente + duas sobras), e quem já tinha obstáculo desenhado
+ * recebe o suporte de montante — não o paraflanco —, para o croqui antigo
+ * não mudar de aparência sozinho.
+ */
+const v2ToV3: Migration = (doc) => {
+  const objects = Array.isArray(doc.objects) ? doc.objects : [];
+  return {
+    ...doc,
+    objects: objects.map((raw) => {
+      const obj = raw as Record<string, unknown>;
+      if (obj.kind !== 'obstacle') return obj;
+
+      const liverpool = (obj.liverpool ?? {}) as Record<string, unknown>;
+      const face = typeof obj.faceWidthM === 'number' ? obj.faceWidthM : 3.5;
+      const sobra = typeof liverpool.overhangM === 'number' ? liverpool.overhangM : 0;
+      const { overhangM: _descartado, ...restoLiverpool } = liverpool;
+
+      return {
+        ...obj,
+        wings: obj.wings ?? { style: 'pilar', widthM: 0.4, depthM: 0.9, color: '#2e7d32' },
+        liverpool: {
+          ...restoLiverpool,
+          enabled: liverpool.enabled ?? false,
+          widthM: liverpool.widthM ?? face + sobra * 2,
+          spreadM: liverpool.spreadM ?? 0.5,
+          offsetM: liverpool.offsetM ?? 0,
+          color: liverpool.color ?? '#2b7fd4',
+        },
+      };
+    }),
+  };
+};
+
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: v1ToV2,
+  2: v2ToV3,
 };
 
 export function applyMigrations(

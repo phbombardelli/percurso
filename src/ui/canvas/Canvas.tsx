@@ -6,6 +6,7 @@ import { snapPoint, toMillimeterPrecision } from '@core/geometry/snap';
 import { distance, type Vec2 } from '@core/geometry/vec';
 import { createObstacle, nextObstacleNumber } from '@core/library/obstacles';
 import { createOrnament } from '@core/library/ornaments';
+import { createTimingLine } from '@core/library/timing';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
 import { deepClone } from '@core/model/clone';
 import { newId } from '@core/model/ids';
@@ -222,6 +223,17 @@ export function Canvas() {
         );
         st.apply('Inserir obstáculo', (d) => addObject(d, obstaculo));
         setSelection([obstaculo.id]);
+        if (!e.shiftKey) setTool('select');
+        return;
+      }
+
+      if (tool === 'timing-start' || tool === 'timing-finish') {
+        const linha = createTimingLine(
+          tool === 'timing-start' ? 'start' : 'finish',
+          snapped(toModel(e)),
+        );
+        useDocumentStore.getState().apply('Inserir linha', (d) => addObject(d, linha));
+        setSelection([linha.id]);
         if (!e.shiftKey) setTool('select');
         return;
       }

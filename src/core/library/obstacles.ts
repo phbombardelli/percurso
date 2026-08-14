@@ -110,11 +110,14 @@ export function createObstacle(type: ObstacleType, pos: Vec2, numero = ''): Obst
     letter: '',
     elements: emptyElements(def.elements),
     bar: { style: 'pontas', color: '#ffffff', accent: '#c62828', stripes: 6 },
+    wings: { style: 'paraflanco', widthM: 0.4, depthM: 0.9, color: '#2e7d32' },
     liverpool: {
       enabled: false,
-      spreadM: 2,
+      // 3 x 0,50 m: mais estreito que a vara de 3,50 m, de modo que as
+      // pontas dela ficam para fora da água, como na pista.
+      widthM: 3,
+      spreadM: 0.5,
       offsetM: 0,
-      overhangM: 0.25,
       color: '#2b7fd4',
     },
     arrow: { visible: true, reversed: false, lengthMm: 6 },
@@ -177,9 +180,26 @@ export function obstacleExtent(obstacle: Obstacle): ObstacleExtent {
     const meia = obstacle.liverpool.spreadM / 2;
     frontM = Math.min(frontM, obstacle.liverpool.offsetM - meia);
     backM = Math.max(backM, obstacle.liverpool.offsetM + meia);
-    halfWidthM = half + obstacle.liverpool.overhangM;
+    // A lâmina costuma ser mais estreita que a vara, mas nada impede o
+    // contrário: quem for maior manda na extensão.
+    halfWidthM = Math.max(halfWidthM, obstacle.liverpool.widthM / 2);
+  }
+
+  if (obstacle.wings.style === 'paraflanco') {
+    const meia = wingDepth(obstacle) / 2;
+    frontM = Math.min(frontM, -meia);
+    backM = Math.max(backM, meia);
   }
   return { halfWidthM, frontM, backM };
+}
+
+/**
+ * Profundidade do paraflanco: acompanha a largura de salto, para o oxer
+ * ter os dois lados apoiados, com um mínimo para o vertical não ficar com
+ * um pilar raso demais para se ver.
+ */
+export function wingDepth(obstacle: Obstacle): number {
+  return Math.max(obstacle.wings.depthM, (obstacle.spreadM ?? 0) + obstacle.wings.depthM * 0.5);
 }
 
 /**

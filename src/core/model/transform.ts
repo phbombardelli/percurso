@@ -1,6 +1,7 @@
 import type { Vec2 } from '@core/geometry/vec';
 import { rotate } from '@core/geometry/vec';
 import { obstacleExtent } from '@core/library/obstacles';
+import { timingExtent } from '@core/library/timing';
 import { arenaPoints } from './arena';
 import { paperToMeters } from '@core/scale/units';
 import type { Meters, PrintScale } from '@core/scale/units';
@@ -80,6 +81,7 @@ export function getRotation(obj: SceneObject): number | null {
     case 'ornament':
     case 'text':
     case 'image':
+    case 'timing':
       return obj.rotation;
     default:
       return null;
@@ -92,6 +94,7 @@ export function setRotation(obj: SceneObject, degrees: number): void {
     case 'ornament':
     case 'text':
     case 'image':
+    case 'timing':
       obj.rotation = degrees;
       return;
     default:
@@ -131,6 +134,16 @@ export function getBounds(obj: SceneObject, printScale: PrintScale): Bounds {
         { x: halfW, y: front },
         { x: halfW, y: back },
         { x: -halfW, y: back },
+      ].map((c) => add(rotate(c, obj.rotation), obj.pos));
+      return boundsOf(corners);
+    }
+    case 'timing': {
+      const ext = timingExtent(obj);
+      const corners = [
+        { x: -ext.halfWidthM, y: ext.frontM },
+        { x: ext.halfWidthM, y: ext.frontM },
+        { x: ext.halfWidthM, y: ext.backM },
+        { x: -ext.halfWidthM, y: ext.backM },
       ].map((c) => add(rotate(c, obj.rotation), obj.pos));
       return boundsOf(corners);
     }

@@ -1,5 +1,5 @@
-import { arrowGeometry } from '@core/library/obstacles';
-import type { BarAppearance, Obstacle } from '@core/model/types';
+import { arrowGeometry, wingDepth } from '@core/library/obstacles';
+import type { BarAppearance, Obstacle, WingsAppearance } from '@core/model/types';
 import { color, stroke } from '@render/style/tokens';
 
 /**
@@ -34,22 +34,22 @@ export function ObstacleShape({ obstacle, k }: Props) {
     switch (obstacle.type) {
       case 'vertical':
       case 'plano':
-        return <Bar halfW={halfW} y={0} k={k} bar={bar} thin={obstacle.type === 'plano'} />;
+        return <Bar halfW={halfW} y={0} k={k} bar={bar} wings={obstacle.wings} thin={obstacle.type === 'plano'} />;
 
       case 'oxer':
         return (
           <>
-            <Bar halfW={halfW} y={spread / 2} k={k} bar={bar} />
-            <Bar halfW={halfW} y={-spread / 2} k={k} bar={bar} />
+            <Bar halfW={halfW} y={spread / 2} k={k} bar={bar} wings={obstacle.wings} />
+            <Bar halfW={halfW} y={-spread / 2} k={k} bar={bar} wings={obstacle.wings} />
           </>
         );
 
       case 'triplice':
         return (
           <>
-            <Bar halfW={halfW} y={spread / 2} k={k} bar={bar} />
-            <Bar halfW={halfW} y={0} k={k} bar={bar} />
-            <Bar halfW={halfW} y={-spread / 2} k={k} bar={bar} />
+            <Bar halfW={halfW} y={spread / 2} k={k} bar={bar} wings={obstacle.wings} />
+            <Bar halfW={halfW} y={0} k={k} bar={bar} wings={obstacle.wings} />
+            <Bar halfW={halfW} y={-spread / 2} k={k} bar={bar} wings={obstacle.wings} />
           </>
         );
 
@@ -83,10 +83,41 @@ export function ObstacleShape({ obstacle, k }: Props) {
 
   return (
     <>
-      {/* A água entra por baixo das varas. */}
+      {/* A água entra por baixo de tudo; os paraflancos, sob as varas. */}
       {obstacle.liverpool.enabled && <Liverpool obstacle={obstacle} k={k} />}
+      {obstacle.wings.style === 'paraflanco' && <Wings obstacle={obstacle} k={k} />}
       {corpo()}
     </>
+  );
+}
+
+/**
+ * Paraflancos: os painéis laterais que sustentam as varas. Sem eles o
+ * obstáculo parece uma vara solta no chão — foi o que motivou o desenho.
+ * Ficam nas pontas da frente e acompanham a profundidade do obstáculo.
+ */
+function Wings({ obstacle, k }: Props) {
+  const halfW = (obstacle.faceWidthM / 2) * k;
+  const largura = obstacle.wings.widthM * k;
+  const profundidade = wingDepth(obstacle) * k;
+  const y = -profundidade / 2;
+
+  return (
+    <g data-part="wings">
+      {[-halfW - largura / 2, halfW - largura / 2].map((x, i) => (
+        <rect
+          key={i}
+          x={x}
+          y={y}
+          width={largura}
+          height={profundidade}
+          rx={largura * 0.18}
+          fill={obstacle.wings.color}
+          stroke={color.ink}
+          strokeWidth={stroke.hairline}
+        />
+      ))}
+    </g>
   );
 }
 
@@ -96,8 +127,8 @@ export function ObstacleShape({ obstacle, k }: Props) {
  * não há como o usuário desalinhá-la.
  */
 function Liverpool({ obstacle, k }: Props) {
-  const { spreadM, offsetM, overhangM, color: fill } = obstacle.liverpool;
-  const halfW = (obstacle.faceWidthM / 2 + overhangM) * k;
+  const { widthM, spreadM, offsetM, color: fill } = obstacle.liverpool;
+  const halfW = (widthM / 2) * k;
   return (
     <rect
       data-part="liverpool"
@@ -122,12 +153,14 @@ function Bar({
   y,
   k,
   bar,
+  wings,
   thin = false,
 }: {
   halfW: number;
   y: number;
   k: number;
   bar: BarAppearance;
+  wings: WingsAppearance;
   thin?: boolean;
 }) {
   const standard = (STANDARD_M / 2) * k;
@@ -154,8 +187,12 @@ function Bar({
         stroke={color.ink}
         strokeWidth={stroke.hairline}
       />
-      <line x1={-halfW} y1={y - standard} x2={-halfW} y2={y + standard} stroke={color.ink} strokeWidth={stroke.regular} />
-      <line x1={halfW} y1={y - standard} x2={halfW} y2={y + standard} stroke={color.ink} strokeWidth={stroke.regular} />
+      {wings.style === 'pilar' && (
+        <>
+          <line x1={-halfW} y1={y - standard} x2={-halfW} y2={y + standard} stroke={color.ink} strokeWidth={stroke.regular} />
+          <line x1={halfW} y1={y - standard} x2={halfW} y2={y + standard} stroke={color.ink} strokeWidth={stroke.regular} />
+        </>
+      )}
     </g>
   );
 }

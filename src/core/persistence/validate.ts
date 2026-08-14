@@ -32,6 +32,7 @@ const KNOWN_KINDS: readonly ObjectKind[] = [
   'heighttable',
   'image',
   'ornament',
+  'timing',
 ] as const;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -170,6 +171,11 @@ function checkGeometry(obj: Record<string, unknown>, index: number): void {
       if (!isPoint(obj.pos)) fail('a posição');
       if (!isFiniteNumber(obj.rotation)) fail('a rotação');
       break;
+    case 'timing':
+      if (!isPoint(obj.pos)) fail('a posição');
+      if (!isFiniteNumber(obj.rotation)) fail('a rotação');
+      if (!isFiniteNumber(obj.widthM) || obj.widthM <= 0) fail('a largura');
+      break;
     case 'image':
       if (!isPoint(obj.origin)) fail('a origem');
       if (!isFiniteNumber(obj.metersPerPixel) || obj.metersPerPixel <= 0) fail('a escala');
@@ -199,6 +205,8 @@ function defaultLayerFor(kind: ObjectKind): string {
       return 'paths';
     case 'ornament':
       return 'ornaments';
+    case 'timing':
+      return 'obstacles';
     case 'image':
       return 'background';
     default:

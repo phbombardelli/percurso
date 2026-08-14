@@ -95,12 +95,30 @@ export interface BarAppearance {
  */
 export interface LiverpoolOption {
   enabled: boolean;
-  /** Profundidade da lâmina, em metros. */
+  /** Comprimento da lâmina, ao longo da frente. Padrão 3 m. */
+  widthM: Meters;
+  /** Profundidade da lâmina. Padrão 0,50 m. */
   spreadM: Meters;
   /** Deslocamento na profundidade, a partir do centro do obstáculo. */
   offsetM: Meters;
-  /** Transborda a frente em cada lado, em metros. */
-  overhangM: Meters;
+  color: string;
+}
+
+/**
+ * Suporte das varas em vista superior.
+ *
+ * `paraflanco` é o padrão: sem ele o obstáculo parece uma vara solta no
+ * chão. `pilar` desenha só o montante, e `nenhum` deixa a vara no chão de
+ * propósito — há obstáculo assim.
+ */
+export type WingStyle = 'paraflanco' | 'pilar' | 'nenhum';
+
+export interface WingsAppearance {
+  style: WingStyle;
+  /** Espessura do paraflanco, medida ao longo da frente. */
+  widthM: Meters;
+  /** Profundidade mínima; um oxer usa a própria largura de salto se maior. */
+  depthM: Meters;
   color: string;
 }
 
@@ -128,6 +146,7 @@ export interface Obstacle extends BaseObject {
   letter: 'A' | 'B' | 'C' | '';
   elements: ObstacleElement[];
   bar: BarAppearance;
+  wings: WingsAppearance;
   liverpool: LiverpoolOption;
   arrow: { visible: boolean; reversed: boolean; lengthMm: Millimeters };
   /** Rótulo de alturas ao lado do obstáculo, como no croqui de referência. */
@@ -208,6 +227,27 @@ export interface HeightTable extends BaseObject {
   style: { sizeMm: Millimeters; rowHeightMm: Millimeters };
 }
 
+/* --------------------------------------------- partida e chegada */
+
+/**
+ * Linha de cronometragem. Não é obstáculo: não tem altura, não entra na
+ * tabela de alturas e não recebe número de percurso — mas tem paraflancos
+ * e seta, como no croqui impresso.
+ */
+export interface TimingLine extends BaseObject {
+  kind: 'timing';
+  role: 'start' | 'finish';
+  pos: Vec2;
+  rotation: number;
+  /** Distância entre os dois paraflancos. */
+  widthM: Meters;
+  label: string;
+  labelVisible: boolean;
+  wings: WingsAppearance;
+  arrow: { visible: boolean; reversed: boolean; lengthMm: Millimeters };
+  style: { dash: DashPreset; strokeMm: Millimeters; color: string };
+}
+
 /* -------------------------------------------------- fundo e ornamentos */
 
 export interface BackgroundImage extends BaseObject {
@@ -249,6 +289,7 @@ export interface Ornament extends BaseObject {
 export type SceneObject =
   | Arena
   | Obstacle
+  | TimingLine
   | CoursePath
   | TextLabel
   | InfoBox
@@ -298,4 +339,4 @@ export interface CourseDocument {
   assets: Record<string, Asset>;
 }
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
