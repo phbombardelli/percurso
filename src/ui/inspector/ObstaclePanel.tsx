@@ -1,5 +1,8 @@
 import {
   addElement,
+  resetLabel,
+  setBarAppearance,
+  setLiverpool,
   flipArrow,
   removeElement,
   setArrow,
@@ -12,8 +15,14 @@ import {
   setObstacleType,
   setSpread,
 } from '@core/commands/obstacleOps';
-import { OBSTACLES, formatHeights, obstacleDef } from '@core/library/obstacles';
-import type { Obstacle, ObstacleType } from '@core/model/types';
+import {
+  OBSTACLES,
+  acceptsLiverpool,
+  formatHeights,
+  hasBars,
+  obstacleDef,
+} from '@core/library/obstacles';
+import type { BarStyle, Obstacle, ObstacleType } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
 import { NumberField } from './NumberField';
 
@@ -161,6 +170,161 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
         <p className="note">No croqui: {formatHeights(obstacle)}</p>
       )}
 
+      {hasBars(obstacle.type) && (
+        <>
+          <h3>Varas</h3>
+          <label className="field">
+            <span>Estilo</span>
+            <select
+              value={obstacle.bar.style}
+              disabled={travado}
+              onChange={(e) =>
+                apply('Estilo da vara', (d) =>
+                  setBarAppearance(d, obstacle.id, { style: e.target.value as BarStyle }),
+                )
+              }
+            >
+              <option value="lisa">Lisa</option>
+              <option value="listrada">Listrada</option>
+              <option value="pontas">Faixas nas pontas</option>
+            </select>
+          </label>
+          <div className="color-pair">
+            <label className="field">
+              <span>Cor</span>
+              <input
+                type="color"
+                value={obstacle.bar.color}
+                disabled={travado}
+                onChange={(e) =>
+                  apply(
+                    'Cor da vara',
+                    (d) => setBarAppearance(d, obstacle.id, { color: e.target.value }),
+                    `barcor-${obstacle.id}`,
+                  )
+                }
+              />
+            </label>
+            {obstacle.bar.style !== 'lisa' && (
+              <label className="field">
+                <span>Faixa</span>
+                <input
+                  type="color"
+                  value={obstacle.bar.accent}
+                  disabled={travado}
+                  onChange={(e) =>
+                    apply(
+                      'Cor da faixa',
+                      (d) => setBarAppearance(d, obstacle.id, { accent: e.target.value }),
+                      `barfaixa-${obstacle.id}`,
+                    )
+                  }
+                />
+              </label>
+            )}
+          </div>
+          {obstacle.bar.style === 'listrada' && (
+            <NumberField
+              label="Faixas"
+              value={obstacle.bar.stripes}
+              decimals={0}
+              step={1}
+              min={2}
+              max={24}
+              disabled={travado}
+              onCommit={(v) =>
+                apply('Número de faixas', (d) =>
+                  setBarAppearance(d, obstacle.id, { stripes: Math.round(v) }),
+                )
+              }
+            />
+          )}
+        </>
+      )}
+
+      {acceptsLiverpool(obstacle.type) && (
+        <>
+          <h3>Liverpool</h3>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={obstacle.liverpool.enabled}
+              disabled={travado}
+              onChange={(e) =>
+                apply('Liverpool', (d) =>
+                  setLiverpool(d, obstacle.id, { enabled: e.target.checked }),
+                )
+              }
+            />
+            Lâmina de água
+          </label>
+          {obstacle.liverpool.enabled && (
+            <>
+              <NumberField
+                label="Profundidade"
+                unit="m"
+                value={obstacle.liverpool.spreadM}
+                decimals={2}
+                step={0.1}
+                min={0.1}
+                disabled={travado}
+                onCommit={(v) =>
+                  apply('Profundidade do liverpool', (d) =>
+                    setLiverpool(d, obstacle.id, { spreadM: v }),
+                  )
+                }
+              />
+              <NumberField
+                label="Posição"
+                unit="m"
+                value={obstacle.liverpool.offsetM}
+                decimals={2}
+                step={0.1}
+                disabled={travado}
+                onCommit={(v) =>
+                  apply('Posição do liverpool', (d) =>
+                    setLiverpool(d, obstacle.id, { offsetM: v }),
+                  )
+                }
+              />
+              <NumberField
+                label="Sobra nos lados"
+                unit="m"
+                value={obstacle.liverpool.overhangM}
+                decimals={2}
+                step={0.05}
+                min={0}
+                disabled={travado}
+                onCommit={(v) =>
+                  apply('Sobra do liverpool', (d) =>
+                    setLiverpool(d, obstacle.id, { overhangM: v }),
+                  )
+                }
+              />
+              <label className="field">
+                <span>Cor da água</span>
+                <input
+                  type="color"
+                  value={obstacle.liverpool.color}
+                  disabled={travado}
+                  onChange={(e) =>
+                    apply(
+                      'Cor da água',
+                      (d) => setLiverpool(d, obstacle.id, { color: e.target.value }),
+                      `agua-${obstacle.id}`,
+                    )
+                  }
+                />
+              </label>
+              <p className="note dim">
+                Negativo põe a água antes do obstáculo; positivo, depois. Ela
+                fica sempre paralela à frente.
+              </p>
+            </>
+          )}
+        </>
+      )}
+
       <h3>Direção do salto</h3>
       <label className="check">
         <input
@@ -223,6 +387,22 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
         />
         Alturas no desenho
       </label>
+      {(!obstacle.numberLabel.auto || !obstacle.heightLabel.auto) && (
+        <div className="row-buttons">
+          <button
+            disabled={travado}
+            title="Volta a afastar os rótulos automaticamente do corpo e da seta"
+            onClick={() =>
+              apply('Posição automática dos rótulos', (d) => {
+                resetLabel(d, obstacle.id, 'numberLabel');
+                resetLabel(d, obstacle.id, 'heightLabel');
+              })
+            }
+          >
+            Reposicionar automaticamente
+          </button>
+        </div>
+      )}
 
       <h3>Observação</h3>
       <input

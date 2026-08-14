@@ -69,19 +69,47 @@ export interface Arena extends BaseObject {
 
 /* ----------------------------------------------------------- obstáculos */
 
-export type ObstacleType =
-  | 'vertical'
-  | 'oxer'
-  | 'triplice'
-  | 'muro'
-  | 'rio'
-  | 'liverpool'
-  | 'plano';
+export type ObstacleType = 'vertical' | 'oxer' | 'triplice' | 'muro' | 'rio' | 'plano';
 
 export interface ObstacleElement {
   /** Altura em metros. `null` = não informada. */
   height: Meters | null;
   label?: string;
+}
+
+export type BarStyle = 'lisa' | 'listrada' | 'pontas';
+
+/** Aparência das varas. Só se aplica aos tipos que têm vara. */
+export interface BarAppearance {
+  style: BarStyle;
+  color: string;
+  accent: string;
+  /** Número de faixas no estilo listrado. */
+  stripes: number;
+}
+
+/**
+ * Lâmina de água acoplada a um vertical ou oxer. Não é um tipo de
+ * obstáculo: é uma opção dele, e por construção fica sempre paralela à
+ * frente — só a posição ao longo da profundidade é ajustável.
+ */
+export interface LiverpoolOption {
+  enabled: boolean;
+  /** Profundidade da lâmina, em metros. */
+  spreadM: Meters;
+  /** Deslocamento na profundidade, a partir do centro do obstáculo. */
+  offsetM: Meters;
+  /** Transborda a frente em cada lado, em metros. */
+  overhangM: Meters;
+  color: string;
+}
+
+/** Rótulo do obstáculo. `auto` posiciona sozinho, fugindo do corpo e da seta. */
+export interface ObstacleLabel {
+  visible: boolean;
+  auto: boolean;
+  /** Deslocamento no sistema LOCAL do obstáculo, em metros. */
+  offsetM: Vec2;
 }
 
 export interface Obstacle extends BaseObject {
@@ -99,10 +127,12 @@ export interface Obstacle extends BaseObject {
   number: string;
   letter: 'A' | 'B' | 'C' | '';
   elements: ObstacleElement[];
+  bar: BarAppearance;
+  liverpool: LiverpoolOption;
   arrow: { visible: boolean; reversed: boolean; lengthMm: Millimeters };
   /** Rótulo de alturas ao lado do obstáculo, como no croqui de referência. */
-  heightLabel: { visible: boolean; offsetM: Vec2 };
-  numberLabel: { visible: boolean; offsetM: Vec2 };
+  heightLabel: ObstacleLabel;
+  numberLabel: ObstacleLabel;
   note: string;
 }
 
@@ -268,4 +298,4 @@ export interface CourseDocument {
   assets: Record<string, Asset>;
 }
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;

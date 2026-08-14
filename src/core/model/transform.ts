@@ -1,5 +1,6 @@
 import type { Vec2 } from '@core/geometry/vec';
 import { rotate } from '@core/geometry/vec';
+import { obstacleExtent } from '@core/library/obstacles';
 import { arenaPoints } from './arena';
 import { paperToMeters } from '@core/scale/units';
 import type { Meters, PrintScale } from '@core/scale/units';
@@ -120,13 +121,16 @@ export function getBounds(obj: SceneObject, printScale: PrintScale): Bounds {
     case 'arena':
       return boundsOf(arenaPoints(obj));
     case 'obstacle': {
-      const halfW = obj.faceWidthM / 2;
-      const halfD = Math.max(obj.spreadM ?? 0, 0.6) / 2;
+      const ext = obstacleExtent(obj);
+      const halfW = ext.halfWidthM;
+      // Um vertical não tem profundidade: garante um alvo clicável mínimo.
+      const front = Math.min(ext.frontM, -0.3);
+      const back = Math.max(ext.backM, 0.3);
       const corners = [
-        { x: -halfW, y: -halfD },
-        { x: halfW, y: -halfD },
-        { x: halfW, y: halfD },
-        { x: -halfW, y: halfD },
+        { x: -halfW, y: front },
+        { x: halfW, y: front },
+        { x: halfW, y: back },
+        { x: -halfW, y: back },
       ].map((c) => add(rotate(c, obj.rotation), obj.pos));
       return boundsOf(corners);
     }

@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import { addObject } from '@core/commands/ops';
 import { createOrnament } from '@core/library/ornaments';
 import { createDocument } from '@core/model/document';
-import type { CourseDocument, CoursePath, TextLabel } from '@core/model/types';
+import type { CourseDocument, CoursePath, Obstacle, TextLabel } from '@core/model/types';
 import { SCHEMA_VERSION } from '@core/model/types';
 import { CourseFileError, FILE_FORMAT } from './format';
 import { applyMigrations, type Migration } from './migrations';
@@ -172,6 +172,81 @@ describe('migrações', () => {
 
   it('recusa versão futura', () => {
     expect(() => applyMigrations({ a: 1 }, 9, 3, tabela)).toThrow(/versão mais nova/);
+  });
+});
+
+describe('migração 1 → 2, com arquivo do formato antigo', () => {
+  /** Arquivo como era gravado no esquema 1, antes das mudanças de aparência. */
+  const arquivoV1 = () =>
+    JSON.stringify({
+      format: FILE_FORMAT,
+      schemaVersion: 1,
+      savedAt: '2026-01-01T00:00:00.000Z',
+      appVersion: '0.1.0',
+      document: {
+        ...JSON.parse(JSON.stringify(createDocument())),
+        objects: [
+          {
+            id: 'obs-liverpool',
+            kind: 'obstacle',
+            layer: 'obstacles',
+            locked: false,
+            visible: true,
+            z: 0,
+            type: 'liverpool',
+            pos: { x: 20, y: 15 },
+            rotation: 45,
+            faceWidthM: 3.5,
+            spreadM: 2.4,
+            number: '9',
+            letter: '',
+            elements: [{ height: 1.4 }, { height: 1.5 }],
+            arrow: { visible: true, reversed: false, lengthMm: 6 },
+            heightLabel: { visible: true, offsetM: { x: 0, y: 2.2 } },
+            numberLabel: { visible: true, offsetM: { x: 0, y: -2.2 } },
+            note: '',
+          },
+        ],
+      },
+    });
+
+  it('o liverpool antigo vira oxer com a lâmina de água ligada', () => {
+    const { document } = deserialize(arquivoV1());
+    const o = document.objects.find((x): x is Obstacle => x.kind === 'obstacle')!;
+    expect(o.type).toBe('oxer');
+    expect(o.liverpool.enabled).toBe(true);
+    expect(o.liverpool.spreadM).toBe(2.4);
+  });
+
+  it('preserva o que o usuário já tinha: posição, rotação, número, alturas', () => {
+    const { document } = deserialize(arquivoV1());
+    const o = document.objects.find((x): x is Obstacle => x.kind === 'obstacle')!;
+    expect(o.pos).toEqual({ x: 20, y: 15 });
+    expect(o.rotation).toBe(45);
+    expect(o.number).toBe('9');
+    expect(o.elements.map((e) => e.height)).toEqual([1.4, 1.5]);
+  });
+
+  it('rótulo antigo não é reposicionado: fica onde o usuário via', () => {
+    const { document } = deserialize(arquivoV1());
+    const o = document.objects.find((x): x is Obstacle => x.kind === 'obstacle')!;
+    expect(o.numberLabel.auto).toBe(false);
+    expect(o.numberLabel.offsetM).toEqual({ x: 0, y: -2.2 });
+  });
+
+  it('ganha os campos novos com valores utilizáveis', () => {
+    const { document } = deserialize(arquivoV1());
+    const o = document.objects.find((x): x is Obstacle => x.kind === 'obstacle')!;
+    expect(o.bar.style).toBe('pontas');
+    expect(o.bar.color).toBeTruthy();
+    expect(document.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+
+  it('o arquivo migrado é gravado já na versão nova', () => {
+    const { document } = deserialize(arquivoV1());
+    const regravado = JSON.parse(serialize(document));
+    expect(regravado.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(deserialize(serialize(document)).warnings).toEqual([]);
   });
 });
 

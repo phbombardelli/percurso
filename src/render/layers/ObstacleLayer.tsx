@@ -1,5 +1,5 @@
-import { formatHeights, obstacleLabel } from '@core/library/obstacles';
-import type { Vec2 } from '@core/geometry/vec';
+import { formatHeights, labelOffset, obstacleLabel } from '@core/library/obstacles';
+import { rotate, type Vec2 } from '@core/geometry/vec';
 import type { Obstacle } from '@core/model/types';
 import { mmPerMeter } from '@core/scale/units';
 import { JumpArrow, ObstacleShape } from '@render/symbols/obstacleShapes';
@@ -20,6 +20,11 @@ export function ObstacleLayer({ obstacle, printScale, originMm, onPointerDown }:
   const numero = obstacleLabel(obstacle);
   const alturas = formatHeights(obstacle);
 
+  // O deslocamento do rótulo é local: gira com o obstáculo para continuar
+  // fugindo do corpo e da seta. O TEXTO em si nunca gira.
+  const numeroEm = rotate(labelOffset(obstacle, 'numberLabel'), obstacle.rotation);
+  const alturasEm = rotate(labelOffset(obstacle, 'heightLabel'), obstacle.rotation);
+
   return (
     <g data-object={obstacle.id} data-kind="obstacle">
       {/* Corpo e seta giram com o obstáculo. */}
@@ -39,8 +44,8 @@ export function ObstacleLayer({ obstacle, printScale, originMm, onPointerDown }:
       */}
       {obstacle.numberLabel.visible && numero !== '' && (
         <text
-          x={round(cx + obstacle.numberLabel.offsetM.x * k)}
-          y={round(cy + obstacle.numberLabel.offsetM.y * k)}
+          x={round(cx + numeroEm.x * k)}
+          y={round(cy + numeroEm.y * k)}
           fontFamily={font.family}
           fontSize={text.medium}
           fontWeight="bold"
@@ -55,8 +60,8 @@ export function ObstacleLayer({ obstacle, printScale, originMm, onPointerDown }:
 
       {obstacle.heightLabel.visible && alturas !== '' && (
         <text
-          x={round(cx + obstacle.heightLabel.offsetM.x * k)}
-          y={round(cy + obstacle.heightLabel.offsetM.y * k)}
+          x={round(cx + alturasEm.x * k)}
+          y={round(cy + alturasEm.y * k)}
           fontFamily={font.family}
           fontSize={text.small}
           fill={color.height}

@@ -167,6 +167,10 @@ button.danger:hover:not(:disabled) { background: #fdefef; border-color: #d08080;
 }
 .tool-options button { padding: 2px 6px; font-size: 12px; }
 
+.color-pair { display: flex; gap: 8px; }
+.color-pair .field { flex: 1; margin-bottom: 5px; }
+.color-pair .field input[type="color"] { width: 46px; }
+
 .element-row { display: flex; align-items: center; gap: 4px; }
 .element-row .field { flex: 1; }
 button.mini { padding: 1px 6px; line-height: 1.2; color: #a02020; }

@@ -1,5 +1,5 @@
 import { arrowGeometry } from '@core/library/obstacles';
-import type { Obstacle } from '@core/model/types';
+import type { BarAppearance, Obstacle } from '@core/model/types';
 import { color, stroke } from '@render/style/tokens';
 
 /**
@@ -14,8 +14,10 @@ import { color, stroke } from '@render/style/tokens';
  * Sem <symbol>/<use> — o conversor de PDF perde o conteúdo deles.
  */
 
-const BAR_MM = 0.9;
+const BAR_MM = 1.1;
 const STANDARD_M = 0.35;
+/** Fração da vara ocupada por cada ponta, no estilo "pontas". */
+const TIP_FRACTION = 0.16;
 
 interface Props {
   obstacle: Obstacle;
@@ -26,97 +28,131 @@ interface Props {
 export function ObstacleShape({ obstacle, k }: Props) {
   const halfW = (obstacle.faceWidthM / 2) * k;
   const spread = (obstacle.spreadM ?? 0) * k;
+  const bar = obstacle.bar;
 
-  switch (obstacle.type) {
-    case 'vertical':
-    case 'plano':
-      return <Bar halfW={halfW} y={0} k={k} thin={obstacle.type === 'plano'} />;
+  const corpo = () => {
+    switch (obstacle.type) {
+      case 'vertical':
+      case 'plano':
+        return <Bar halfW={halfW} y={0} k={k} bar={bar} thin={obstacle.type === 'plano'} />;
 
-    case 'oxer':
-      return (
-        <>
-          <Bar halfW={halfW} y={spread / 2} k={k} />
-          <Bar halfW={halfW} y={-spread / 2} k={k} />
-        </>
-      );
+      case 'oxer':
+        return (
+          <>
+            <Bar halfW={halfW} y={spread / 2} k={k} bar={bar} />
+            <Bar halfW={halfW} y={-spread / 2} k={k} bar={bar} />
+          </>
+        );
 
-    case 'triplice':
-      return (
-        <>
-          <Bar halfW={halfW} y={spread / 2} k={k} />
-          <Bar halfW={halfW} y={0} k={k} />
-          <Bar halfW={halfW} y={-spread / 2} k={k} />
-        </>
-      );
+      case 'triplice':
+        return (
+          <>
+            <Bar halfW={halfW} y={spread / 2} k={k} bar={bar} />
+            <Bar halfW={halfW} y={0} k={k} bar={bar} />
+            <Bar halfW={halfW} y={-spread / 2} k={k} bar={bar} />
+          </>
+        );
 
-    case 'muro':
-      return (
-        <rect
-          x={-halfW}
-          y={-spread / 2}
-          width={halfW * 2}
-          height={spread}
-          fill={color.ink}
-          stroke={color.ink}
-          strokeWidth={stroke.thin}
-        />
-      );
-
-    case 'rio':
-      return (
-        <rect
-          x={-halfW}
-          y={-spread / 2}
-          width={halfW * 2}
-          height={spread}
-          fill={color.water}
-          stroke={color.ink}
-          strokeWidth={stroke.thin}
-        />
-      );
-
-    case 'liverpool':
-      return (
-        <>
+      case 'muro':
+        return (
           <rect
             x={-halfW}
             y={-spread / 2}
             width={halfW * 2}
             height={spread}
-            fill={color.water}
+            fill={bar.color === '#ffffff' ? '#8d8d8d' : bar.color}
             stroke={color.ink}
-            strokeWidth={stroke.hairline}
+            strokeWidth={stroke.thin}
           />
-          <Bar halfW={halfW} y={spread / 2} k={k} />
-          {obstacle.elements.length > 1 && <Bar halfW={halfW} y={-spread / 2} k={k} />}
-        </>
-      );
-  }
+        );
+
+      case 'rio':
+        return (
+          <rect
+            x={-halfW}
+            y={-spread / 2}
+            width={halfW * 2}
+            height={spread}
+            fill={obstacle.liverpool.color}
+            stroke={color.ink}
+            strokeWidth={stroke.thin}
+          />
+        );
+    }
+  };
+
+  return (
+    <>
+      {/* A água entra por baixo das varas. */}
+      {obstacle.liverpool.enabled && <Liverpool obstacle={obstacle} k={k} />}
+      {corpo()}
+    </>
+  );
 }
 
-/** Barra com os dois pilares nas pontas. */
+/**
+ * Lâmina de água acoplada. Desenhada no sistema local com os lados
+ * alinhados aos eixos, o que a mantém paralela à frente por construção —
+ * não há como o usuário desalinhá-la.
+ */
+function Liverpool({ obstacle, k }: Props) {
+  const { spreadM, offsetM, overhangM, color: fill } = obstacle.liverpool;
+  const halfW = (obstacle.faceWidthM / 2 + overhangM) * k;
+  return (
+    <rect
+      data-part="liverpool"
+      x={-halfW}
+      y={(offsetM - spreadM / 2) * k}
+      width={halfW * 2}
+      height={spreadM * k}
+      fill={fill}
+      stroke={color.ink}
+      strokeWidth={stroke.hairline}
+    />
+  );
+}
+
+/**
+ * Vara com os pilares nas pontas. O estilo é do usuário: lisa, listrada ou
+ * só com as pontas destacadas — as três aparecem em obstáculo real, e a
+ * diferença ajuda a distinguir obstáculos vizinhos no croqui.
+ */
 function Bar({
   halfW,
   y,
   k,
+  bar,
   thin = false,
 }: {
   halfW: number;
   y: number;
   k: number;
+  bar: BarAppearance;
   thin?: boolean;
 }) {
   const standard = (STANDARD_M / 2) * k;
+  const espessura = thin ? BAR_MM * 0.55 : BAR_MM;
+  const topo = y - espessura / 2;
+  const largura = halfW * 2;
+
   return (
     <g>
-      <line
-        x1={-halfW}
-        y1={y}
-        x2={halfW}
-        y2={y}
+      {bar.style === 'listrada' ? (
+        <Stripes x={-halfW} y={topo} width={largura} height={espessura} bar={bar} />
+      ) : bar.style === 'pontas' ? (
+        <Tips x={-halfW} y={topo} width={largura} height={espessura} bar={bar} />
+      ) : (
+        <rect x={-halfW} y={topo} width={largura} height={espessura} fill={bar.color} />
+      )}
+      {/* Contorno por cima: garante a vara visível mesmo em cor clara. */}
+      <rect
+        x={-halfW}
+        y={topo}
+        width={largura}
+        height={espessura}
+        fill="none"
         stroke={color.ink}
-        strokeWidth={thin ? BAR_MM / 2 : BAR_MM}
-        strokeLinecap="butt"
+        strokeWidth={stroke.hairline}
       />
       <line x1={-halfW} y1={y - standard} x2={-halfW} y2={y + standard} stroke={color.ink} strokeWidth={stroke.regular} />
       <line x1={halfW} y1={y - standard} x2={halfW} y2={y + standard} stroke={color.ink} strokeWidth={stroke.regular} />
@@ -124,11 +160,60 @@ function Bar({
   );
 }
 
-/**
- * Seta de direção do salto: perpendicular à frente e centrada, por
- * construção. Vive dentro do grupo rotacionado, então acompanha o
- * obstáculo sem o usuário precisar desenhar nada (§16).
- */
+function Stripes({
+  x,
+  y,
+  width,
+  height,
+  bar,
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  bar: BarAppearance;
+}) {
+  const n = Math.max(2, Math.min(24, Math.round(bar.stripes)));
+  const passo = width / n;
+  return (
+    <>
+      {Array.from({ length: n }, (_, i) => (
+        <rect
+          key={i}
+          x={x + i * passo}
+          y={y}
+          width={passo}
+          height={height}
+          fill={i % 2 === 0 ? bar.color : bar.accent}
+        />
+      ))}
+    </>
+  );
+}
+
+function Tips({
+  x,
+  y,
+  width,
+  height,
+  bar,
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  bar: BarAppearance;
+}) {
+  const ponta = width * TIP_FRACTION;
+  return (
+    <>
+      <rect x={x} y={y} width={width} height={height} fill={bar.color} />
+      <rect x={x} y={y} width={ponta} height={height} fill={bar.accent} />
+      <rect x={x + width - ponta} y={y} width={ponta} height={height} fill={bar.accent} />
+    </>
+  );
+}
+
 export function JumpArrow({ obstacle, k }: Props) {
   const { shaft, head } = arrowGeometry(obstacle, k);
   return (

@@ -258,6 +258,28 @@ graus, um rotulo girado junto ficaria de cabeca para baixo. O deslocamento
 do rotulo e em metros a partir do centro, para acompanhar o obstaculo ao
 move-lo.
 
+## 24. Liverpool e opcao, nao tipo de obstaculo
+
+Na pista o liverpool aparece acoplado a um vertical ou a um oxer, e nao
+como obstaculo a parte. Vira `liverpool` dentro do obstaculo: ligar,
+profundidade, deslocamento e sobra nos lados.
+
+Ele e desenhado no sistema LOCAL do obstaculo, com os lados alinhados aos
+eixos. Por construcao fica sempre paralelo a frente — nao existe opcao de
+angulo, porque nao existe como desalinha-lo.
+
+## 25. Rotulo do obstaculo se posiciona sozinho
+
+Com `auto` ligado, o numero vai para o LADO (alem da meia-largura da
+frente) e as alturas vao para TRAS — nunca para a frente, que e por onde a
+seta sai. O deslocamento e local: gira com o obstaculo, entao continua
+fugindo do corpo e da seta em qualquer angulo. Foi assim que se resolveu o
+numero ficar encoberto em obstaculo largo ou inclinado.
+
+Mexer na posicao pelo painel desliga o automatico; um botao devolve.
+
+O texto em si nunca gira (decisao 23).
+
 ---
 
 ## Ordem das fases

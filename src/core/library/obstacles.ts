@@ -66,14 +66,6 @@ export const OBSTACLES: readonly ObstacleDef[] = [
     hint: 'Lâmina de água, sem altura.',
   },
   {
-    type: 'liverpool',
-    label: 'Liverpool',
-    faceWidthM: 3.5,
-    spreadM: 2,
-    elements: 2,
-    hint: 'Varas sobre lâmina de água.',
-  },
-  {
     type: 'plano',
     label: 'Plano',
     faceWidthM: 3.5,
@@ -82,6 +74,17 @@ export const OBSTACLES: readonly ObstacleDef[] = [
     hint: 'Obstáculo raso, de uma linha só.',
   },
 ] as const;
+
+/** Tipos desenhados com vara — os únicos em que o estilo da vara importa. */
+export const BAR_TYPES: readonly ObstacleType[] = ['vertical', 'oxer', 'triplice', 'plano'];
+
+export const hasBars = (type: ObstacleType): boolean => BAR_TYPES.includes(type);
+
+/** O liverpool só faz sentido acoplado a um vertical ou a um oxer. */
+export const LIVERPOOL_TYPES: readonly ObstacleType[] = ['vertical', 'oxer'];
+
+export const acceptsLiverpool = (type: ObstacleType): boolean =>
+  LIVERPOOL_TYPES.includes(type);
 
 export const obstacleDef = (type: ObstacleType): ObstacleDef =>
   OBSTACLES.find((o) => o.type === type) ?? OBSTACLES[0]!;
@@ -106,9 +109,17 @@ export function createObstacle(type: ObstacleType, pos: Vec2, numero = ''): Obst
     number: numero,
     letter: '',
     elements: emptyElements(def.elements),
+    bar: { style: 'pontas', color: '#ffffff', accent: '#c62828', stripes: 6 },
+    liverpool: {
+      enabled: false,
+      spreadM: 2,
+      offsetM: 0,
+      overhangM: 0.25,
+      color: '#2b7fd4',
+    },
     arrow: { visible: true, reversed: false, lengthMm: 6 },
-    heightLabel: { visible: true, offsetM: { x: 0, y: 2.2 } },
-    numberLabel: { visible: true, offsetM: { x: 0, y: -2.2 } },
+    heightLabel: { visible: true, auto: true, offsetM: { x: 0, y: 0 } },
+    numberLabel: { visible: true, auto: true, offsetM: { x: 0, y: 0 } },
     note: '',
   };
 }
@@ -144,6 +155,56 @@ export function obstacleLabel(obstacle: Obstacle): string {
 }
 
 /**
+ * Extensão do corpo no sistema local, em METROS, já contando a lâmina de
+ * água quando existe. É a base de tudo o que precisa ficar fora do
+ * obstáculo: a seta, os rótulos e a envoltória.
+ */
+export interface ObstacleExtent {
+  halfWidthM: number;
+  /** Limites na profundidade. `front` é o lado para onde o cavalo salta. */
+  frontM: number;
+  backM: number;
+}
+
+export function obstacleExtent(obstacle: Obstacle): ObstacleExtent {
+  const half = obstacle.faceWidthM / 2;
+  const spread = (obstacle.spreadM ?? 0) / 2;
+  let frontM = -spread;
+  let backM = spread;
+  let halfWidthM = half;
+
+  if (obstacle.liverpool.enabled) {
+    const meia = obstacle.liverpool.spreadM / 2;
+    frontM = Math.min(frontM, obstacle.liverpool.offsetM - meia);
+    backM = Math.max(backM, obstacle.liverpool.offsetM + meia);
+    halfWidthM = half + obstacle.liverpool.overhangM;
+  }
+  return { halfWidthM, frontM, backM };
+}
+
+/**
+ * Posição do rótulo no sistema LOCAL, em metros.
+ *
+ * No automático o número vai para o lado e as alturas para trás — nunca
+ * para a frente, que é por onde a seta sai. É o que impede o número de
+ * ficar encoberto pelo desenho ou pela seta em obstáculo largo ou
+ * inclinado.
+ */
+export function labelOffset(
+  obstacle: Obstacle,
+  which: 'numberLabel' | 'heightLabel',
+): Vec2 {
+  const label = obstacle[which];
+  if (!label.auto) return label.offsetM;
+
+  const ext = obstacleExtent(obstacle);
+  const folga = 1.3;
+  return which === 'numberLabel'
+    ? { x: ext.halfWidthM + folga, y: 0 }
+    : { x: 0, y: ext.backM + folga };
+}
+
+/**
  * Geometria da seta de direção, em milímetros de papel, no sistema local
  * do obstáculo. Fica aqui, e não no componente, para poder ser testada: a
  * exigência do §16 é que a seta seja perpendicular à frente e centrada, e
@@ -157,11 +218,12 @@ export interface ArrowGeometry {
 
 export function arrowGeometry(obstacle: Obstacle, k: number): ArrowGeometry {
   const { lengthMm, reversed } = obstacle.arrow;
-  const spread = (obstacle.spreadM ?? 0) * k;
+  const ext = obstacleExtent(obstacle);
   const dir = reversed ? 1 : -1;
 
-  // Começa logo além do corpo, para a haste não invadir a barra.
-  const from = dir * (spread / 2 + 1);
+  // Começa logo além do corpo — inclusive da lâmina de água, quando há.
+  const borda = (dir < 0 ? -ext.frontM : ext.backM) * k;
+  const from = dir * (borda + 1);
   const to = from + dir * lengthMm;
   const head = lengthMm * 0.42;
   const base = to - dir * head;

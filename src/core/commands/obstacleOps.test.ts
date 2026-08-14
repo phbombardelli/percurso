@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import {
+  OBSTACLES,
+  acceptsLiverpool,
   arrowGeometry,
   createObstacle,
   fitElementsToType,
   formatHeights,
+  hasBars,
+  labelOffset,
   nextObstacleNumber,
+  obstacleExtent,
   obstacleLabel,
 } from '@core/library/obstacles';
 import { createDocument } from '@core/model/document';
@@ -15,6 +20,10 @@ import { addObject, rotateObjects } from './ops';
 import {
   addElement,
   allObstacles,
+  resetLabel,
+  setBarAppearance,
+  setLabelOffset,
+  setLiverpool,
   flipArrow,
   removeElement,
   renumberByInsertion,
@@ -238,6 +247,138 @@ describe('geometria da seta', () => {
     expect(Math.abs(arrowGeometry(largo, 5).shaft.y1)).toBeGreaterThan(
       Math.abs(arrowGeometry(estreito, 5).shaft.y1),
     );
+  });
+});
+
+describe('estilo das varas', () => {
+  it('só os tipos com vara aceitam estilo', () => {
+    expect(hasBars('vertical')).toBe(true);
+    expect(hasBars('oxer')).toBe(true);
+    expect(hasBars('triplice')).toBe(true);
+    expect(hasBars('muro')).toBe(false);
+    expect(hasBars('rio')).toBe(false);
+  });
+
+  it('guarda estilo e as duas cores', () => {
+    const o = createObstacle('oxer', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) =>
+      setBarAppearance(d, o.id, { style: 'listrada', color: '#ffffff', accent: '#1565c0' }),
+    );
+    const bar = obs(doc, o.id).bar;
+    expect(bar.style).toBe('listrada');
+    expect(bar.accent).toBe('#1565c0');
+  });
+
+  it('mantém o número de faixas dentro do que é desenhável', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setBarAppearance(d, o.id, { stripes: 0 }));
+    expect(obs(doc, o.id).bar.stripes).toBe(2);
+    doc = edit(doc, (d) => setBarAppearance(d, o.id, { stripes: 999 }));
+    expect(obs(doc, o.id).bar.stripes).toBe(24);
+  });
+});
+
+describe('liverpool como opção', () => {
+  it('deixou de ser um tipo de obstáculo', () => {
+    expect(OBSTACLES.map((o) => o.type)).not.toContain('liverpool');
+  });
+
+  it('só vertical e oxer aceitam', () => {
+    expect(acceptsLiverpool('vertical')).toBe(true);
+    expect(acceptsLiverpool('oxer')).toBe(true);
+    expect(acceptsLiverpool('triplice')).toBe(false);
+    expect(acceptsLiverpool('muro')).toBe(false);
+  });
+
+  it('não liga em tipo que não aceita', () => {
+    const o = createObstacle('triplice', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setLiverpool(d, o.id, { enabled: true }));
+    expect(obs(doc, o.id).liverpool.enabled).toBe(false);
+  });
+
+  it('desliga sozinho ao trocar para um tipo que não aceita', () => {
+    const o = createObstacle('oxer', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setLiverpool(d, o.id, { enabled: true }));
+    expect(obs(doc, o.id).liverpool.enabled).toBe(true);
+    doc = edit(doc, (d) => setObstacleType(d, o.id, 'muro'));
+    expect(obs(doc, o.id).liverpool.enabled).toBe(false);
+  });
+
+  it('a água entra na extensão do obstáculo, e a envoltória cresce', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    let doc = docCom(o);
+    const antes = getBounds(obs(doc, o.id), 250);
+    doc = edit(doc, (d) =>
+      setLiverpool(d, o.id, { enabled: true, spreadM: 3, offsetM: 0.5, overhangM: 0.25 }),
+    );
+    const ext = obstacleExtent(obs(doc, o.id));
+    expect(ext.frontM).toBeCloseTo(-1, 9); // 0,5 - 3/2
+    expect(ext.backM).toBeCloseTo(2, 9); // 0,5 + 3/2
+    expect(ext.halfWidthM).toBeCloseTo(3.5 / 2 + 0.25, 9);
+    const depois = getBounds(obs(doc, o.id), 250);
+    expect(depois.max.y - depois.min.y).toBeGreaterThan(antes.max.y - antes.min.y);
+  });
+
+  it('a seta começa além da água, não em cima dela', () => {
+    const seca = createObstacle('vertical', { x: 0, y: 0 });
+    const molhada = createObstacle('vertical', { x: 0, y: 0 });
+    molhada.liverpool = { enabled: true, spreadM: 3, offsetM: -1, overhangM: 0.25, color: '#2b7fd4' };
+    expect(Math.abs(arrowGeometry(molhada, 5).shaft.y1)).toBeGreaterThan(
+      Math.abs(arrowGeometry(seca, 5).shaft.y1),
+    );
+  });
+});
+
+describe('posição dos rótulos', () => {
+  it('no automático, o número sai do corpo pelo lado', () => {
+    const o = createObstacle('oxer', { x: 0, y: 0 }); // frente 3,5 m
+    const off = labelOffset(o, 'numberLabel');
+    expect(off.x).toBeGreaterThan(3.5 / 2);
+    expect(off.y).toBe(0);
+  });
+
+  it('o número foge da seta: nunca vai para o lado do salto', () => {
+    const o = createObstacle('oxer', { x: 0, y: 0 });
+    const off = labelOffset(o, 'numberLabel');
+    // A seta sai por −Y; o número não pode estar lá.
+    expect(off.y).not.toBeLessThan(0);
+  });
+
+  it('obstáculo mais largo empurra o número para mais longe', () => {
+    const estreito = createObstacle('vertical', { x: 0, y: 0 });
+    const largo = createObstacle('vertical', { x: 0, y: 0 });
+    largo.faceWidthM = 8;
+    expect(labelOffset(largo, 'numberLabel').x).toBeGreaterThan(
+      labelOffset(estreito, 'numberLabel').x,
+    );
+  });
+
+  it('as alturas ficam atrás, do lado oposto ao salto', () => {
+    const o = createObstacle('oxer', { x: 0, y: 0 });
+    const off = labelOffset(o, 'heightLabel');
+    expect(off.y).toBeGreaterThan(0);
+    expect(off.x).toBe(0);
+  });
+
+  it('a água desloca as alturas junto', () => {
+    const o = createObstacle('oxer', { x: 0, y: 0 });
+    const antes = labelOffset(o, 'heightLabel').y;
+    o.liverpool = { enabled: true, spreadM: 3, offsetM: 1.5, overhangM: 0.25, color: '#2b7fd4' };
+    expect(labelOffset(o, 'heightLabel').y).toBeGreaterThan(antes);
+  });
+
+  it('posição manual manda, e volta ao automático quando pedido', () => {
+    const o = createObstacle('vertical', { x: 0, y: 0 });
+    let doc = docCom(o);
+    doc = edit(doc, (d) => setLabelOffset(d, o.id, 'numberLabel', { x: -4, y: -4 }));
+    expect(obs(doc, o.id).numberLabel.auto).toBe(false);
+    expect(labelOffset(obs(doc, o.id), 'numberLabel')).toEqual({ x: -4, y: -4 });
+    doc = edit(doc, (d) => resetLabel(d, o.id, 'numberLabel'));
+    expect(labelOffset(obs(doc, o.id), 'numberLabel').x).toBeGreaterThan(0);
   });
 });
 

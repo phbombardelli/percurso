@@ -11,11 +11,58 @@ export type RawDocument = Record<string, unknown>;
 export type Migration = (doc: RawDocument) => RawDocument;
 
 /**
- * Ainda não há migração alguma: o esquema 1 é o primeiro. O mecanismo
- * existe desde já porque acrescentá-lo depois exigiria adivinhar o que
- * havia nos arquivos gravados antes dele.
+ * 1 → 2. O liverpool deixou de ser um tipo de obstáculo e virou uma opção
+ * de vertical e oxer; as varas ganharam estilo e cor; os rótulos ganharam
+ * posicionamento automático.
+ *
+ * Um liverpool antigo vira um oxer com a lâmina de água ligada — é o que
+ * ele desenhava, e o desenho do usuário não pode mudar ao abrir.
  */
-export const MIGRATIONS: Readonly<Record<number, Migration>> = {};
+const v1ToV2: Migration = (doc) => {
+  const objects = Array.isArray(doc.objects) ? doc.objects : [];
+  return {
+    ...doc,
+    objects: objects.map((raw) => {
+      const obj = raw as Record<string, unknown>;
+      if (obj.kind !== 'obstacle') return obj;
+
+      const eraLiverpool = obj.type === 'liverpool';
+      const spread = typeof obj.spreadM === 'number' ? obj.spreadM : 2;
+
+      return {
+        ...obj,
+        type: eraLiverpool ? 'oxer' : obj.type,
+        bar: obj.bar ?? { style: 'pontas', color: '#ffffff', accent: '#c62828', stripes: 6 },
+        liverpool: obj.liverpool ?? {
+          enabled: eraLiverpool,
+          spreadM: eraLiverpool ? spread : 2,
+          offsetM: 0,
+          overhangM: 0.25,
+          color: '#2b7fd4',
+        },
+        numberLabel: withAuto(obj.numberLabel),
+        heightLabel: withAuto(obj.heightLabel),
+      };
+    }),
+  };
+};
+
+/**
+ * Rótulo gravado antes do automático: mantém a posição que o usuário via,
+ * em vez de reposicionar o croqui dele na abertura.
+ */
+function withAuto(raw: unknown): Record<string, unknown> {
+  const label = (raw ?? {}) as Record<string, unknown>;
+  return {
+    visible: label.visible ?? true,
+    auto: false,
+    offsetM: label.offsetM ?? { x: 0, y: 0 },
+  };
+}
+
+export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  1: v1ToV2,
+};
 
 export function applyMigrations(
   doc: RawDocument,

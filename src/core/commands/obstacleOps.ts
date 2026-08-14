@@ -1,7 +1,14 @@
 import { toMillimeterPrecision } from '@core/geometry/snap';
 import type { Vec2 } from '@core/geometry/vec';
-import { fitElementsToType, obstacleDef } from '@core/library/obstacles';
-import type { CourseDocument, Obstacle, ObstacleType, ObjectId } from '@core/model/types';
+import { acceptsLiverpool, fitElementsToType, obstacleDef } from '@core/library/obstacles';
+import type {
+  BarAppearance,
+  CourseDocument,
+  LiverpoolOption,
+  Obstacle,
+  ObstacleType,
+  ObjectId,
+} from '@core/model/types';
 
 /**
  * Operações sobre obstáculos. Tudo o que o desenhador decide — tipo,
@@ -25,6 +32,8 @@ export function setObstacleType(doc: CourseDocument, id: ObjectId, type: Obstacl
 
   obstacle.type = type;
   obstacle.elements = fitElementsToType(obstacle.elements, type);
+  // O liverpool só existe acoplado a vertical ou oxer.
+  if (!acceptsLiverpool(type)) obstacle.liverpool.enabled = false;
   // A largura de salto só é reposta quando o obstáculo não tinha nenhuma:
   // um oxer já ajustado não pode voltar ao padrão ao virar tríplice.
   if (def.spreadM === null) obstacle.spreadM = null;
@@ -111,6 +120,8 @@ export function setLabelOffset(
     x: toMillimeterPrecision(offsetM.x),
     y: toMillimeterPrecision(offsetM.y),
   };
+  // Mexer na posição desliga o automático: a escolha passa a ser do usuário.
+  obstacle[which].auto = false;
 }
 
 export function setLabelVisible(
@@ -121,6 +132,45 @@ export function setLabelVisible(
 ): void {
   const obstacle = obstacleOf(doc, id);
   if (obstacle) obstacle[which].visible = visible;
+}
+
+export function setBarAppearance(
+  doc: CourseDocument,
+  id: ObjectId,
+  patch: Partial<BarAppearance>,
+): void {
+  const obstacle = obstacleOf(doc, id);
+  if (!obstacle) return;
+  obstacle.bar = { ...obstacle.bar, ...patch };
+  if (obstacle.bar.stripes < 2) obstacle.bar.stripes = 2;
+  if (obstacle.bar.stripes > 24) obstacle.bar.stripes = 24;
+}
+
+/**
+ * Liga/ajusta a lâmina de água. Não há opção de ângulo: ela é desenhada no
+ * sistema local do obstáculo e por isso fica sempre paralela à frente.
+ */
+export function setLiverpool(
+  doc: CourseDocument,
+  id: ObjectId,
+  patch: Partial<LiverpoolOption>,
+): void {
+  const obstacle = obstacleOf(doc, id);
+  if (!obstacle) return;
+  if (patch.enabled === true && !acceptsLiverpool(obstacle.type)) return;
+  obstacle.liverpool = { ...obstacle.liverpool, ...patch };
+  if (!(obstacle.liverpool.spreadM > 0)) obstacle.liverpool.spreadM = 2;
+  if (obstacle.liverpool.overhangM < 0) obstacle.liverpool.overhangM = 0;
+}
+
+/** Devolve o rótulo ao posicionamento automático. */
+export function resetLabel(
+  doc: CourseDocument,
+  id: ObjectId,
+  which: 'numberLabel' | 'heightLabel',
+): void {
+  const obstacle = obstacleOf(doc, id);
+  if (obstacle) obstacle[which].auto = true;
 }
 
 export function setObstacleNote(doc: CourseDocument, id: ObjectId, note: string): void {
