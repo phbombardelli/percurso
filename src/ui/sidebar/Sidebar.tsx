@@ -1,3 +1,4 @@
+import { OBSTACLES } from '@core/library/obstacles';
 import { ORNAMENTS } from '@core/library/ornaments';
 import { importBackgroundImage } from '@ui/actions/imageActions';
 import { useEditorStore } from '@store/editorStore';
@@ -7,7 +8,6 @@ import { useEditorStore } from '@store/editorStore';
  * correspondente passa a existir no modelo.
  */
 const PENDING: { icon: string; label: string; phase: number }[] = [
-  { icon: '▬', label: 'Obstáculo', phase: 7 },
   { icon: '✎', label: 'Traçado', phase: 8 },
   { icon: 'T', label: 'Texto', phase: 10 },
   { icon: '▤', label: 'Quadro técnico', phase: 10 },
@@ -15,7 +15,8 @@ const PENDING: { icon: string; label: string; phase: number }[] = [
 ];
 
 export function Sidebar() {
-  const { tool, setTool, ornamentType, setOrnamentType } = useEditorStore();
+  const { tool, setTool, ornamentType, setOrnamentType, obstacleType, setObstacleType } =
+    useEditorStore();
 
   return (
     <nav className="sidebar">
@@ -51,6 +52,30 @@ export function Sidebar() {
         <span className="icon">⬠</span>
         <span className="label">Contorno livre</span>
       </button>
+
+      <button
+        className={tool === 'obstacle' ? 'active' : ''}
+        onClick={() => setTool(tool === 'obstacle' ? 'select' : 'obstacle')}
+        title="Clique na pista para inserir. Shift mantém a ferramenta ativa."
+      >
+        <span className="icon">▬</span>
+        <span className="label">Obstáculo</span>
+      </button>
+
+      {tool === 'obstacle' && (
+        <div className="tool-options">
+          {OBSTACLES.map((o) => (
+            <button
+              key={o.type}
+              className={obstacleType === o.type ? 'active' : ''}
+              title={o.hint}
+              onClick={() => setObstacleType(o.type)}
+            >
+              <span className="label">{o.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <button
         className={tool === 'ornament' ? 'active' : ''}

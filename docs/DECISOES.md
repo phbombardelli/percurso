@@ -228,6 +228,36 @@ arquivo é apagado junto quando nenhuma imagem o referencia mais.
 O preenchimento da pista pode ser desligado — de outro modo, o branco
 opaco taparia a imagem de referência.
 
+## 21. O obstáculo tem sistema local proprio
+
+X ao longo da frente, Y na profundidade, salto para -Y. Rotacao 0 significa
+frente horizontal com o cavalo saltando para cima na tela. A seta, as
+barras e a largura de salto seguem essa convencao; muda-la depois exigiria
+revisar cada simbolo.
+
+Os simbolos sao desenhados em MILIMETROS DE PAPEL, recebendo `k` (mm por
+metro), e nunca dentro de um `scale()`. A escala do grupo engordaria junto
+a espessura do traco, que e anotacao e precisa ficar constante em qualquer
+escala de impressao.
+
+## 22. Geometria que o desenho usa mora no nucleo
+
+A seta saia na diagonal em vez de perpendicular, e nenhum teste podia
+pegar isso porque a geometria estava dentro do componente. `arrowGeometry`
+passou para `core/library/obstacles`: "a seta e perpendicular e centrada"
+e uma afirmacao sobre numeros, nao sobre pixels, e agora ha teste dizendo
+isso.
+
+Vale como regra: se um requisito e verificavel em numeros, a conta sai do
+componente.
+
+## 23. Os rotulos do obstaculo nao giram
+
+Numero e alturas ficam fora do grupo rotacionado. Com o obstaculo a 127
+graus, um rotulo girado junto ficaria de cabeca para baixo. O deslocamento
+do rotulo e em metros a partir do centro, para acompanhar o obstaculo ao
+move-lo.
+
 ---
 
 ## Ordem das fases

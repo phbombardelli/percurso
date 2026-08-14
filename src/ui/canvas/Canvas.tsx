@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { insertArenaVertex } from '@core/commands/arenaOps';
+import { allObstacles } from '@core/commands/obstacleOps';
 import { addObject, deleteObjects, duplicateObjects } from '@core/commands/ops';
 import { snapPoint, toMillimeterPrecision } from '@core/geometry/snap';
 import { distance, type Vec2 } from '@core/geometry/vec';
+import { createObstacle, nextObstacleNumber } from '@core/library/obstacles';
 import { createOrnament } from '@core/library/ornaments';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
 import { deepClone } from '@core/model/clone';
@@ -207,6 +209,20 @@ export function Canvas() {
           return;
         }
         ed.addDraftPoint(p);
+        return;
+      }
+
+      if (tool === 'obstacle') {
+        const ed = useEditorStore.getState();
+        const st = useDocumentStore.getState();
+        const obstaculo = createObstacle(
+          ed.obstacleType,
+          snapped(toModel(e)),
+          nextObstacleNumber(allObstacles(st.doc)),
+        );
+        st.apply('Inserir obstáculo', (d) => addObject(d, obstaculo));
+        setSelection([obstaculo.id]);
+        if (!e.shiftKey) setTool('select');
         return;
       }
 

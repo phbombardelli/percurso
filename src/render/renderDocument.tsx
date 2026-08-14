@@ -5,6 +5,7 @@ import { pageSize } from '@core/scale/units';
 import { ArenaLayer } from './layers/ArenaLayer';
 import { GridLayer } from './layers/GridLayer';
 import { ImageLayer } from './layers/ImageLayer';
+import { ObstacleLayer } from './layers/ObstacleLayer';
 import { OrnamentLayer } from './layers/OrnamentLayer';
 import { color, stroke } from './style/tokens';
 
@@ -101,6 +102,16 @@ export function RenderDocument(opts: RenderOptions) {
                 key={obj.id}
                 image={obj}
                 asset={doc.assets[obj.assetId]}
+                printScale={doc.page.printScale}
+                originMm={doc.originMm}
+                onPointerDown={onPointerDown}
+              />
+            );
+          case 'obstacle':
+            return (
+              <ObstacleLayer
+                key={obj.id}
+                obstacle={obj}
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
                 onPointerDown={onPointerDown}

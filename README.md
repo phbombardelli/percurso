@@ -41,7 +41,7 @@ nem toca no DOM.
 | 4 | Persistência: novo/abrir/salvar + migrações | ✅ |
 | 5 | Pista: retângulo, polígono, desenho livre | ✅ |
 | 6 | Imagem de fundo + calibração de escala | ✅ |
-| 7 | Obstáculos + propriedades + setas | — |
+| 7 | Obstáculos + propriedades + setas | ✅ |
 | 8 | Traçados, curvas, comprimento | — |
 | 9 | Detecção de interferência | — |
 | 10 | Textos, quadro técnico, tabela de alturas | — |

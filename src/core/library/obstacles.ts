@@ -1,0 +1,185 @@
+import type { Vec2 } from '@core/geometry/vec';
+import { newId } from '@core/model/ids';
+import type { Obstacle, ObstacleElement, ObstacleType } from '@core/model/types';
+
+/**
+ * Biblioteca de obstáculos.
+ *
+ * Sistema local do obstáculo: o eixo X corre ao longo da frente (a
+ * largura da barra) e o eixo Y corre na profundidade. A direção do salto é
+ * o −Y local, ou seja, com rotação 0 o cavalo salta "para cima" na tela.
+ * A seta e todos os elementos seguem essa convenção — mudá-la depois
+ * exigiria revisar cada símbolo.
+ */
+
+export interface ObstacleDef {
+  type: ObstacleType;
+  label: string;
+  /** Largura da frente, em metros. */
+  faceWidthM: number;
+  /** Profundidade real; `null` quando o obstáculo não tem largura de salto. */
+  spreadM: number | null;
+  /** Quantas varas/elementos o obstáculo tem por padrão. */
+  elements: number;
+  hint: string;
+}
+
+export const OBSTACLES: readonly ObstacleDef[] = [
+  {
+    type: 'vertical',
+    label: 'Vertical',
+    faceWidthM: 3.5,
+    spreadM: null,
+    elements: 1,
+    hint: 'Uma única linha de varas, sem largura.',
+  },
+  {
+    type: 'oxer',
+    label: 'Oxer',
+    faceWidthM: 3.5,
+    spreadM: 1.5,
+    elements: 2,
+    hint: 'Duas linhas de varas, com largura entre elas.',
+  },
+  {
+    type: 'triplice',
+    label: 'Tríplice',
+    faceWidthM: 3.5,
+    spreadM: 2.2,
+    elements: 3,
+    hint: 'Três linhas em altura crescente.',
+  },
+  {
+    type: 'muro',
+    label: 'Muro',
+    faceWidthM: 3,
+    spreadM: 0.6,
+    elements: 1,
+    hint: 'Bloco maciço.',
+  },
+  {
+    type: 'rio',
+    label: 'Rio',
+    faceWidthM: 4,
+    spreadM: 3.5,
+    elements: 0,
+    hint: 'Lâmina de água, sem altura.',
+  },
+  {
+    type: 'liverpool',
+    label: 'Liverpool',
+    faceWidthM: 3.5,
+    spreadM: 2,
+    elements: 2,
+    hint: 'Varas sobre lâmina de água.',
+  },
+  {
+    type: 'plano',
+    label: 'Plano',
+    faceWidthM: 3.5,
+    spreadM: null,
+    elements: 1,
+    hint: 'Obstáculo raso, de uma linha só.',
+  },
+] as const;
+
+export const obstacleDef = (type: ObstacleType): ObstacleDef =>
+  OBSTACLES.find((o) => o.type === type) ?? OBSTACLES[0]!;
+
+const emptyElements = (n: number): ObstacleElement[] =>
+  Array.from({ length: n }, () => ({ height: null }));
+
+export function createObstacle(type: ObstacleType, pos: Vec2, numero = ''): Obstacle {
+  const def = obstacleDef(type);
+  return {
+    id: newId('obs'),
+    kind: 'obstacle',
+    layer: 'obstacles',
+    locked: false,
+    visible: true,
+    z: 0,
+    type,
+    pos,
+    rotation: 0,
+    faceWidthM: def.faceWidthM,
+    spreadM: def.spreadM,
+    number: numero,
+    letter: '',
+    elements: emptyElements(def.elements),
+    arrow: { visible: true, reversed: false, lengthMm: 6 },
+    heightLabel: { visible: true, offsetM: { x: 0, y: 2.2 } },
+    numberLabel: { visible: true, offsetM: { x: 0, y: -2.2 } },
+    note: '',
+  };
+}
+
+/**
+ * Ajusta a quantidade de elementos ao trocar de tipo, preservando as
+ * alturas já informadas — trocar vertical por oxer não pode apagar a
+ * altura que o desenhador acabou de digitar.
+ */
+export function fitElementsToType(
+  elements: ObstacleElement[],
+  type: ObstacleType,
+): ObstacleElement[] {
+  const alvo = obstacleDef(type).elements;
+  if (elements.length === alvo) return elements;
+  if (elements.length > alvo) return elements.slice(0, alvo);
+  return [...elements, ...emptyElements(alvo - elements.length)];
+}
+
+/** Rótulo de alturas do croqui: "1,20" ou "1,53-1,60". */
+export function formatHeights(obstacle: Obstacle): string {
+  const alturas = obstacle.elements
+    .map((e) => e.height)
+    .filter((h): h is number => h !== null && Number.isFinite(h));
+  if (alturas.length === 0) return '';
+  // Hífen ASCII: travessão e meia-risca somem no PDF (DECISOES, decisão 6).
+  return alturas.map((h) => h.toFixed(2).replace('.', ',')).join('-');
+}
+
+/** Identificação completa: "7", "10a", "" quando sem número. */
+export function obstacleLabel(obstacle: Obstacle): string {
+  return `${obstacle.number}${obstacle.letter.toLowerCase()}`;
+}
+
+/**
+ * Geometria da seta de direção, em milímetros de papel, no sistema local
+ * do obstáculo. Fica aqui, e não no componente, para poder ser testada: a
+ * exigência do §16 é que a seta seja perpendicular à frente e centrada, e
+ * isso é uma afirmação sobre números, não sobre pixels.
+ */
+export interface ArrowGeometry {
+  shaft: { x1: number; y1: number; x2: number; y2: number };
+  /** Três pontos da ponta, em ordem de traçado. */
+  head: [Vec2, Vec2, Vec2];
+}
+
+export function arrowGeometry(obstacle: Obstacle, k: number): ArrowGeometry {
+  const { lengthMm, reversed } = obstacle.arrow;
+  const spread = (obstacle.spreadM ?? 0) * k;
+  const dir = reversed ? 1 : -1;
+
+  // Começa logo além do corpo, para a haste não invadir a barra.
+  const from = dir * (spread / 2 + 1);
+  const to = from + dir * lengthMm;
+  const head = lengthMm * 0.42;
+  const base = to - dir * head;
+
+  return {
+    shaft: { x1: 0, y1: from, x2: 0, y2: to - dir * head * 0.8 },
+    head: [
+      { x: -head * 0.45, y: base },
+      { x: 0, y: to },
+      { x: head * 0.45, y: base },
+    ],
+  };
+}
+
+/** Próximo número livre, para a inserção não nascer sempre em branco. */
+export function nextObstacleNumber(existentes: Obstacle[]): string {
+  const numeros = existentes
+    .map((o) => parseInt(o.number, 10))
+    .filter((n) => Number.isFinite(n));
+  return String(numeros.length === 0 ? 1 : Math.max(...numeros) + 1);
+}

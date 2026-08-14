@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Vec2 } from '@core/geometry/vec';
-import type { ObjectId, OrnamentType, SceneObject } from '@core/model/types';
+import type { ObjectId, ObstacleType, OrnamentType, SceneObject } from '@core/model/types';
 import type { Viewport } from '@core/scale/viewport';
 import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 
@@ -15,7 +15,8 @@ export type Tool =
   | 'ornament'
   | 'arena-rect'
   | 'arena-polygon'
-  | 'calibrate';
+  | 'calibrate'
+  | 'obstacle';
 
 interface EditorState {
   tool: Tool;
@@ -30,6 +31,8 @@ interface EditorState {
   clipboard: SceneObject[];
   /** Tipo de ornamento que a ferramenta de inserção vai criar. */
   ornamentType: OrnamentType;
+  /** Tipo de obstáculo que a ferramenta de inserção vai criar. */
+  obstacleType: ObstacleType;
   /**
    * Desenho em andamento (contorno da pista): vértices já fixados e o
    * ponto sob o cursor. Some ao concluir ou cancelar — nunca vira dado.
@@ -53,6 +56,7 @@ interface EditorState {
   togglePageFrame: () => void;
   setClipboard: (objs: SceneObject[]) => void;
   setOrnamentType: (t: OrnamentType) => void;
+  setObstacleType: (t: ObstacleType) => void;
   startDraft: (first: Vec2) => void;
   addDraftPoint: (p: Vec2) => void;
   setDraftCursor: (p: Vec2 | null) => void;
@@ -72,6 +76,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   showPageFrame: true,
   clipboard: [],
   ornamentType: 'arvore',
+  obstacleType: 'vertical',
   draft: null,
   editingVertices: false,
   calibration: null,
@@ -91,6 +96,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   togglePageFrame: () => set((s) => ({ showPageFrame: !s.showPageFrame })),
   setClipboard: (clipboard) => set({ clipboard }),
   setOrnamentType: (ornamentType) => set({ ornamentType }),
+  setObstacleType: (obstacleType) => set({ obstacleType }),
   startDraft: (first) => set({ draft: { points: [first], cursor: first } }),
   addDraftPoint: (p) =>
     set((s) => (s.draft ? { draft: { ...s.draft, points: [...s.draft.points, p] } } : {})),
