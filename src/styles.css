@@ -167,6 +167,26 @@ button.danger:hover:not(:disabled) { background: #fdefef; border-color: #d08080;
 }
 .tool-options button { padding: 2px 6px; font-size: 12px; }
 
+.total-distance { font-size: 12px; color: var(--text); margin-top: 2px; }
+.total-distance strong { font-variant-numeric: tabular-nums; }
+
+.leg-list { max-height: 190px; overflow-y: auto; }
+.leg-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  padding: 1px 0;
+}
+.leg-index {
+  width: 16px;
+  text-align: right;
+  color: var(--text-dim);
+}
+.leg-value { font-variant-numeric: tabular-nums; min-width: 62px; }
+.leg-straight { color: var(--text-dim); font-size: 10.5px; flex: 1; }
+.leg-row button.mini { color: var(--text-dim); padding: 0 5px; }
+
 .color-pair { display: flex; gap: 8px; }
 .color-pair .field { flex: 1; margin-bottom: 5px; }
 .color-pair .field input[type="color"] { width: 46px; }

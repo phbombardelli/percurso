@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Vec2 } from '@core/geometry/vec';
-import type { ObjectId, ObstacleType, OrnamentType, SceneObject } from '@core/model/types';
+import type { ObjectId, ObstacleType, OrnamentType, PathNode, SceneObject } from '@core/model/types';
 import type { Viewport } from '@core/scale/viewport';
 import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 
@@ -18,7 +18,8 @@ export type Tool =
   | 'calibrate'
   | 'obstacle'
   | 'timing-start'
-  | 'timing-finish';
+  | 'timing-finish'
+  | 'path';
 
 interface EditorState {
   tool: Tool;
@@ -47,6 +48,13 @@ interface EditorState {
    * Vira escala só quando o usuário confirma a distância real.
    */
   calibration: { imageId: ObjectId; pointA: Vec2 | null; pointB: Vec2 | null } | null;
+  /**
+   * Traçado em construção: nós já fixados e o ponto sob o cursor. Vira
+   * objeto só ao concluir — um rascunho nunca entra no documento.
+   */
+  pathDraft: { nodes: PathNode[]; cursor: Vec2 | null } | null;
+  /** Nó do traçado selecionado, para editar alças. */
+  activeNode: number | null;
 
   setTool: (tool: Tool) => void;
   setViewport: (vp: Viewport) => void;
@@ -67,6 +75,12 @@ interface EditorState {
   beginCalibration: (imageId: ObjectId) => void;
   setCalibrationPoint: (p: Vec2) => void;
   cancelCalibration: () => void;
+  startPathDraft: (node: PathNode) => void;
+  addPathNode: (node: PathNode) => void;
+  updateLastPathNode: (patch: Partial<PathNode>) => void;
+  setPathCursor: (p: Vec2 | null) => void;
+  clearPathDraft: () => void;
+  setActiveNode: (index: number | null) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -82,6 +96,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   draft: null,
   editingVertices: false,
   calibration: null,
+  pathDraft: null,
+  activeNode: null,
 
   setTool: (tool) => set({ tool }),
   setViewport: (viewport) => set({ viewport }),
@@ -120,4 +136,17 @@ export const useEditorStore = create<EditorState>((set) => ({
       };
     }),
   cancelCalibration: () => set({ calibration: null, tool: 'select' }),
+  startPathDraft: (node) => set({ pathDraft: { nodes: [node], cursor: node.pos } }),
+  addPathNode: (node) =>
+    set((s) => (s.pathDraft ? { pathDraft: { ...s.pathDraft, nodes: [...s.pathDraft.nodes, node] } } : {})),
+  updateLastPathNode: (patch) =>
+    set((s) => {
+      if (!s.pathDraft || s.pathDraft.nodes.length === 0) return {};
+      const nodes = s.pathDraft.nodes.slice();
+      nodes[nodes.length - 1] = { ...nodes[nodes.length - 1]!, ...patch };
+      return { pathDraft: { ...s.pathDraft, nodes } };
+    }),
+  setPathCursor: (cursor) => set((s) => (s.pathDraft ? { pathDraft: { ...s.pathDraft, cursor } } : {})),
+  clearPathDraft: () => set({ pathDraft: null }),
+  setActiveNode: (activeNode) => set({ activeNode }),
 }));

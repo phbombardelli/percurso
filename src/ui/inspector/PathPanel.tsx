@@ -1,0 +1,187 @@
+import {
+  removeNode,
+  setAllLegLabels,
+  setLegLabel,
+  setNodeType,
+  setPathStyle,
+  straightenLeg,
+} from '@core/commands/pathOps';
+import {
+  formatDistance,
+  legLength,
+  legStraightDistance,
+  pathLength,
+} from '@core/model/path';
+import type { CoursePath, DashPreset } from '@core/model/types';
+import { useDocumentStore } from '@store/documentStore';
+import { useEditorStore } from '@store/editorStore';
+import { NumberField } from './NumberField';
+
+export function PathPanel({ path }: { path: CoursePath }) {
+  const { apply } = useDocumentStore();
+  const { activeNode, setActiveNode } = useEditorStore();
+  const travado = path.locked;
+  const total = pathLength(path);
+
+  return (
+    <>
+      <p className="note total-distance">
+        Traçado: <strong>{formatDistance(total)} m</strong> em {path.legs.length} trecho
+        {path.legs.length === 1 ? '' : 's'}
+      </p>
+
+      <h3>Trechos</h3>
+      <div className="leg-list">
+        {path.legs.map((leg, i) => {
+          const curvo = legLength(path, i);
+          const reto = legStraightDistance(path, i);
+          const desvio = curvo - reto;
+          return (
+            <div className="leg-row" key={i}>
+              <span className="leg-index">{i + 1}</span>
+              <span className="leg-value">{formatDistance(curvo, leg.label.decimals)} m</span>
+              {desvio > 0.005 && (
+                <span
+                  className="leg-straight"
+                  title={`Em linha reta seriam ${formatDistance(reto)} m. O croqui mostra o traçado desenhado.`}
+                >
+                  reta {formatDistance(reto)}
+                </span>
+              )}
+              <button
+                className="mini"
+                title={leg.label.visible ? 'Esconder a distância' : 'Mostrar a distância'}
+                disabled={travado}
+                onClick={() =>
+                  apply('Rótulo do trecho', (d) =>
+                    setLegLabel(d, path.id, i, { visible: !leg.label.visible }),
+                  )
+                }
+              >
+                {leg.label.visible ? '👁' : '–'}
+              </button>
+              <button
+                className="mini"
+                title="Endireitar este trecho"
+                disabled={travado}
+                onClick={() => apply('Endireitar trecho', (d) => straightenLeg(d, path.id, i))}
+              >
+                ⟋
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="row-buttons">
+        <button
+          disabled={travado}
+          onClick={() => apply('Mostrar distâncias', (d) => setAllLegLabels(d, path.id, true))}
+        >
+          Mostrar todas
+        </button>
+        <button
+          disabled={travado}
+          onClick={() => apply('Esconder distâncias', (d) => setAllLegLabels(d, path.id, false))}
+        >
+          Esconder todas
+        </button>
+      </div>
+
+      <h3>Nós</h3>
+      <label className="field">
+        <span>Nó ativo</span>
+        <select
+          value={activeNode ?? ''}
+          onChange={(e) => setActiveNode(e.target.value === '' ? null : Number(e.target.value))}
+        >
+          <option value="">nenhum</option>
+          {path.nodes.map((_, i) => (
+            <option key={i} value={i}>{i + 1}</option>
+          ))}
+        </select>
+      </label>
+      {activeNode !== null && path.nodes[activeNode] && (
+        <>
+          <label className="field">
+            <span>Tipo</span>
+            <select
+              value={path.nodes[activeNode]!.type}
+              disabled={travado}
+              onChange={(e) =>
+                apply('Tipo do nó', (d) =>
+                  setNodeType(d, path.id, activeNode, e.target.value as 'corner' | 'smooth'),
+                )
+              }
+            >
+              <option value="corner">Canto</option>
+              <option value="smooth">Liso</option>
+            </select>
+          </label>
+          <div className="row-buttons">
+            <button
+              className="danger"
+              disabled={travado || path.nodes.length <= 2}
+              onClick={() => {
+                apply('Remover nó', (d) => {
+                  removeNode(d, path.id, activeNode);
+                });
+                setActiveNode(null);
+              }}
+            >
+              Remover nó
+            </button>
+          </div>
+        </>
+      )}
+      <p className="note dim">
+        Arraste um nó para movê-lo; a alça do nó ativo curva o traçado. Duplo
+        clique no meio de um trecho insere um nó.
+      </p>
+
+      <h3>Traço</h3>
+      <label className="field">
+        <span>Estilo</span>
+        <select
+          value={path.style.dash}
+          disabled={travado}
+          onChange={(e) =>
+            apply('Estilo do traçado', (d) =>
+              setPathStyle(d, path.id, { dash: e.target.value as DashPreset }),
+            )
+          }
+        >
+          <option value="dashed">Tracejado</option>
+          <option value="solid">Contínuo</option>
+          <option value="dotted">Pontilhado</option>
+          <option value="dashdot">Traço e ponto</option>
+        </select>
+      </label>
+      <NumberField
+        label="Espessura"
+        unit="mm"
+        value={path.style.strokeMm}
+        decimals={2}
+        step={0.05}
+        min={0.05}
+        disabled={travado}
+        onCommit={(v) => apply('Espessura do traçado', (d) => setPathStyle(d, path.id, { strokeMm: v }))}
+      />
+      <label className="field">
+        <span>Cor</span>
+        <input
+          type="color"
+          value={path.style.color}
+          disabled={travado}
+          onChange={(e) =>
+            apply(
+              'Cor do traçado',
+              (d) => setPathStyle(d, path.id, { color: e.target.value }),
+              `pathcor-${path.id}`,
+            )
+          }
+        />
+      </label>
+    </>
+  );
+}

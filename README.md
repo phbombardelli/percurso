@@ -42,7 +42,7 @@ nem toca no DOM.
 | 5 | Pista: retângulo, polígono, desenho livre | ✅ |
 | 6 | Imagem de fundo + calibração de escala | ✅ |
 | 7 | Obstáculos + propriedades + setas | ✅ |
-| 8 | Traçados, curvas, comprimento | — |
+| 8 | Traçados, curvas, comprimento | ✅ |
 | 9 | Detecção de interferência | — |
 | 10 | Textos, quadro técnico, tabela de alturas | — |
 | 11 | Ornamentação | — |

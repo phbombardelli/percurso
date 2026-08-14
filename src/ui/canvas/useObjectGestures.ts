@@ -3,6 +3,7 @@ import { angleOf, normalizeAngle, type Vec2 } from '@core/geometry/vec';
 import { snapAngle, snapPoint } from '@core/geometry/snap';
 import { moveObjectsSnapped, rotateObjects } from '@core/commands/ops';
 import { moveArenaVertex, resizeArenaByCorner } from '@core/commands/arenaOps';
+import { moveHandle, moveNode } from '@core/commands/pathOps';
 import { getBounds, boundsCenter, boundsContains, unionBounds } from '@core/model/transform';
 import type { ObjectId } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
@@ -18,7 +19,9 @@ type Gesture =
   | { kind: 'rotate'; pivot: Vec2; startAngle: number; applied: number }
   | { kind: 'marquee'; startM: Vec2 }
   | { kind: 'vertex'; arenaId: ObjectId; index: number }
-  | { kind: 'resize'; arenaId: ObjectId; corner: 0 | 1 | 2 | 3 };
+  | { kind: 'resize'; arenaId: ObjectId; corner: 0 | 1 | 2 | 3 }
+  | { kind: 'path-node'; pathId: ObjectId; index: number }
+  | { kind: 'path-handle'; pathId: ObjectId; index: number; which: 'in' | 'out'; origin: Vec2 };
 
 /**
  * Gestos sobre objetos: arrastar, girar e seleção por retângulo.
@@ -87,6 +90,27 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
 
       // Vértice e alça de canto arrastam para uma posição absoluta, e não
       // por deslocamento: o snap precisa valer para o ponto de destino.
+      if (current.kind === 'path-node') {
+        const step = snapStep();
+        const alvo = step > 0 ? snapPoint(p, step) : p;
+        const { pathId, index } = current;
+        store.apply('Mover nó', (doc) => moveNode(doc, pathId, index, alvo), 'gesto-no');
+        return;
+      }
+
+      if (current.kind === 'path-handle') {
+        // A alça NÃO usa snap: ela molda a curva, e alinhar ao grid daria
+        // saltos justamente onde se quer ajuste fino.
+        const { pathId, index, which, origin } = current;
+        const rel = { x: p.x - origin.x, y: p.y - origin.y };
+        store.apply(
+          'Curvar traçado',
+          (doc) => moveHandle(doc, pathId, index, which, rel),
+          'gesto-alca',
+        );
+        return;
+      }
+
       if (current.kind === 'vertex' || current.kind === 'resize') {
         const step = snapStep();
         const target = step > 0 ? snapPoint(p, step) : p;
@@ -200,6 +224,25 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
     [toModel],
   );
 
+  const beginPathNodeDrag = useCallback(
+    (e: React.PointerEvent, pathId: ObjectId, index: number) => {
+      gesture.current = { kind: 'path-node', pathId, index };
+      pending.current = toModel(e);
+      useEditorStore.getState().setActiveNode(index);
+      capture(e.target as Element, e.pointerId);
+    },
+    [toModel],
+  );
+
+  const beginPathHandleDrag = useCallback(
+    (e: React.PointerEvent, pathId: ObjectId, index: number, which: 'in' | 'out', origin: Vec2) => {
+      gesture.current = { kind: 'path-handle', pathId, index, which, origin };
+      pending.current = toModel(e);
+      capture(e.target as Element, e.pointerId);
+    },
+    [toModel],
+  );
+
   const beginMarquee = useCallback(
     (e: React.PointerEvent) => {
       const start = toModel(e);
@@ -269,6 +312,8 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
     beginMarquee,
     beginVertexDrag,
     beginResize,
+    beginPathNodeDrag,
+    beginPathHandleDrag,
     onPointerMove,
     onPointerUp,
     marquee,

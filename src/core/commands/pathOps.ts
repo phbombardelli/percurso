@@ -1,0 +1,181 @@
+import { toMillimeterPrecision } from '@core/geometry/snap';
+import { scale, sub, type Vec2 } from '@core/geometry/vec';
+import { createPathNode, legsFor } from '@core/model/path';
+import type { CoursePath, CourseDocument, ObjectId, PathNode } from '@core/model/types';
+
+/**
+ * Operações sobre o traçado.
+ *
+ * O programa nunca decide por onde o cavalo passa: cria, move e curva o
+ * que o desenhador pediu, e mede o resultado (§18). Não há "traçado
+ * automático" nem ajuste de curva por conta própria.
+ */
+
+function pathOf(doc: CourseDocument, id: ObjectId): CoursePath | null {
+  const obj = doc.objects.find((o) => o.id === id);
+  return obj?.kind === 'path' && !obj.locked ? obj : null;
+}
+
+const mm = (p: Vec2): Vec2 => ({
+  x: toMillimeterPrecision(p.x),
+  y: toMillimeterPrecision(p.y),
+});
+
+export function addNode(doc: CourseDocument, id: ObjectId, pos: Vec2): void {
+  const path = pathOf(doc, id);
+  if (!path) return;
+  path.nodes.push(createPathNode(mm(pos)));
+  syncLegs(path);
+}
+
+/** Insere um nó no meio de um trecho, sem alterar as pontas. */
+export function insertNode(doc: CourseDocument, id: ObjectId, legIndex: number, pos: Vec2): number | null {
+  const path = pathOf(doc, id);
+  if (!path || legIndex < 0 || legIndex >= path.nodes.length - 1) return null;
+  path.nodes.splice(legIndex + 1, 0, createPathNode(mm(pos)));
+  syncLegs(path);
+  return legIndex + 1;
+}
+
+export function moveNode(doc: CourseDocument, id: ObjectId, index: number, pos: Vec2): void {
+  const path = pathOf(doc, id);
+  const node = path?.nodes[index];
+  if (!node) return;
+  node.pos = mm(pos);
+  node.anchor = null; // mover à mão desfaz o vínculo com o obstáculo
+}
+
+/** Um traçado precisa de dois nós; abaixo disso ele deixa de existir. */
+export function removeNode(doc: CourseDocument, id: ObjectId, index: number): boolean {
+  const path = pathOf(doc, id);
+  if (!path || path.nodes.length <= 2) return false;
+  path.nodes.splice(index, 1);
+  syncLegs(path);
+  return true;
+}
+
+/**
+ * Move uma alça de curva. Em nó liso, a alça oposta acompanha em espelho —
+ * é o que mantém a passagem suave, sem bico, quando o desenhador queria
+ * uma curva contínua.
+ */
+export function moveHandle(
+  doc: CourseDocument,
+  id: ObjectId,
+  index: number,
+  which: 'in' | 'out',
+  handle: Vec2,
+): void {
+  const path = pathOf(doc, id);
+  const node = path?.nodes[index];
+  if (!node) return;
+
+  const valor = mm(handle);
+  if (which === 'out') node.handleOut = valor;
+  else node.handleIn = valor;
+
+  if (node.type === 'smooth') {
+    const oposta = which === 'out' ? 'handleIn' : 'handleOut';
+    const atual = node[oposta];
+    // Preserva o comprimento da alça oposta, invertendo só a direção.
+    const comprimentoAtual = atual ? Math.hypot(atual.x, atual.y) : 0;
+    const comprimentoNovo = Math.hypot(valor.x, valor.y);
+    const fator =
+      comprimentoNovo > 1e-9 && comprimentoAtual > 1e-9
+        ? comprimentoAtual / comprimentoNovo
+        : 1;
+    // Sem arredondar: a alça espelhada é derivada, não digitada, e
+    // arredondá-la quebraria a colinearidade — ou seja, deixaria um bico
+    // no nó que o desenhador pediu liso.
+    node[oposta] = scale(valor, -fator);
+  }
+}
+
+/**
+ * Alterna entre canto e liso. Ao virar liso, cria alças na direção dos
+ * vizinhos, para a curva nascer parecida com o que estava desenhado.
+ */
+export function setNodeType(
+  doc: CourseDocument,
+  id: ObjectId,
+  index: number,
+  type: PathNode['type'],
+): void {
+  const path = pathOf(doc, id);
+  const node = path?.nodes[index];
+  if (!path || !node) return;
+
+  node.type = type;
+  if (type === 'corner') {
+    node.handleIn = null;
+    node.handleOut = null;
+    return;
+  }
+
+  const anterior = path.nodes[index - 1];
+  const proximo = path.nodes[index + 1];
+  const referencia = proximo ?? anterior;
+  if (!referencia) return;
+
+  const direcao = sub(referencia.pos, node.pos);
+  const comprimento = Math.hypot(direcao.x, direcao.y) / 3;
+  const unit =
+    comprimento > 1e-9
+      ? scale(direcao, comprimento / Math.hypot(direcao.x, direcao.y) / 1)
+      : { x: 0, y: 0 };
+  node.handleOut = mm(unit);
+  node.handleIn = mm(scale(unit, -1));
+}
+
+/** Endireita o trecho, removendo as alças das duas pontas. */
+export function straightenLeg(doc: CourseDocument, id: ObjectId, legIndex: number): void {
+  const path = pathOf(doc, id);
+  const a = path?.nodes[legIndex];
+  const b = path?.nodes[legIndex + 1];
+  if (!a || !b) return;
+  a.handleOut = null;
+  b.handleIn = null;
+  if (a.type === 'smooth') a.handleIn = null;
+  if (b.type === 'smooth') b.handleOut = null;
+}
+
+export function setPathStyle(
+  doc: CourseDocument,
+  id: ObjectId,
+  patch: Partial<CoursePath['style']>,
+): void {
+  const path = pathOf(doc, id);
+  if (!path) return;
+  path.style = { ...path.style, ...patch };
+  if (!(path.style.strokeMm > 0)) path.style.strokeMm = 0.4;
+}
+
+export function setLegLabel(
+  doc: CourseDocument,
+  id: ObjectId,
+  legIndex: number,
+  patch: Partial<CoursePath['legs'][number]['label']>,
+): void {
+  const path = pathOf(doc, id);
+  const leg = path?.legs[legIndex];
+  if (!leg) return;
+  leg.label = { ...leg.label, ...patch };
+  if (leg.label.decimals < 0) leg.label.decimals = 0;
+  if (leg.label.decimals > 3) leg.label.decimals = 3;
+}
+
+/** Liga/desliga o rótulo de todos os trechos de uma vez. */
+export function setAllLegLabels(doc: CourseDocument, id: ObjectId, visible: boolean): void {
+  const path = pathOf(doc, id);
+  if (!path) return;
+  for (const leg of path.legs) leg.label.visible = visible;
+}
+
+/**
+ * Mantém a lista de trechos coerente com a de nós. Preserva os rótulos já
+ * ajustados pelo desenhador nos trechos que continuam existindo.
+ */
+function syncLegs(path: CoursePath): void {
+  const novos = legsFor(path.nodes.length);
+  path.legs = novos.map((leg, i) => (path.legs[i] ? { ...leg, label: path.legs[i]!.label } : leg));
+}

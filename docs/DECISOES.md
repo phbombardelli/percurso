@@ -306,6 +306,31 @@ Partida e chegada nao sao obstaculo: nao tem altura, nao recebem numero de
 percurso e nao entram na tabela de alturas. Compartilham o sistema local e
 o paraflanco, entao a seta continua perpendicular por construcao.
 
+## 29. O comprimento e do tracado desenhado
+
+Cubica nao tem comprimento em forma fechada. `cubicLength` usa subdivisao
+adaptativa: enquanto o poligono de controle e a corda discordarem mais que
+a tolerancia, parte a curva ao meio — e DIVIDE a tolerancia a cada nivel,
+para o erro total continuar limitado. Padrao de 0,1 mm, verificado contra
+integracao por forca bruta com 200 mil passos.
+
+`flattenPath` NAO serve para medir: a tolerancia dela vale por segmento e
+o desvio se acumula, entao a poligonal subestima o arco. Ela existe para
+teste de clique e, na fase 9, para procurar interferencia.
+
+Trecho sem alca vira cubica degenerada com os controles sobre as pontas —
+o comprimento sai exato, sem aproximacao, no caso mais comum de todos.
+
+## 30. Alca espelhada nao e arredondada
+
+Posicoes digitadas pelo usuario sao arredondadas ao milimetro. A alca
+oposta de um no liso, nao: ela e derivada, e arredonda-la quebraria a
+colinearidade — ou seja, deixaria um bico de 0,0001 rad num no que o
+desenhador pediu liso. Quem e calculado guarda precisao cheia.
+
+A alca tambem nao usa snap ao ser arrastada: ela molda a curva, e alinhar
+ao grid daria saltos justamente onde se quer ajuste fino.
+
 ---
 
 ## Ordem das fases

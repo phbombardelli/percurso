@@ -7,6 +7,7 @@ import { GridLayer } from './layers/GridLayer';
 import { ImageLayer } from './layers/ImageLayer';
 import { ObstacleLayer } from './layers/ObstacleLayer';
 import { OrnamentLayer } from './layers/OrnamentLayer';
+import { PathLayer } from './layers/PathLayer';
 import { TimingLayer } from './layers/TimingLayer';
 import { color, stroke } from './style/tokens';
 
@@ -113,6 +114,16 @@ export function RenderDocument(opts: RenderOptions) {
               <ObstacleLayer
                 key={obj.id}
                 obstacle={obj}
+                printScale={doc.page.printScale}
+                originMm={doc.originMm}
+                onPointerDown={onPointerDown}
+              />
+            );
+          case 'path':
+            return (
+              <PathLayer
+                key={obj.id}
+                path={obj}
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
                 onPointerDown={onPointerDown}

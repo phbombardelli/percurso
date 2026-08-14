@@ -8,7 +8,6 @@ import { useEditorStore } from '@store/editorStore';
  * correspondente passa a existir no modelo.
  */
 const PENDING: { icon: string; label: string; phase: number }[] = [
-  { icon: '✎', label: 'Traçado', phase: 8 },
   { icon: 'T', label: 'Texto', phase: 10 },
   { icon: '▤', label: 'Quadro técnico', phase: 10 },
   { icon: '▦', label: 'Tabela de alturas', phase: 10 },
@@ -76,6 +75,15 @@ export function Sidebar() {
           ))}
         </div>
       )}
+
+      <button
+        className={tool === 'path' ? 'active' : ''}
+        onClick={() => setTool(tool === 'path' ? 'select' : 'path')}
+        title="Clique para marcar cada nó; arraste ao clicar para curvar. Enter conclui, Esc cancela."
+      >
+        <span className="icon">✎</span>
+        <span className="label">Traçado</span>
+      </button>
 
       <button
         className={tool === 'timing-start' ? 'active' : ''}

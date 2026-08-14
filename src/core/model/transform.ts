@@ -3,6 +3,7 @@ import { rotate } from '@core/geometry/vec';
 import { obstacleExtent } from '@core/library/obstacles';
 import { timingExtent } from '@core/library/timing';
 import { arenaPoints } from './arena';
+import { flattenPath } from './path';
 import { paperToMeters } from '@core/scale/units';
 import type { Meters, PrintScale } from '@core/scale/units';
 import type { SceneObject } from './types';
@@ -155,7 +156,8 @@ export function getBounds(obj: SceneObject, printScale: PrintScale): Bounds {
       };
     }
     case 'path':
-      return boundsOf(obj.nodes.map((n) => n.pos));
+      // Pela poligonal, não pelos nós: uma curva pode sair bem além deles.
+      return boundsOf(flattenPath(obj, 0.05));
     case 'text': {
       // Aproximação: 0,55 de largura média por caractere no corpo do texto.
       const h = paperToMeters(obj.sizeMm, printScale);

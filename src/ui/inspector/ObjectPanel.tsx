@@ -8,6 +8,7 @@ import { useEditorStore } from '@store/editorStore';
 import { ArenaPanel } from './ArenaPanel';
 import { ImagePanel } from './ImagePanel';
 import { ObstaclePanel } from './ObstaclePanel';
+import { PathPanel } from './PathPanel';
 import { TimingPanel } from './TimingPanel';
 import { NumberField } from './NumberField';
 
@@ -88,6 +89,7 @@ export function ObjectPanel() {
           {single.kind === 'image' && <ImagePanel image={single} />}
           {single.kind === 'obstacle' && <ObstaclePanel obstacle={single} />}
           {single.kind === 'timing' && <TimingPanel line={single} />}
+          {single.kind === 'path' && <PathPanel path={single} />}
           {single.kind === 'ornament' && (
             <>
               <label className="field">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { insertArenaVertex } from '@core/commands/arenaOps';
+import { insertNode } from '@core/commands/pathOps';
 import { allObstacles } from '@core/commands/obstacleOps';
 import { addObject, deleteObjects, duplicateObjects } from '@core/commands/ops';
 import { snapPoint, toMillimeterPrecision } from '@core/geometry/snap';
@@ -7,6 +8,7 @@ import { distance, type Vec2 } from '@core/geometry/vec';
 import { createObstacle, nextObstacleNumber } from '@core/library/obstacles';
 import { createOrnament } from '@core/library/ornaments';
 import { createTimingLine } from '@core/library/timing';
+import { createPath, createPathNode } from '@core/model/path';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
 import { deepClone } from '@core/model/clone';
 import { newId } from '@core/model/ids';
@@ -35,6 +37,7 @@ import {
 } from '@ui/actions/documentActions';
 import { useElementSize } from '@ui/hooks/useElementSize';
 import { ArenaDraft, ArenaHandles } from './ArenaHandles';
+import { PathDraft, PathHandles } from './PathHandles';
 import { CalibrationOverlay } from './CalibrationOverlay';
 import { RULER_SIZE, Rulers } from './Rulers';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -58,6 +61,8 @@ export function Canvas() {
     draft,
     editingVertices,
     calibration,
+    pathDraft,
+    activeNode,
   } = useEditorStore();
 
   const { ref, size: wrapSize } = useElementSize<HTMLDivElement>();
@@ -75,6 +80,8 @@ export function Canvas() {
   );
   const svgRef = useRef<SVGSVGElement | null>(null);
   const panState = useRef<{ pointerId: number; last: Vec2 } | null>(null);
+  /** Ponto onde o último nó do traçado foi fixado, para o arrasto curvar. */
+  const pathDragFrom = useRef<Vec2 | null>(null);
   const spaceDown = useRef(false);
 
   const localPoint = useCallback((e: { clientX: number; clientY: number }): Vec2 => {
@@ -115,6 +122,22 @@ export function Canvas() {
     useDocumentStore.getState().apply('Desenhar pista', (d) => addObject(d, arena));
     ed.setSelection([arena.id]);
     ed.setEditingVertices(true);
+    ed.setTool('select');
+  }, []);
+
+  /**
+   * Conclui o traçado. Menos de dois nós não é traçado: some sem deixar
+   * objeto no documento.
+   */
+  const finishPath = useCallback(() => {
+    const ed = useEditorStore.getState();
+    const nodes = ed.pathDraft?.nodes ?? [];
+    ed.clearPathDraft();
+    if (nodes.length < 2) return;
+    const traco = createPath(nodes);
+    useDocumentStore.getState().apply('Desenhar traçado', (d) => addObject(d, traco));
+    ed.setSelection([traco.id]);
+    ed.setActiveNode(null);
     ed.setTool('select');
   }, []);
 
@@ -227,6 +250,17 @@ export function Canvas() {
         return;
       }
 
+      if (tool === 'path') {
+        const ed = useEditorStore.getState();
+        const p = snapped(toModel(e));
+        const no = createPathNode(p, 'corner');
+        if (!ed.pathDraft) ed.startPathDraft(no);
+        else ed.addPathNode(no);
+        // O arrasto a partir daqui curva o nó recém-criado.
+        pathDragFrom.current = p;
+        return;
+      }
+
       if (tool === 'timing-start' || tool === 'timing-finish') {
         const linha = createTimingLine(
           tool === 'timing-start' ? 'start' : 'finish',
@@ -262,6 +296,21 @@ export function Canvas() {
         pan.last = { x: e.clientX, y: e.clientY };
         return;
       }
+      // Arrastar logo após fixar um nó cria a curva, como numa caneta
+      // vetorial: a distância arrastada vira o tamanho da alça.
+      const arrasto = pathDragFrom.current;
+      if (arrasto && activeTool() === 'path') {
+        const atual = toModel(e);
+        const rel = { x: atual.x - arrasto.x, y: atual.y - arrasto.y };
+        if (Math.hypot(rel.x, rel.y) > 0.15) {
+          useEditorStore.getState().updateLastPathNode({
+            type: 'smooth',
+            handleOut: rel,
+            handleIn: { x: -rel.x, y: -rel.y },
+          });
+        }
+      }
+
       gestures.onPointerMove(e);
 
       // Durante a calibração o cursor não é alinhado ao grid: a mira tem
@@ -269,7 +318,9 @@ export function Canvas() {
       const raw = toModel(e);
       const p = activeTool() === 'calibrate' ? raw : snapped(raw);
       setCursor(p);
-      if (useEditorStore.getState().draft) useEditorStore.getState().setDraftCursor(p);
+      const ed = useEditorStore.getState();
+      if (ed.draft) ed.setDraftCursor(p);
+      if (ed.pathDraft && !pathDragFrom.current) ed.setPathCursor(p);
     },
     [viewport, setViewport, setCursor, toModel, gestures, snapped],
   );
@@ -277,6 +328,7 @@ export function Canvas() {
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       if (panState.current?.pointerId === e.pointerId) panState.current = null;
+      pathDragFrom.current = null;
       if (activeTool() === 'arena-rect') finishRectangle();
       gestures.onPointerUp();
     },
@@ -302,6 +354,20 @@ export function Canvas() {
       if (e.altKey) ed.setSnapSuspended(true);
 
       const key = e.key.toLowerCase();
+
+      // O traçado em construção tem prioridade sobre os atalhos gerais.
+      if (ed.pathDraft) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          finishPath();
+          return;
+        }
+        if (e.key === 'Escape') {
+          ed.clearPathDraft();
+          ed.setTool('select');
+          return;
+        }
+      }
 
       // O contorno em construção tem prioridade sobre os atalhos gerais.
       if (ed.draft) {
@@ -418,7 +484,7 @@ export function Canvas() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [fitPage]);
+  }, [fitPage, finishPath]);
 
   const mpp = mppOf(viewport, doc.page.printScale);
   const box = viewBox(viewport, size);
@@ -432,6 +498,10 @@ export function Canvas() {
   const selectedObjects = doc.objects.filter((o) => selection.includes(o.id));
   const selectedArena =
     selectedObjects.length === 1 && selectedObjects[0]!.kind === 'arena'
+      ? selectedObjects[0]
+      : null;
+  const selectedPath =
+    selectedObjects.length === 1 && selectedObjects[0]!.kind === 'path'
       ? selectedObjects[0]
       : null;
 
@@ -491,6 +561,31 @@ export function Canvas() {
                       insertArenaVertex(d, selectedArena.id, i);
                     })
                 }
+              />
+            )}
+            {selectedPath && (
+              <PathHandles
+                path={selectedPath}
+                toPaper={toPaper}
+                zoom={viewport.zoom}
+                activeNode={activeNode}
+                onNodeDown={(e, i) => gestures.beginPathNodeDrag(e, selectedPath.id, i)}
+                onHandleDown={(e, i, which) =>
+                  gestures.beginPathHandleDrag(e, selectedPath.id, i, which, selectedPath.nodes[i]!.pos)
+                }
+                onLegDoubleClick={(legIndex, at) =>
+                  useDocumentStore.getState().apply('Inserir nó', (d) => {
+                    insertNode(d, selectedPath.id, legIndex, at);
+                  })
+                }
+              />
+            )}
+            {pathDraft && (
+              <PathDraft
+                nodes={pathDraft.nodes}
+                cursor={pathDraft.cursor}
+                toPaper={toPaper}
+                zoom={viewport.zoom}
               />
             )}
             {calibration && (
