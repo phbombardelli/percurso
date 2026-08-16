@@ -1,5 +1,9 @@
 import {
   removeNode,
+  setDistanceMode,
+  setTotalLabel,
+  sharpenPath,
+  smoothPath,
   setAllLegLabels,
   setLegLabel,
   setNodeType,
@@ -12,7 +16,7 @@ import {
   legStraightDistance,
   pathLength,
 } from '@core/model/path';
-import type { CoursePath, DashPreset } from '@core/model/types';
+import type { CoursePath, DashPreset, DistanceMode } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 import { NumberField } from './NumberField';
@@ -29,6 +33,57 @@ export function PathPanel({ path }: { path: CoursePath }) {
         Traçado: <strong>{formatDistance(total)} m</strong> em {path.legs.length} trecho
         {path.legs.length === 1 ? '' : 's'}
       </p>
+
+      <div className="row-buttons">
+        <button
+          disabled={travado}
+          title="Transforma os cliques numa curva contínua, sem mover os nós"
+          onClick={() => apply('Suavizar traçado', (d) => smoothPath(d, path.id))}
+        >
+          Suavizar
+        </button>
+        <button
+          disabled={travado}
+          title="Volta a segmentos retos entre os nós"
+          onClick={() => apply('Endireitar traçado', (d) => sharpenPath(d, path.id))}
+        >
+          Endireitar
+        </button>
+      </div>
+
+      <h3>Distâncias</h3>
+      <label className="field">
+        <span>Mostrar</span>
+        <select
+          value={path.distanceMode}
+          disabled={travado}
+          onChange={(e) =>
+            apply('Modo das distâncias', (d) =>
+              setDistanceMode(d, path.id, e.target.value as DistanceMode),
+            )
+          }
+        >
+          <option value="total">Uma, o total</option>
+          <option value="trecho">Uma por trecho</option>
+          <option value="nenhum">Nenhuma</option>
+        </select>
+      </label>
+      {path.distanceMode === 'total' && (
+        <NumberField
+          label="Casas"
+          value={path.totalLabel.decimals}
+          decimals={0}
+          step={1}
+          min={0}
+          max={3}
+          disabled={travado}
+          onCommit={(v) =>
+            apply('Casas decimais', (d) =>
+              setTotalLabel(d, path.id, { decimals: Math.round(v) }),
+            )
+          }
+        />
+      )}
 
       <h3>Trechos</h3>
       <div className="leg-list">
@@ -73,20 +128,22 @@ export function PathPanel({ path }: { path: CoursePath }) {
         })}
       </div>
 
-      <div className="row-buttons">
-        <button
-          disabled={travado}
-          onClick={() => apply('Mostrar distâncias', (d) => setAllLegLabels(d, path.id, true))}
-        >
-          Mostrar todas
-        </button>
-        <button
-          disabled={travado}
-          onClick={() => apply('Esconder distâncias', (d) => setAllLegLabels(d, path.id, false))}
-        >
-          Esconder todas
-        </button>
-      </div>
+      {path.distanceMode === 'trecho' && (
+        <div className="row-buttons">
+          <button
+            disabled={travado}
+            onClick={() => apply('Mostrar distâncias', (d) => setAllLegLabels(d, path.id, true))}
+          >
+            Mostrar todas
+          </button>
+          <button
+            disabled={travado}
+            onClick={() => apply('Esconder distâncias', (d) => setAllLegLabels(d, path.id, false))}
+          >
+            Esconder todas
+          </button>
+        </div>
+      )}
 
       <h3>Nós</h3>
       <label className="field">

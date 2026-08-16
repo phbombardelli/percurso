@@ -55,6 +55,8 @@ interface EditorState {
   pathDraft: { nodes: PathNode[]; cursor: Vec2 | null } | null;
   /** Nó do traçado selecionado, para editar alças. */
   activeNode: number | null;
+  /** Desenhar traçado curvo (padrão) ou em segmentos retos. */
+  pathSmooth: boolean;
 
   setTool: (tool: Tool) => void;
   setViewport: (vp: Viewport) => void;
@@ -81,6 +83,7 @@ interface EditorState {
   setPathCursor: (p: Vec2 | null) => void;
   clearPathDraft: () => void;
   setActiveNode: (index: number | null) => void;
+  setPathSmooth: (v: boolean) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -98,6 +101,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   calibration: null,
   pathDraft: null,
   activeNode: null,
+  pathSmooth: true,
 
   setTool: (tool) => set({ tool }),
   setViewport: (viewport) => set({ viewport }),
@@ -149,4 +153,5 @@ export const useEditorStore = create<EditorState>((set) => ({
   setPathCursor: (cursor) => set((s) => (s.pathDraft ? { pathDraft: { ...s.pathDraft, cursor } } : {})),
   clearPathDraft: () => set({ pathDraft: null }),
   setActiveNode: (activeNode) => set({ activeNode }),
+  setPathSmooth: (pathSmooth) => set({ pathSmooth }),
 }));

@@ -141,6 +141,8 @@ describe('duplicar e excluir', () => {
         { pos: { x: 5, y: 5 }, type: 'corner', handleIn: null, handleOut: null, anchor: null },
       ],
       legs: [],
+      distanceMode: 'nenhum',
+      totalLabel: { visible: false, offsetM: { x: 0, y: 0 }, decimals: 2, color: '#d32020' },
       style: { dash: 'dashed', strokeMm: 0.35, color: '#6b6b6b' },
     };
     doc = edit(doc, (d) => addObject(d, path));
@@ -162,7 +164,10 @@ describe('duplicar e excluir', () => {
     const path: CoursePath = {
       id: 'p1', kind: 'path', layer: 'paths', locked: false, visible: true, z: 0,
       nodes: [{ pos: { x: 0, y: 0 }, type: 'corner', handleIn: null, handleOut: null, anchor: { objectId: a.id, ref: 'center' } }],
-      legs: [], style: { dash: 'dashed', strokeMm: 0.35, color: '#6b6b6b' },
+      legs: [],
+      distanceMode: 'nenhum',
+      totalLabel: { visible: false, offsetM: { x: 0, y: 0 }, decimals: 2, color: '#d32020' },
+      style: { dash: 'dashed', strokeMm: 0.35, color: '#6b6b6b' },
     };
     doc = edit(doc, (d) => addObject(d, path));
     let ids: string[] = [];

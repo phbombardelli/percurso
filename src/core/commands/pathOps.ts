@@ -1,7 +1,13 @@
 import { toMillimeterPrecision } from '@core/geometry/snap';
 import { scale, sub, type Vec2 } from '@core/geometry/vec';
-import { createPathNode, legsFor } from '@core/model/path';
-import type { CoursePath, CourseDocument, ObjectId, PathNode } from '@core/model/types';
+import { createPathNode, legsFor, smoothedNodes } from '@core/model/path';
+import type {
+  CoursePath,
+  CourseDocument,
+  DistanceMode,
+  ObjectId,
+  PathNode,
+} from '@core/model/types';
 
 /**
  * Operações sobre o traçado.
@@ -125,6 +131,47 @@ export function setNodeType(
       : { x: 0, y: 0 };
   node.handleOut = mm(unit);
   node.handleIn = mm(scale(unit, -1));
+}
+
+/**
+ * Suaviza o traçado inteiro: os nós continuam onde estão, mas ganham
+ * tangentes coerentes com os vizinhos, virando uma curva contínua.
+ *
+ * É o que transforma a poligonal de cliques na linha de percurso que o
+ * desenhador tinha em mente.
+ */
+export function smoothPath(doc: CourseDocument, id: ObjectId, tension = 1): void {
+  const path = pathOf(doc, id);
+  if (!path) return;
+  path.nodes = smoothedNodes(path.nodes, tension);
+}
+
+/** Volta tudo a canto: retas entre os nós, sem nenhuma curva. */
+export function sharpenPath(doc: CourseDocument, id: ObjectId): void {
+  const path = pathOf(doc, id);
+  if (!path) return;
+  for (const node of path.nodes) {
+    node.type = 'corner';
+    node.handleIn = null;
+    node.handleOut = null;
+  }
+}
+
+export function setDistanceMode(doc: CourseDocument, id: ObjectId, mode: DistanceMode): void {
+  const path = pathOf(doc, id);
+  if (path) path.distanceMode = mode;
+}
+
+export function setTotalLabel(
+  doc: CourseDocument,
+  id: ObjectId,
+  patch: Partial<CoursePath['totalLabel']>,
+): void {
+  const path = pathOf(doc, id);
+  if (!path) return;
+  path.totalLabel = { ...path.totalLabel, ...patch };
+  if (path.totalLabel.decimals < 0) path.totalLabel.decimals = 0;
+  if (path.totalLabel.decimals > 3) path.totalLabel.decimals = 3;
 }
 
 /** Endireita o trecho, removendo as alças das duas pontas. */

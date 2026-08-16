@@ -98,9 +98,38 @@ const v2ToV3: Migration = (doc) => {
   };
 };
 
+/**
+ * 3 → 4. O traçado passou a mostrar UMA distância por linha, em vez de uma
+ * por trecho.
+ *
+ * Traçado antigo mantém o modo por trecho: era o que estava desenhado, e
+ * abrir o arquivo não pode mudar o croqui de quem já o tinha pronto.
+ */
+const v3ToV4: Migration = (doc) => {
+  const objects = Array.isArray(doc.objects) ? doc.objects : [];
+  return {
+    ...doc,
+    objects: objects.map((raw) => {
+      const obj = raw as Record<string, unknown>;
+      if (obj.kind !== 'path') return obj;
+      return {
+        ...obj,
+        distanceMode: obj.distanceMode ?? 'trecho',
+        totalLabel: obj.totalLabel ?? {
+          visible: true,
+          offsetM: { x: 0, y: -1.5 },
+          decimals: 2,
+          color: '#d32020',
+        },
+      };
+    }),
+  };
+};
+
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: v1ToV2,
   2: v2ToV3,
+  3: v3ToV4,
 };
 
 export function applyMigrations(

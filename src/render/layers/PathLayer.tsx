@@ -1,4 +1,11 @@
-import { formatDistance, legLength, legMidpoint, pathD } from '@core/model/path';
+import {
+  formatDistance,
+  legLength,
+  legMidpoint,
+  pathD,
+  pathLength,
+  pathMidpoint,
+} from '@core/model/path';
 import type { Vec2 } from '@core/geometry/vec';
 import type { CoursePath } from '@core/model/types';
 import { mmPerMeter } from '@core/scale/units';
@@ -43,7 +50,18 @@ export function PathLayer({ path, printScale, originMm, onPointerDown }: Props) 
         pointerEvents="none"
       />
 
-      {path.legs.map((leg, i) => {
+      {path.distanceMode === 'total' && path.totalLabel.visible && path.nodes.length > 1 && (
+        <DistanceText
+          at={toPaper({
+            x: pathMidpoint(path).x + path.totalLabel.offsetM.x,
+            y: pathMidpoint(path).y + path.totalLabel.offsetM.y,
+          })}
+          value={formatDistance(pathLength(path), path.totalLabel.decimals)}
+          color={path.totalLabel.color}
+        />
+      )}
+
+      {path.distanceMode === 'trecho' && path.legs.map((leg, i) => {
         if (!leg.label.visible) return null;
         const meio = legMidpoint(path, i);
         const p = toPaper({
@@ -51,22 +69,40 @@ export function PathLayer({ path, printScale, originMm, onPointerDown }: Props) 
           y: meio.y + leg.label.offsetM.y,
         });
         return (
-          <text
+          <DistanceText
             key={i}
-            x={round(p.x)}
-            y={round(p.y)}
-            fontFamily={font.family}
-            fontSize={text.small}
-            fill={leg.label.color}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            pointerEvents="none"
-          >
-            {formatDistance(legLength(path, i), leg.label.decimals)}
-          </text>
+            at={p}
+            value={formatDistance(legLength(path, i), leg.label.decimals)}
+            color={leg.label.color}
+          />
         );
       })}
     </g>
+  );
+}
+
+function DistanceText({
+  at,
+  value,
+  color,
+}: {
+  at: Vec2;
+  value: string;
+  color: string;
+}) {
+  return (
+    <text
+      x={round(at.x)}
+      y={round(at.y)}
+      fontFamily={font.family}
+      fontSize={text.small}
+      fill={color}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      pointerEvents="none"
+    >
+      {value}
+    </text>
   );
 }
 

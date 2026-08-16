@@ -179,11 +179,23 @@ export interface DistanceLabel {
   color: string;
 }
 
+/**
+ * Como as distâncias aparecem no croqui.
+ *
+ * `total` é o padrão: uma linha entre dois obstáculos mostra UM número,
+ * como no croqui impresso. `trecho` mostra a distância de cada par de nós,
+ * o que só faz sentido em traçado de poucos nós.
+ */
+export type DistanceMode = 'total' | 'trecho' | 'nenhum';
+
 export interface CoursePath extends BaseObject {
   kind: 'path';
   nodes: PathNode[];
   /** Trechos medidos entre dois nós, cada um com seu rótulo de distância. */
   legs: { fromNode: number; toNode: number; label: DistanceLabel }[];
+  distanceMode: DistanceMode;
+  /** Rótulo do comprimento total, quando o modo é `total`. */
+  totalLabel: DistanceLabel;
   style: { dash: DashPreset; strokeMm: Millimeters; color: string };
 }
 
@@ -339,4 +351,4 @@ export interface CourseDocument {
   assets: Record<string, Asset>;
 }
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;

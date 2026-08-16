@@ -5,6 +5,8 @@ import { createDocument } from '@core/model/document';
 import {
   createPath,
   createPathNode,
+  pathMidpoint,
+  smoothedNodes,
   flattenPath,
   formatDistance,
   legLength,
@@ -26,8 +28,11 @@ import {
   removeNode,
   setAllLegLabels,
   setLegLabel,
+  setDistanceMode,
   setNodeType,
   setPathStyle,
+  sharpenPath,
+  smoothPath,
   straightenLeg,
 } from './pathOps';
 
@@ -227,6 +232,155 @@ describe('curvas', () => {
     doc = edit(doc, (d) => straightenLeg(d, p.id, 0));
     expect(legLength(get(doc, p.id), 0)).toBeCloseTo(10, 9);
     expect(legLength(get(doc, p.id), 1)).toBeCloseTo(segundoAntes, 9);
+  });
+});
+
+describe('suavizar a poligonal de cliques', () => {
+  /** Ângulo entre a chegada e a saída de um nó: 0 = sem bico. */
+  function quebraNoNo(p: CoursePath, i: number): number {
+    const antes = segmentAt(p, i - 1)!;
+    const depois = segmentAt(p, i)!;
+    // Em trecho reto os controles caem sobre as pontas: a direção é a da
+    // própria corda, e não a diferença entre controle e ponta (que é zero).
+    const naoNulo = (v: { x: number; y: number }, alt: { x: number; y: number }) =>
+      Math.hypot(v.x, v.y) > 1e-12 ? v : alt;
+    const chega = naoNulo(
+      { x: antes.p3.x - antes.p2.x, y: antes.p3.y - antes.p2.y },
+      { x: antes.p3.x - antes.p0.x, y: antes.p3.y - antes.p0.y },
+    );
+    const sai = naoNulo(
+      { x: depois.p1.x - depois.p0.x, y: depois.p1.y - depois.p0.y },
+      { x: depois.p3.x - depois.p0.x, y: depois.p3.y - depois.p0.y },
+    );
+    const cos =
+      (chega.x * sai.x + chega.y * sai.y) /
+      (Math.hypot(chega.x, chega.y) * Math.hypot(sai.x, sai.y));
+    return Math.acos(Math.min(1, Math.max(-1, cos)));
+  }
+
+  const emL = () =>
+    reto([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 20, y: 10 },
+    ]);
+
+  it('os nós continuam exatamente onde estavam', () => {
+    const antes = emL();
+    const depois = createPath(smoothedNodes(antes.nodes));
+    expect(depois.nodes.map((n) => n.pos)).toEqual(antes.nodes.map((n) => n.pos));
+  });
+
+  it('o traçado deixa de ter bico nos nós internos', () => {
+    const anguloso = emL();
+    // Em canto vivo, a quebra é grande.
+    expect(quebraNoNo(anguloso, 1)).toBeGreaterThan(1);
+
+    const suave = createPath(smoothedNodes(anguloso.nodes));
+    expect(quebraNoNo(suave, 1)).toBeLessThan(1e-9);
+    expect(quebraNoNo(suave, 2)).toBeLessThan(1e-9);
+  });
+
+  it('a curva é mais longa que a poligonal, e por pouco', () => {
+    const anguloso = emL();
+    const suave = createPath(smoothedNodes(anguloso.nodes));
+    const reta = pathLength(anguloso);
+    const curva = pathLength(suave);
+    expect(curva).toBeGreaterThan(reta);
+    // Corta os cantos e arqueia os trechos: fica perto, não disparado.
+    expect(curva).toBeLessThan(reta * 1.15);
+  });
+
+  it('as pontas ficam sem alça para fora, então o traçado não passa delas', () => {
+    const suave = createPath(smoothedNodes(emL().nodes));
+    expect(suave.nodes[0]!.handleIn).toBeNull();
+    expect(suave.nodes[suave.nodes.length - 1]!.handleOut).toBeNull();
+  });
+
+  it('todos os nós viram lisos', () => {
+    const suave = createPath(smoothedNodes(emL().nodes));
+    expect(suave.nodes.every((n) => n.type === 'smooth')).toBe(true);
+  });
+
+  it('tensão menor encurta as alças e aproxima da poligonal', () => {
+    const base = emL();
+    const solto = createPath(smoothedNodes(base.nodes, 1));
+    const firme = createPath(smoothedNodes(base.nodes, 0.4));
+    expect(pathLength(firme)).toBeLessThan(pathLength(solto));
+    expect(pathLength(firme)).toBeGreaterThan(pathLength(base) * 0.9);
+  });
+
+  it('suavizar e endireitar são reversíveis', () => {
+    const p = emL();
+    let doc = docCom(p);
+    doc = edit(doc, (d) => smoothPath(d, p.id));
+    expect(get(doc, p.id).nodes.every((n) => n.type === 'smooth')).toBe(true);
+    doc = edit(doc, (d) => sharpenPath(d, p.id));
+    expect(get(doc, p.id).nodes.every((n) => n.type === 'corner')).toBe(true);
+    expect(pathLength(get(doc, p.id))).toBeCloseTo(pathLength(p), 9);
+  });
+
+  it('dois nós: suavizar não inventa curva onde não há para onde curvar', () => {
+    const p = reto([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ]);
+    const suave = createPath(smoothedNodes(p.nodes));
+    expect(pathLength(suave)).toBeCloseTo(10, 9);
+  });
+});
+
+describe('uma distância por linha', () => {
+  const tresNos = () =>
+    reto([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 20, y: 0 },
+    ]);
+
+  it('traçado novo mostra só o total, não um número por trecho', () => {
+    expect(tresNos().distanceMode).toBe('total');
+  });
+
+  it('o total é a soma dos trechos', () => {
+    const p = tresNos();
+    expect(pathLength(p)).toBeCloseTo(legLength(p, 0) + legLength(p, 1), 9);
+  });
+
+  it('o rótulo total fica no meio do percurso, medido em comprimento', () => {
+    const p = reto([
+      { x: 0, y: 0 },
+      { x: 30, y: 0 },
+      { x: 40, y: 0 },
+    ]);
+    // Metade de 40 m cai a 20 m do início, dentro do primeiro trecho.
+    // A precisão vem da tolerância de medição: décimo de milímetro basta
+    // de sobra para posicionar um rótulo.
+    expect(pathMidpoint(p).x).toBeCloseTo(20, 4);
+  });
+
+  it('em curva, o meio segue o comprimento, não a média dos nós', () => {
+    const p = reto([
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+    ]);
+    const curvo = produce(p, (d) => {
+      d.nodes[0]!.handleOut = { x: 0, y: 14 };
+      d.nodes[1]!.handleIn = { x: 0, y: 14 };
+    });
+    const meio = pathMidpoint(curvo);
+    expect(meio.x).toBeCloseTo(10, 3);
+    expect(meio.y).toBeGreaterThan(5); // sobre a curva, não na reta
+  });
+
+  it('dá para voltar ao número por trecho, ou tirar tudo', () => {
+    const p = tresNos();
+    let doc = docCom(p);
+    doc = edit(doc, (d) => setDistanceMode(d, p.id, 'trecho'));
+    expect(get(doc, p.id).distanceMode).toBe('trecho');
+    doc = edit(doc, (d) => setDistanceMode(d, p.id, 'nenhum'));
+    expect(get(doc, p.id).distanceMode).toBe('nenhum');
   });
 });
 

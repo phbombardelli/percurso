@@ -14,8 +14,16 @@ const PENDING: { icon: string; label: string; phase: number }[] = [
 ];
 
 export function Sidebar() {
-  const { tool, setTool, ornamentType, setOrnamentType, obstacleType, setObstacleType } =
-    useEditorStore();
+  const {
+    tool,
+    setTool,
+    ornamentType,
+    setOrnamentType,
+    obstacleType,
+    setObstacleType,
+    pathSmooth,
+    setPathSmooth,
+  } = useEditorStore();
 
   return (
     <nav className="sidebar">
@@ -84,6 +92,25 @@ export function Sidebar() {
         <span className="icon">✎</span>
         <span className="label">Traçado</span>
       </button>
+
+      {tool === 'path' && (
+        <div className="tool-options">
+          <button
+            className={pathSmooth ? 'active' : ''}
+            onClick={() => setPathSmooth(true)}
+            title="Os cliques viram uma curva contínua"
+          >
+            <span className="label">Curvo</span>
+          </button>
+          <button
+            className={!pathSmooth ? 'active' : ''}
+            onClick={() => setPathSmooth(false)}
+            title="Os cliques viram segmentos retos"
+          >
+            <span className="label">Reto</span>
+          </button>
+        </div>
+      )}
 
       <button
         className={tool === 'timing-start' ? 'active' : ''}

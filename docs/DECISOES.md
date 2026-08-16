@@ -331,6 +331,22 @@ desenhador pediu liso. Quem e calculado guarda precisao cheia.
 A alca tambem nao usa snap ao ser arrastada: ela molda a curva, e alinhar
 ao grid daria saltos justamente onde se quer ajuste fino.
 
+## 31. Tracado nasce curvo, com um numero so
+
+Duas escolhas vindas do uso real, nao do plano.
+
+Clicar ponto a ponto produzia uma poligonal angulosa — "bebada". Ao
+concluir, os nos ganham tangentes coerentes com os vizinhos (Catmull-Rom
+em forma de Bezier) e viram curva continua, SEM sair do lugar. O botao
+"Suavizar" faz o mesmo depois, e "Endireitar" desfaz. Ha a opcao Reto para
+quem quer segmentos.
+
+Distancia: um numero por LINHA, no meio do percurso medido em comprimento
+— como no croqui impresso, onde o que interessa e a distancia entre dois
+obstaculos. Um numero por trecho so faz sentido em tracado de poucos nos,
+e vira poluicao quando a curva foi feita com muitos cliques. Os dois modos
+continuam disponiveis.
+
 ---
 
 ## Ordem das fases

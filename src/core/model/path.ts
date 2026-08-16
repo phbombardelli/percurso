@@ -1,5 +1,11 @@
 import type { Cubic } from '@core/geometry/bezier';
-import { closestPointOnCubic, cubicLength, cubicPoint, flattenCubic } from '@core/geometry/bezier';
+import {
+  closestPointOnCubic,
+  cubicLength,
+  cubicPoint,
+  cubicSplit,
+  flattenCubic,
+} from '@core/geometry/bezier';
 import { add, distance, type Vec2 } from '@core/geometry/vec';
 import { newId } from '@core/model/ids';
 import type { CoursePath, PathNode } from './types';
@@ -16,6 +22,13 @@ export function createPathNode(pos: Vec2, type: PathNode['type'] = 'corner'): Pa
   return { pos, type, handleIn: null, handleOut: null, anchor: null };
 }
 
+const distanceLabel = (offsetY: number) => ({
+  visible: true,
+  offsetM: { x: 0, y: offsetY },
+  decimals: 2,
+  color: '#d32020',
+});
+
 export function createPath(nodes: PathNode[]): CoursePath {
   return {
     id: newId('pth'),
@@ -26,9 +39,86 @@ export function createPath(nodes: PathNode[]): CoursePath {
     z: 0,
     nodes,
     legs: legsFor(nodes.length),
+    // Um número por linha, como no croqui impresso. Distância por trecho
+    // só faz sentido em traçado de poucos nós, e polui o desenho quando a
+    // curva foi feita com muitos cliques.
+    distanceMode: 'total',
+    totalLabel: distanceLabel(-1.5),
     style: { dash: 'dashed', strokeMm: 0.4, color: '#333333' },
   };
 }
+
+/**
+ * Suaviza a poligonal, transformando os nós clicados numa curva contínua
+ * que passa por todos eles (Catmull-Rom em forma de Bézier).
+ *
+ * É a resposta ao traçado "bêbado": clicar ponto a ponto produz cantos, e
+ * o desenhador quer a linha de percurso, que é curva. As posições NÃO
+ * mudam — só ganham tangentes coerentes com os vizinhos.
+ */
+export function smoothedNodes(nodes: PathNode[], tension = 1): PathNode[] {
+  const n = nodes.length;
+  if (n < 2) return nodes;
+
+  const pos = (i: number): Vec2 => {
+    // Pontas refletidas: dá tangente natural ao primeiro e ao último nó.
+    if (i < 0) {
+      const a = nodes[0]!.pos;
+      const b = nodes[1]!.pos;
+      return { x: 2 * a.x - b.x, y: 2 * a.y - b.y };
+    }
+    if (i > n - 1) {
+      const a = nodes[n - 1]!.pos;
+      const b = nodes[n - 2]!.pos;
+      return { x: 2 * a.x - b.x, y: 2 * a.y - b.y };
+    }
+    return nodes[i]!.pos;
+  };
+
+  return nodes.map((node, i) => {
+    const anterior = pos(i - 1);
+    const proximo = pos(i + 1);
+    const t: Vec2 = {
+      x: ((proximo.x - anterior.x) / 6) * tension,
+      y: ((proximo.y - anterior.y) / 6) * tension,
+    };
+    return {
+      ...node,
+      type: 'smooth' as const,
+      handleOut: i === n - 1 ? null : t,
+      handleIn: i === 0 ? null : { x: -t.x, y: -t.y },
+    };
+  });
+}
+
+/** Ponto a uma distância percorrida ao longo do traçado. */
+export function pointAtLength(path: CoursePath, s: number): Vec2 {
+  const segs = segments(path);
+  if (segs.length === 0) return path.nodes[0]?.pos ?? { x: 0, y: 0 };
+
+  let restante = Math.max(0, s);
+  for (const seg of segs) {
+    const comprimento = cubicLength(seg);
+    if (restante <= comprimento) {
+      // Busca binária no parâmetro: comprimento não é linear em t.
+      let baixo = 0;
+      let alto = 1;
+      for (let i = 0; i < 24; i += 1) {
+        const meio = (baixo + alto) / 2;
+        const [inicio] = cubicSplit(seg, meio);
+        if (cubicLength(inicio) < restante) baixo = meio;
+        else alto = meio;
+      }
+      return cubicPoint(seg, (baixo + alto) / 2);
+    }
+    restante -= comprimento;
+  }
+  return path.nodes[path.nodes.length - 1]!.pos;
+}
+
+/** Meio do traçado medido em comprimento — onde o rótulo total se ancora. */
+export const pathMidpoint = (path: CoursePath): Vec2 =>
+  pointAtLength(path, pathLength(path) / 2);
 
 /** Um trecho medido por par de nós consecutivos. */
 export function legsFor(nodeCount: number): CoursePath['legs'] {

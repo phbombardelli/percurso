@@ -35,6 +35,8 @@ function richDocument(): CourseDocument {
         { pos: { x: 25.75, y: 18.4 }, type: 'corner', handleIn: { x: -2, y: -1 }, handleOut: null, anchor: null },
       ],
       legs: [{ fromNode: 0, toNode: 1, label: { visible: true, offsetM: { x: 0, y: -1 }, decimals: 2, color: '#d32020' } }],
+      distanceMode: 'total',
+      totalLabel: { visible: true, offsetM: { x: 0, y: -1.5 }, decimals: 2, color: '#d32020' },
       style: { dash: 'dashed', strokeMm: 0.35, color: '#6b6b6b' },
     };
     addObject(d, traco);

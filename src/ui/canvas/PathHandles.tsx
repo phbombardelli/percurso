@@ -196,6 +196,8 @@ export function PathDraft({
     z: 0,
     nodes: cursor ? [...nodes, { pos: cursor, type: 'corner', handleIn: null, handleOut: null, anchor: null }] : nodes,
     legs: [],
+    distanceMode: 'nenhum',
+    totalLabel: { visible: false, offsetM: { x: 0, y: 0 }, decimals: 2, color: '#d32020' },
     style: { dash: 'dashed', strokeMm: 0.4, color: color.selection },
   };
 

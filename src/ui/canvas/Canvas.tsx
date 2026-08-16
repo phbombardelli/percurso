@@ -8,7 +8,7 @@ import { distance, type Vec2 } from '@core/geometry/vec';
 import { createObstacle, nextObstacleNumber } from '@core/library/obstacles';
 import { createOrnament } from '@core/library/ornaments';
 import { createTimingLine } from '@core/library/timing';
-import { createPath, createPathNode } from '@core/model/path';
+import { createPath, createPathNode, smoothedNodes } from '@core/model/path';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
 import { deepClone } from '@core/model/clone';
 import { newId } from '@core/model/ids';
@@ -134,7 +134,9 @@ export function Canvas() {
     const nodes = ed.pathDraft?.nodes ?? [];
     ed.clearPathDraft();
     if (nodes.length < 2) return;
-    const traco = createPath(nodes);
+    // Curvo por padrão: clicar ponto a ponto e receber uma poligonal
+    // angulosa não é o que o desenhador quer ver.
+    const traco = createPath(ed.pathSmooth ? smoothedNodes(nodes) : nodes);
     useDocumentStore.getState().apply('Desenhar traçado', (d) => addObject(d, traco));
     ed.setSelection([traco.id]);
     ed.setActiveNode(null);
