@@ -22,14 +22,14 @@ function richDocument(): CourseDocument {
     addObject(d, createOrnament('cronometro', { x: 30, y: 22 }));
 
     const texto: TextLabel = {
-      id: 'txt1', kind: 'text', layer: 'annotations', locked: false, visible: true, z: 0,
+      id: 'txt1', kind: 'text', layer: 'annotations', locked: false, visible: true, scope: 'percurso', z: 0,
       pos: { x: 5, y: 5 }, text: 'Entrada', sizeMm: 3.5, align: 'start',
       rotation: 0, color: '#111111', bold: false,
     };
     addObject(d, texto);
 
     const traco: CoursePath = {
-      id: 'pth1', kind: 'path', layer: 'paths', locked: false, visible: true, z: 0,
+      id: 'pth1', kind: 'path', layer: 'paths', locked: false, visible: true, scope: 'percurso', z: 0,
       nodes: [
         { pos: { x: 10, y: 10 }, type: 'smooth', handleIn: null, handleOut: { x: 3, y: 0 }, anchor: null },
         { pos: { x: 25.75, y: 18.4 }, type: 'corner', handleIn: { x: -2, y: -1 }, handleOut: null, anchor: null },

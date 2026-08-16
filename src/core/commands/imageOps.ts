@@ -44,6 +44,7 @@ export function addImage(
     layer: 'background',
     locked: false,
     visible: true,
+    scope: 'pista',
     z: 0,
     assetId,
     origin,

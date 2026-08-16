@@ -4,7 +4,13 @@ import { snapAngle, snapPoint } from '@core/geometry/snap';
 import { moveObjectsSnapped, rotateObjects } from '@core/commands/ops';
 import { moveArenaVertex, resizeArenaByCorner } from '@core/commands/arenaOps';
 import { moveHandle, moveNode } from '@core/commands/pathOps';
-import { getBounds, boundsCenter, boundsContains, unionBounds } from '@core/model/transform';
+import {
+  getBounds,
+  boundsCenter,
+  boundsContains,
+  objectScope,
+  unionBounds,
+} from '@core/model/transform';
 import type { ObjectId } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
@@ -294,10 +300,11 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
       // Um clique sem arrasto não é um retângulo: apenas limpa a seleção.
       const tiny =
         region.max.x - region.min.x < 0.05 && region.max.y - region.min.y < 0.05;
+      const modo = useEditorStore.getState().mode;
       const hits = tiny
         ? []
         : doc.objects
-            .filter((o) => !o.locked && o.visible)
+            .filter((o) => !o.locked && o.visible && objectScope(o) === modo)
             .filter((o) => boundsContains(region, getBounds(o, doc.page.printScale)))
             .map((o) => o.id);
       useEditorStore.getState().setSelection(hits);

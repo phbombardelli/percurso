@@ -193,6 +193,7 @@ export function PathDraft({
     layer: 'paths',
     locked: false,
     visible: true,
+    scope: 'percurso',
     z: 0,
     nodes: cursor ? [...nodes, { pos: cursor, type: 'corner', handleIn: null, handleOut: null, anchor: null }] : nodes,
     legs: [],

@@ -64,6 +64,7 @@ const baseArena = (): Omit<Arena, 'shape' | 'origin' | 'widthM' | 'heightM' | 'p
   layer: 'arena',
   locked: false,
   visible: true,
+  scope: 'pista',
   z: 0,
   corner: { style: 'chamfer', radiusM: 4 },
   perimeterRuler: {

@@ -34,6 +34,7 @@ export function createTimingLine(
     layer: 'obstacles',
     locked: false,
     visible: true,
+    scope: 'percurso',
     z: 0,
     role,
     pos,

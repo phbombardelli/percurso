@@ -6,7 +6,7 @@ import { arenaPoints } from './arena';
 import { flattenPath } from './path';
 import { paperToMeters } from '@core/scale/units';
 import type { Meters, PrintScale } from '@core/scale/units';
-import type { SceneObject } from './types';
+import type { ObjectScope, SceneObject } from './types';
 
 /**
  * Acesso genérico a posição, rotação e envoltória de qualquer objeto da
@@ -22,6 +22,25 @@ export interface Bounds {
   min: Vec2;
   max: Vec2;
 }
+
+/**
+ * Escopo padrão de cada tipo: o que é do local fica na pista, o que muda a
+ * cada prova fica no percurso. Vale para arquivos antigos e para qualquer
+ * objeto que apareça sem escopo definido.
+ */
+export function defaultScope(kind: SceneObject['kind']): ObjectScope {
+  switch (kind) {
+    case 'arena':
+    case 'image':
+    case 'ornament':
+      return 'pista';
+    default:
+      return 'percurso';
+  }
+}
+
+export const objectScope = (obj: SceneObject): ObjectScope =>
+  obj.scope ?? defaultScope(obj.kind);
 
 /** Objetos posicionados em milímetros de papel, não em metros do terreno. */
 export function isPaperAnchored(obj: SceneObject): boolean {

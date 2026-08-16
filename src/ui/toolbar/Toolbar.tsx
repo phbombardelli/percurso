@@ -15,7 +15,7 @@ import { useEditorStore } from '@store/editorStore';
 
 export function Toolbar() {
   const { doc, undo, redo, canUndo, canRedo, apply, dirty, fileName } = useDocumentStore();
-  const { viewport, setViewport, tool, setTool, showPageFrame, togglePageFrame } =
+  const { viewport, setViewport, tool, setTool, showPageFrame, togglePageFrame, mode, setMode } =
     useEditorStore();
   const [busy, setBusy] = useState(false);
 
@@ -68,6 +68,23 @@ export function Toolbar() {
       <div className="toolbar-group">
         <button onClick={undo} disabled={!canUndo()} title="Ctrl+Z">↶ Desfazer</button>
         <button onClick={redo} disabled={!canRedo()} title="Ctrl+Y">↷ Refazer</button>
+      </div>
+
+      <div className="toolbar-group mode-switch">
+        <button
+          className={mode === 'pista' ? 'active' : ''}
+          onClick={() => setMode('pista')}
+          title="Configurar o local: contorno, imagem de referência, árvores"
+        >
+          Pista
+        </button>
+        <button
+          className={mode === 'percurso' ? 'active' : ''}
+          onClick={() => setMode('percurso')}
+          title="Desenhar a prova: obstáculos, traçados, partida e chegada"
+        >
+          Percurso
+        </button>
       </div>
 
       <div className="toolbar-group">

@@ -13,7 +13,7 @@ import { createPolygonArena, createRectangleArena } from '@core/model/arena';
 import { deepClone } from '@core/model/clone';
 import { newId } from '@core/model/ids';
 import { pageRectMm } from '@core/model/document';
-import { getRotation, translate } from '@core/model/transform';
+import { getRotation, objectScope, translate } from '@core/model/transform';
 import type { SceneObject } from '@core/model/types';
 import { mmPerMeter } from '@core/scale/units';
 import {
@@ -63,6 +63,7 @@ export function Canvas() {
     calibration,
     pathDraft,
     activeNode,
+    mode,
   } = useEditorStore();
 
   const { ref, size: wrapSize } = useElementSize<HTMLDivElement>();
@@ -402,7 +403,13 @@ export function Canvas() {
         st.redo();
       } else if (ctrl && key === 'a') {
         e.preventDefault();
-        ed.setSelection(st.doc.objects.filter((o) => !o.locked && o.visible).map((o) => o.id));
+        // Só o que é do modo ativo: selecionar tudo não pode trazer o
+        // cenário junto enquanto se desenha o percurso.
+        ed.setSelection(
+          st.doc.objects
+            .filter((o) => !o.locked && o.visible && objectScope(o) === ed.mode)
+            .map((o) => o.id),
+        );
       } else if (ctrl && key === 'c') {
         ed.setClipboard(
           st.doc.objects.filter((o) => sel.includes(o.id)).map((o) => deepClone(o)),
@@ -526,6 +533,7 @@ export function Canvas() {
         >
           <RenderDocument
             mode="screen"
+            editScope={mode}
             doc={doc}
             selection={selection}
             viewBoxMm={box}

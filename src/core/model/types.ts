@@ -33,11 +33,25 @@ export interface Layer {
   locked: boolean;
 }
 
+/**
+ * A que parte do trabalho o objeto pertence.
+ *
+ * `pista` é o cenário: o contorno, a imagem de referência, as árvores, o
+ * lago — coisas do local, que se configuram uma vez e depois não se quer
+ * mais esbarrar nelas. `percurso` é o que muda a cada prova: obstáculos,
+ * traçados, linhas de cronometragem, textos.
+ *
+ * A separação existe porque a pista cobre toda a área de trabalho: sem
+ * ela, qualquer clique no vazio pegava o fundo em vez do que se queria.
+ */
+export type ObjectScope = 'pista' | 'percurso';
+
 interface BaseObject {
   id: ObjectId;
   layer: LayerId;
   locked: boolean;
   visible: boolean;
+  scope: ObjectScope;
   /** Ordem dentro da camada. */
   z: number;
 }
@@ -351,4 +365,4 @@ export interface CourseDocument {
   assets: Record<string, Asset>;
 }
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;

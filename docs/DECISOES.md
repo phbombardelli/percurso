@@ -347,6 +347,35 @@ obstaculos. Um numero por trecho so faz sentido em tracado de poucos nos,
 e vira poluicao quando a curva foi feita com muitos cliques. Os dois modos
 continuam disponiveis.
 
+## 32. Cenario e percurso sao escopos separados
+
+Todo objeto declara a que parte pertence: `pista` (contorno, imagem de
+referencia, arvores, fixos do local) ou `percurso` (obstaculos, tracados,
+cronometragem, textos).
+
+O editor tem um modo ativo, e SO o escopo ativo recebe clique — o resto
+fica esmaecido e intocavel. Nasceu de uma dificuldade real de operacao: a
+pista cobre toda a area de trabalho, entao qualquer clique no vazio pegava
+o fundo em vez do obstaculo que se queria. Nao ha como resolver isso so
+com ordem de empilhamento; e uma questao de intencao, e intencao precisa
+ser declarada.
+
+A barra lateral tambem filtra por modo, e trocar de modo limpa a selecao:
+manter selecionado o que deixou de ser selecionavel confunde mais do que
+ajuda.
+
+## 33. Repositorio de pistas
+
+O cenario de um local pode ser guardado e reaplicado em outra prova.
+Aplicar TROCA o cenario e PRESERVA o percurso — e para isso que os escopos
+existem. Os ids sao renovados na aplicacao, entao o mesmo modelo pode ser
+usado duas vezes sem colidir.
+
+Guarda em dois lugares, de proposito: `localStorage` para reuso rapido na
+maquina, e arquivo `.pista` para levar embora. A cota do localStorage gira
+em torno de 5 MB e uma imagem de satelite estoura sozinha, entao a
+gravacao avisa e oferece a exportacao em arquivo, em vez de falhar calada.
+
 ---
 
 ## Ordem das fases

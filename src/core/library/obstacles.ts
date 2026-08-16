@@ -100,6 +100,7 @@ export function createObstacle(type: ObstacleType, pos: Vec2, numero = ''): Obst
     layer: 'obstacles',
     locked: false,
     visible: true,
+    scope: 'percurso',
     z: 0,
     type,
     pos,

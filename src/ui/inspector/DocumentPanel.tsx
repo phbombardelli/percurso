@@ -3,15 +3,19 @@ import { GRID_STEPS } from '@core/geometry/snap';
 import { PAGE_FORMATS, STANDARD_SCALES, formatMeters } from '@core/scale/units';
 import type { Orientation, PageFormat } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
+import { useEditorStore } from '@store/editorStore';
+import { ArenaLibraryPanel } from './ArenaLibraryPanel';
 import { ObjectPanel } from './ObjectPanel';
 
 export function DocumentPanel() {
   const { doc, apply } = useDocumentStore();
+  const mode = useEditorStore((s) => s.mode);
   const arena = firstArena(doc);
 
   return (
     <aside className="panel">
       <ObjectPanel />
+      {mode === 'pista' && <ArenaLibraryPanel />}
       <h2>Documento</h2>
 
       <section>

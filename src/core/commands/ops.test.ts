@@ -135,6 +135,7 @@ describe('duplicar e excluir', () => {
       layer: 'paths',
       locked: false,
       visible: true,
+      scope: 'percurso',
       z: 0,
       nodes: [
         { pos: { x: 0, y: 0 }, type: 'corner', handleIn: null, handleOut: null, anchor: { objectId: a.id, ref: 'center' } },
@@ -162,7 +163,7 @@ describe('duplicar e excluir', () => {
     const a = orn(10, 10);
     let doc = docWith(a);
     const path: CoursePath = {
-      id: 'p1', kind: 'path', layer: 'paths', locked: false, visible: true, z: 0,
+      id: 'p1', kind: 'path', layer: 'paths', locked: false, visible: true, scope: 'percurso', z: 0,
       nodes: [{ pos: { x: 0, y: 0 }, type: 'corner', handleIn: null, handleOut: null, anchor: { objectId: a.id, ref: 'center' } }],
       legs: [],
       distanceMode: 'nenhum',

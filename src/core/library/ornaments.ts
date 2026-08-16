@@ -36,6 +36,7 @@ export function createOrnament(type: OrnamentType, pos: Vec2): Ornament {
     layer: 'ornaments',
     locked: false,
     visible: true,
+    scope: 'pista',
     z: 0,
     type,
     pos,

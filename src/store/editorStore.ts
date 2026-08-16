@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import type { Vec2 } from '@core/geometry/vec';
-import type { ObjectId, ObstacleType, OrnamentType, PathNode, SceneObject } from '@core/model/types';
+import type {
+  ObjectId,
+  ObjectScope,
+  ObstacleType,
+  OrnamentType,
+  PathNode,
+  SceneObject,
+} from '@core/model/types';
 import type { Viewport } from '@core/scale/viewport';
 import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 
@@ -22,6 +29,12 @@ export type Tool =
   | 'path';
 
 interface EditorState {
+  /**
+   * Momento do trabalho. Só é selecionável o que pertence ao modo ativo:
+   * configurando a pista não se esbarra nos obstáculos, e desenhando o
+   * percurso a pista vira fundo intocável.
+   */
+  mode: ObjectScope;
   tool: Tool;
   viewport: Viewport;
   selection: ObjectId[];
@@ -58,6 +71,7 @@ interface EditorState {
   /** Desenhar traçado curvo (padrão) ou em segmentos retos. */
   pathSmooth: boolean;
 
+  setMode: (mode: ObjectScope) => void;
   setTool: (tool: Tool) => void;
   setViewport: (vp: Viewport) => void;
   setSelection: (ids: ObjectId[]) => void;
@@ -87,6 +101,7 @@ interface EditorState {
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
+  mode: 'percurso',
   tool: 'select',
   viewport: { centerMm: { x: 148, y: 105 }, zoom: ZOOM_ACTUAL_SIZE },
   selection: [],
@@ -103,6 +118,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   activeNode: null,
   pathSmooth: true,
 
+  // Trocar de modo limpa a seleção: o que estava escolhido pode não ser
+  // mais selecionável, e uma seleção invisível é fonte de confusão.
+  setMode: (mode) =>
+    set({ mode, selection: [], tool: 'select', draft: null, pathDraft: null, calibration: null }),
   setTool: (tool) => set({ tool }),
   setViewport: (viewport) => set({ viewport }),
   setSelection: (selection) => set({ selection }),

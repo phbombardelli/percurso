@@ -36,6 +36,7 @@ export function createPath(nodes: PathNode[]): CoursePath {
     layer: 'paths',
     locked: false,
     visible: true,
+    scope: 'percurso',
     z: 0,
     nodes,
     legs: legsFor(nodes.length),

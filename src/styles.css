@@ -55,6 +55,9 @@ button:hover:not(:disabled) { background: #eef4fa; border-color: #9fc4e6; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.active { background: #e2eefb; border-color: var(--accent); }
 
+.mode-switch button { font-weight: 600; padding: 3px 12px; }
+.mode-switch button.active { background: #1c5f96; border-color: #1c5f96; color: #fff; }
+
 .check { display: flex; align-items: center; gap: 4px; user-select: none; }
 .readout { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
 
@@ -156,6 +159,33 @@ button.active { background: #e2eefb; border-color: var(--accent); }
 
 button.danger { color: #a02020; border-color: #e0b4b4; }
 button.danger:hover:not(:disabled) { background: #fdefef; border-color: #d08080; }
+
+.sidebar-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  margin: 2px 0 4px 2px;
+}
+.sidebar-hint {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin-top: 10px;
+  line-height: 1.35;
+  font-style: italic;
+}
+
+.template-save { margin-bottom: 8px; }
+.template-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.template-list li { display: flex; align-items: center; gap: 3px; margin-bottom: 3px; }
+.template-name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+.template-name em { color: var(--text-dim); font-style: normal; font-size: 10.5px; }
 
 .tool-options {
   display: flex;

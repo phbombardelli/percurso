@@ -126,10 +126,31 @@ const v3ToV4: Migration = (doc) => {
   };
 };
 
+/**
+ * 4 → 5. Objetos passaram a declarar a que parte pertencem: cenário da
+ * pista ou percurso. Arquivo antigo recebe o escopo padrão do tipo, que é
+ * exatamente como ele já se comportava.
+ */
+const v4ToV5: Migration = (doc) => {
+  const objects = Array.isArray(doc.objects) ? doc.objects : [];
+  const daPista = ['arena', 'image', 'ornament'];
+  return {
+    ...doc,
+    objects: objects.map((raw) => {
+      const obj = raw as Record<string, unknown>;
+      return {
+        ...obj,
+        scope: obj.scope ?? (daPista.includes(String(obj.kind)) ? 'pista' : 'percurso'),
+      };
+    }),
+  };
+};
+
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   1: v1ToV2,
   2: v2ToV3,
   3: v3ToV4,
+  4: v4ToV5,
 };
 
 export function applyMigrations(

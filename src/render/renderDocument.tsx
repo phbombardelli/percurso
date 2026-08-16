@@ -1,5 +1,7 @@
 import type { CourseDocument, ObjectId, SceneObject } from '@core/model/types';
 import { isLayerVisible } from '@core/model/document';
+import { objectScope } from '@core/model/transform';
+import type { ObjectScope } from '@core/model/types';
 import { LAYER_ORDER } from '@core/model/types';
 import { pageSize } from '@core/scale/units';
 import { ArenaLayer } from './layers/ArenaLayer';
@@ -29,6 +31,11 @@ export interface RenderOptions {
   viewBoxMm: { x: number; y: number; width: number; height: number };
   metersPerPixel: number;
   showPageFrame: boolean;
+  /**
+   * Escopo em edição. Objetos de outro escopo viram fundo: não recebem
+   * clique e ficam esmaecidos. `null` no modo papel, onde tudo é desenho.
+   */
+  editScope?: ObjectScope | null;
   onObjectPointerDown?: (id: ObjectId, e: React.PointerEvent) => void;
 }
 
@@ -83,9 +90,14 @@ export function RenderDocument(opts: RenderOptions) {
 
       {sortForRender(doc).map((obj) => {
         if (!isLayerVisible(doc, obj.layer) || !obj.visible) return null;
-        const onPointerDown = opts.onObjectPointerDown
-          ? (e: React.PointerEvent) => opts.onObjectPointerDown!(obj.id, e)
-          : undefined;
+
+        // Fora do modo ativo o objeto é cenário: some do alcance do mouse.
+        const ativo = opts.editScope == null || objectScope(obj) === opts.editScope;
+        const onPointerDown =
+          ativo && opts.onObjectPointerDown
+            ? (e: React.PointerEvent) => opts.onObjectPointerDown!(obj.id, e)
+            : undefined;
+        const conteudo = (() => {
         switch (obj.kind) {
           case 'arena':
             return (
@@ -152,6 +164,16 @@ export function RenderDocument(opts: RenderOptions) {
           default:
             return null; // demais tipos entram nas fases seguintes
         }
+        })();
+
+        if (conteudo === null) return null;
+        return ativo ? (
+          conteudo
+        ) : (
+          <g key={obj.id} pointerEvents="none" opacity={0.45}>
+            {conteudo}
+          </g>
+        );
       })}
     </>
   );
