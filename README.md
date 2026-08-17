@@ -59,7 +59,7 @@ Decisões técnicas em [docs/DECISOES.md](docs/DECISOES.md).
 | Alt | suspender o snap |
 | G / S | grid / snap |
 | Ctrl+Z / Ctrl+Y | desfazer / refazer |
-| Ctrl+N / Ctrl+O | novo / abrir |
+| Ctrl+N / Ctrl+O | novo / abrir (menu Arquivo) |
 | Ctrl+S / Ctrl+Shift+S | salvar / salvar como |
 | Ctrl+C / V / D | copiar / colar / duplicar |
 | setas / Shift+setas | mover pelo passo do snap / 10x |

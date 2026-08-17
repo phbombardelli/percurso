@@ -12,7 +12,13 @@ import { fitToRect, MAX_ZOOM, MIN_ZOOM, ZOOM_ACTUAL_SIZE } from '@core/scale/vie
 import { clamp } from '@core/geometry/vec';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
+import { Menu, type MenuEntry } from './Menu';
 
+/**
+ * Barra superior. Só fica em botão o que se usa o tempo todo enquanto se
+ * desenha: modo, ferramenta de seleção e zoom. O resto vive em menu —
+ * a barra vinha crescendo a cada fase e deixou de caber na tela.
+ */
 export function Toolbar() {
   const { doc, undo, redo, canUndo, canRedo, apply, dirty, fileName } = useDocumentStore();
   const { viewport, setViewport, tool, setTool, showPageFrame, togglePageFrame, mode, setMode } =
@@ -40,34 +46,61 @@ export function Toolbar() {
     setViewport(fitToRect(pageRectMm(doc), { width: el.clientWidth, height: el.clientHeight }));
   };
 
+  const arquivo: MenuEntry[] = [
+    { label: 'Novo', shortcut: 'Ctrl+N', onSelect: () => newDocument() },
+    { label: 'Abrir…', shortcut: 'Ctrl+O', onSelect: () => void openDocument() },
+    'separator',
+    { label: 'Salvar', shortcut: 'Ctrl+S', onSelect: () => void saveDocument() },
+    { label: 'Salvar como…', shortcut: 'Ctrl+Shift+S', onSelect: () => void saveDocumentAs() },
+    'separator',
+    {
+      label: busy ? 'Exportando…' : 'Exportar PDF…',
+      disabled: busy,
+      onSelect: () => void exportPdf(),
+    },
+    { label: 'Imprimir…', onSelect: () => printDocument(doc) },
+  ];
+
+  const exibir: MenuEntry[] = [
+    {
+      label: `${doc.grid.visible ? '✓ ' : '   '}Grid`,
+      shortcut: 'G',
+      onSelect: () =>
+        apply('Alternar grid', (d) => {
+          d.grid.visible = !d.grid.visible;
+        }),
+    },
+    {
+      label: `${doc.grid.snap ? '✓ ' : '   '}Snap`,
+      shortcut: 'S',
+      onSelect: () =>
+        apply('Alternar snap', (d) => {
+          d.grid.snap = !d.grid.snap;
+        }),
+    },
+    {
+      label: `${showPageFrame ? '✓ ' : '   '}Limites da página`,
+      onSelect: togglePageFrame,
+    },
+    'separator',
+    { label: 'Ajustar à página', shortcut: 'Ctrl+0', onSelect: fitPage },
+    { label: 'Tamanho real (1:1)', onSelect: () => setViewport({ ...viewport, zoom: ZOOM_ACTUAL_SIZE }) },
+  ];
+
   return (
     <header className="toolbar">
       <div className="toolbar-group">
         <span className="brand">Percurso</span>
-        <span className="doc-name">
-          {fileName ?? 'Sem título'}
-          {dirty ? ' •' : ''}
-        </span>
       </div>
 
       <div className="toolbar-group">
-        <button onClick={newDocument} title="Novo croqui (Ctrl+N)">Novo</button>
-        <button onClick={() => void openDocument()} title="Abrir projeto (Ctrl+O)">Abrir</button>
-        <button onClick={() => void saveDocument()} title="Salvar (Ctrl+S)">Salvar</button>
-        <button onClick={() => void saveDocumentAs()} title="Salvar como (Ctrl+Shift+S)">
-          Salvar como
-        </button>
-        <button onClick={exportPdf} disabled={busy} title="Exportar croqui em PDF vetorial">
-          {busy ? 'Exportando…' : 'Exportar PDF'}
-        </button>
-        <button onClick={() => printDocument(doc)} title="Imprimir pelo navegador">
-          Imprimir
-        </button>
+        <Menu label="Arquivo" entries={arquivo} />
+        <Menu label="Exibir" entries={exibir} />
       </div>
 
       <div className="toolbar-group">
-        <button onClick={undo} disabled={!canUndo()} title="Ctrl+Z">↶ Desfazer</button>
-        <button onClick={redo} disabled={!canRedo()} title="Ctrl+Y">↷ Refazer</button>
+        <button onClick={undo} disabled={!canUndo()} title="Desfazer (Ctrl+Z)">↶</button>
+        <button onClick={redo} disabled={!canRedo()} title="Refazer (Ctrl+Y)">↷</button>
       </div>
 
       <div className="toolbar-group mode-switch">
@@ -109,35 +142,15 @@ export function Toolbar() {
         <span className="readout">{Math.round((viewport.zoom / ZOOM_ACTUAL_SIZE) * 100)}%</span>
         <button onClick={() => zoomBy(1.25)} title="Aproximar">+</button>
         <button onClick={fitPage} title="Ajustar página (Ctrl+0)">Ajustar</button>
-        <button
-          onClick={() => setViewport({ ...viewport, zoom: ZOOM_ACTUAL_SIZE })}
-          title="1 mm de papel = 1 mm na tela"
-        >
-          1:1
-        </button>
       </div>
 
-      <div className="toolbar-group">
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={doc.grid.visible}
-            onChange={() => apply('Alternar grid', (d) => { d.grid.visible = !d.grid.visible; })}
-          />
-          Grid
-        </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={doc.grid.snap}
-            onChange={() => apply('Alternar snap', (d) => { d.grid.snap = !d.grid.snap; })}
-          />
-          Snap
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={showPageFrame} onChange={togglePageFrame} />
-          Página
-        </label>
+      {/* O nome do arquivo fica por último: é informação, não comando, e é
+          o primeiro item que pode ser espremido numa janela estreita. */}
+      <div className="toolbar-group doc-name-group">
+        <span className="doc-name" title={fileName ?? 'Sem título'}>
+          {fileName ?? 'Sem título'}
+          {dirty ? ' •' : ''}
+        </span>
       </div>
     </header>
   );

@@ -27,19 +27,73 @@ body { background: var(--bg); overflow: hidden; }
   height: var(--toolbar-h);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   padding: 0 8px;
   background: var(--chrome);
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
-  overflow-x: auto;
+  /* Sem barra de rolagem: o que não couber é o nome do arquivo, que
+     encolhe com reticências em vez de empurrar os comandos para fora. */
+  overflow: visible;
 }
 
-.toolbar-group { display: flex; align-items: center; gap: 4px; }
-.toolbar-group + .toolbar-group { border-left: 1px solid var(--border); padding-left: 12px; }
+.toolbar-group { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.toolbar-group + .toolbar-group { border-left: 1px solid var(--border); padding-left: 10px; }
 
 .brand { font-weight: 600; letter-spacing: 0.3px; }
-.doc-name { color: var(--text-dim); font-size: 12px; }
+
+.doc-name-group { flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
+.doc-name {
+  color: var(--text-dim);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- menu */
+
+.menu { position: relative; }
+.menu-trigger { padding: 3px 11px; }
+
+.menu-popup {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 40;
+  min-width: 210px;
+  padding: 3px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+}
+.menu-popup button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  width: 100%;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: pre;
+}
+.menu-popup button:hover:not(:disabled) { background: #e8f1fb; border-color: transparent; }
+.menu-popup button em {
+  font-style: normal;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.menu-popup hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 3px 4px;
+}
 
 button {
   font: inherit;
