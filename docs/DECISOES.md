@@ -395,3 +395,52 @@ Multi-página; editor de símbolos customizados; exportação DXF/SVG/PNG;
 templates; camadas do usuário; numeração automática pela ordem do traçado;
 tabela automática de distâncias; agrupamento; Electron/Tauri; i18n; modo
 escuro. A arquitetura preserva o caminho de volta para todos.
+
+## 34. Barra superior em menus
+
+Novo, Abrir, Salvar, Salvar como, Exportar PDF e Imprimir viraram o menu
+Arquivo; grid, snap, limites da página e enquadramentos viraram o menu
+Exibir. Continuam em botão apenas os comandos de uso contínuo: desfazer,
+modo Pista/Percurso, seleção e zoom.
+
+O critério é esse: comando frequente o bastante para precisar de nome, mas
+raro o bastante para não merecer espaço permanente, é caso de menu. O menu
+ainda ensina os atalhos, que antes existiam sem ninguém poder descobrir.
+
+O nome do arquivo ficou por último e encolhe com reticências. Com barra de
+rolagem, quem sumia da tela era comando, e sumia sem aviso; o nome é
+informação, então é ele quem cede espaço.
+
+## 35. Traçado do cavaleiro: geometria, não aprendizado
+
+O assistente de traçado desenha a linha que um cavaleiro faria. A tentação
+seria aprender o estilo de croquis existentes; a escolha foi outra, porque
+a linha do cavaleiro obedece a regras físicas e não a estilo: chega
+perpendicular e centrado no obstáculo, com reta antes e depois, e liga um
+salto ao outro com a curva de maior raio que couber.
+
+Isso é exatamente o caminho de Dubins — o mais curto entre duas poses com
+raio mínimo de curva —, que tem solução fechada e exata. Não há
+treinamento, não há modelo estatístico, não há dependência nova, e o
+resultado é reprodutível: o mesmo percurso dá sempre o mesmo traçado. O
+§44 proíbe IA no produto, e aqui ela não faria falta nenhuma.
+
+Croquis reais entram como CALIBRAÇÃO (quanto de reta, que raio, que
+margem até o alambrado) e como verificação: rodar o assistente sobre um
+percurso de distância total conhecida e comparar os números.
+
+Duas decisões internas que sustentam o resto:
+
+- `dubinsPaths` devolve TODOS os candidatos ordenados, não só o mais
+  curto. O mais curto pode sair da pista ou passar por cima de outro
+  obstáculo, e quem sabe disso é o assistente, não a geometria.
+- Candidato só entra na lista depois de a geometria ser remontada e
+  medida. As fórmulas fechadas têm casos degenerados — uma reta de
+  comprimento zero faz um `atan2(0, 0)` decidir no ruído —, e conferir o
+  destino é mais barato e mais seguro que confiar na álgebra.
+
+O caminho vira traçado NORMAL, de nós e alças editáveis: arco em pedaços
+de 45 graus, cada um uma cúbica, com desvio medido de 0,09 mm no terreno.
+Não é um objeto especial e não é caixa-preta — quem não gostou de uma
+volta arrasta o nó, e a distância recalcula.
+

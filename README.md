@@ -47,6 +47,7 @@ nem toca no DOM.
 | 10 | Textos, quadro técnico, tabela de alturas | — |
 | 11 | Ornamentação | — |
 | 12 | Impressão, PDF, ajustar ao papel | — |
+| 13 | Assistente de traçado | em curso |
 
 Decisões técnicas em [docs/DECISOES.md](docs/DECISOES.md).
 
