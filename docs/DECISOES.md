@@ -480,3 +480,34 @@ Aprendizado de método, não de código: os testes unitários diziam
 FORMA — giro total e raio mínimo. São essas duas medidas que hoje
 reprovam a laçada e o bico.
 
+## 37. O juiz aprendeu a enxergar troca de mão
+
+Reclamação da prova real: "do 2 para o 3 ficou com uma ligeira inflexão à
+esquerda desnecessária antes da curva propriamente dita à direita".
+
+Cavaleiro que vai virar à direita não começa torcendo à esquerda. A
+cúbica produz essa inversão sozinha quando as tangentes puxam demais, e
+nenhuma das medidas que o juiz tinha — comprimento, raio mínimo, cabe na
+pista — enxergava o defeito. Agora conta-se a troca de mão, e ela entra
+no critério.
+
+Três armadilhas apareceram ao ajustar isso, todas por medir:
+
+- Pôr a inflexão antes do raio elegeu o BICO, que tecnicamente não troca
+  de mão porque inverte passando pelo zero. A ordem certa separa antes o
+  que dá para galopar: entre as galopáveis vence a que troca menos de
+  mão; entre as ingalopáveis, o aperto é que manda.
+- Uma curva que sobe e volta pela MESMA reta era medida como reta
+  perfeita, curvatura zero em todo ponto. É o pior traçado possível e
+  passava limpo. Agora a inversão de sentido é detectada.
+- Faltava o limite físico: entre duas poses que diferem de Δ, nenhuma
+  curva tem raio maior que vão / (2·sen(Δ/2)). Sem ele, poses quase
+  coladas e opostas passavam como impecáveis, porque a medição ponto a
+  ponto de um trecho degenerado não acusa nada.
+
+E uma liberdade nova, que é o que o cavaleiro realmente faz: ceder reta
+para ganhar curva. Virar 70 graus em 11 m entre duas retas de 8 m não
+cabe; encurtando as retas, cabe. Reta demais com curva impossível é pior
+que reta menor com curva galopável — mas nunca abaixo do mínimo, senão o
+cavalo chega torto no salto.
+

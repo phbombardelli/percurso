@@ -1,4 +1,5 @@
-import { fromAngle, scale, distance, type Vec2 } from '@core/geometry/vec';
+import { add, fromAngle, scale, distance, type Vec2 } from '@core/geometry/vec';
+import type { Pose } from '@core/geometry/dubins';
 import { solveLegCurve, type CurveWarning, type LegShape } from './legCurve';
 import { createPath } from '@core/model/path';
 import type { CourseDocument, CoursePath, Obstacle, PathNode, TimingLine } from '@core/model/types';
@@ -106,6 +107,8 @@ export interface RideLeg {
   where: string;
   /** Ponto mais fechado da volta: é ele que diz se dá para galopar. */
   minRadiusM: number;
+  /** Trocas de mão da linha. Zero é o normal; uma é um S de verdade. */
+  inflections: number;
   shape: LegShape;
 }
 
@@ -199,8 +202,18 @@ export function buildCourseRide(
     i < gates.length - 1 ? solveLegCurve(saidas[i]!, entradas[i + 1]!, field, params) : null,
   );
 
-  const pontaEntrada = (i: number): Vec2 => entradas[i]!.pos;
-  const pontaSaida = (i: number): Vec2 => saidas[i]!.pos;
+  // A volta pode ter cedido reta: as retas do salto param onde ela começa.
+  const desliza = (pose: Pose, metros: number, paraFrente: boolean): Vec2 =>
+    add(pose.pos, scale(fromAngle(pose.heading), paraFrente ? metros : -metros));
+
+  const pontaEntrada = (i: number): Vec2 => {
+    const anterior = solucoes[i - 1];
+    return anterior ? desliza(entradas[i]!, anterior.shrink.before, true) : entradas[i]!.pos;
+  };
+  const pontaSaida = (i: number): Vec2 => {
+    const propria = solucoes[i];
+    return propria ? desliza(saidas[i]!, propria.shrink.after, false) : saidas[i]!.pos;
+  };
 
   const pieces: PathNode[][] = [];
   const problems: RideProblem[] = [];
@@ -234,6 +247,7 @@ export function buildCourseRide(
     legs.push({
       where: `${g.label} para ${proximo.label}`,
       minRadiusM: solucao.minRadiusM,
+      inflections: solucao.inflections,
       shape: solucao.shape,
     });
     for (const warning of solucao.warnings) {

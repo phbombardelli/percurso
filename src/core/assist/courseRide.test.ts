@@ -143,11 +143,13 @@ describe('traçado do percurso', () => {
   });
 
   it('avisa quando uma volta não cabe, e ainda assim entrega o traçado', () => {
-    // Pista minúscula com dois saltos opostos: não há volta possível.
+    // Pista minúscula com dois saltos opostos. Meia-volta pede duas vezes
+    // o raio de aperto em largura, e aqui não há nem isso: não existe volta
+    // possível, por mais reta que se ceda.
     const doc = produce(createDocument(), (d) => {
-      addObject(d, createRectangleArena({ x: 0, y: 0 }, 22, 16));
-      addObject(d, obstaculo('1', '', 11, 5));
-      addObject(d, obstaculo('2', '', 11, 12, 180));
+      addObject(d, createRectangleArena({ x: 0, y: 0 }, 34, 15));
+      addObject(d, obstaculo('1', '', 17, 5));
+      addObject(d, obstaculo('2', '', 17, 11, 180));
     });
     const r = buildCourseRide(doc)!;
     expect(r.path.nodes.length).toBeGreaterThan(1);
