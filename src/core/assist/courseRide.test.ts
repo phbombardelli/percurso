@@ -6,9 +6,10 @@ import { createTimingLine } from '@core/library/timing';
 import { createDocument } from '@core/model/document';
 import { createRectangleArena } from '@core/model/arena';
 import { pathLength } from '@core/model/path';
+import { distance } from '@core/geometry/vec';
 import type { Arena, CourseDocument, Obstacle } from '@core/model/types';
 import { DEFAULT_RIDE, entryPose, exitPose, fieldFrom } from './ridePath';
-import { buildCourseRide, courseOrder } from './courseRide';
+import { buildCourseRide, courseOrder, straightBudget } from './courseRide';
 
 function obstaculo(numero: string, letra: '' | 'A' | 'B' | 'C', x: number, y: number, rot = 0): Obstacle {
   const o = createObstacle('vertical', { x, y }, numero);
@@ -124,8 +125,15 @@ describe('traçado do percurso', () => {
       doc.objects.find((o): o is Arena => o.kind === 'arena')!,
       elementos,
     );
-    const saidaA = exitPose(elementos[0]!, DEFAULT_RIDE, campo).pos;
-    const entradaB = entryPose(elementos[1]!, DEFAULT_RIDE, campo).pos;
+    // Mesmo orçamento de reta que o construtor usa: entre elementos de uma
+    // combinação as retas de 8 m não caberiam inteiras.
+    const vao = distance(
+      exitPose(elementos[0]!, { ...DEFAULT_RIDE, getawayM: 0 }, campo).pos,
+      entryPose(elementos[1]!, { ...DEFAULT_RIDE, approachM: 0 }, campo).pos,
+    );
+    const reta = straightBudget(vao, DEFAULT_RIDE.getawayM);
+    const saidaA = exitPose(elementos[0]!, { ...DEFAULT_RIDE, getawayM: reta }, campo).pos;
+    const entradaB = entryPose(elementos[1]!, { ...DEFAULT_RIDE, approachM: reta }, campo).pos;
     const indice = (alvo: { x: number; y: number }) =>
       r.path.nodes.findIndex((n) => Math.hypot(n.pos.x - alvo.x, n.pos.y - alvo.y) < 1e-6);
 

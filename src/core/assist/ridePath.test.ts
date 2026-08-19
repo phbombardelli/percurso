@@ -88,10 +88,11 @@ describe('escolher a volta', () => {
   });
 
   it('recusa a volta que sairia da pista e escolhe outra', () => {
-    // Salto encostado no alambrado da esquerda: a volta mais curta é uma
-    // laçada que estouraria a cerca.
-    const a = vertical(8, 22, 90);
-    const b = vertical(45, 25, 0);
+    // Salto colado no alto da pista, saltado para leste; o seguinte é
+    // saltado para oeste. A volta mais curta passa por cima, e por cima
+    // não há espaço até a cerca.
+    const a = vertical(10, 8, 90);
+    const b = vertical(55, 10, 270);
     const campo = fieldFrom(pista, [a, b]);
     const saida = exitPose(a, DEFAULT_RIDE, campo);
     const chegada = entryPose(b, DEFAULT_RIDE, campo);
@@ -128,8 +129,10 @@ describe('escolher a volta', () => {
     atravessado.faceWidthM = 10;
 
     const comEstorvo = solveLeg(saida, chegada, fieldFrom(grande, [a, b, atravessado]))!;
+    // Passa limpa e é OUTRA volta: a anterior deixou de servir. Nem sempre
+    // é mais longa — fechar o raio às vezes encurta.
     expect(comEstorvo.warnings).toEqual([]);
-    expect(comEstorvo.path.length).toBeGreaterThan(semEstorvo.path.length);
+    expect(Math.abs(comEstorvo.path.length - semEstorvo.path.length)).toBeGreaterThan(0.5);
   });
 
   it('sem saída limpa, entrega mesmo assim e avisa', () => {

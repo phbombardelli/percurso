@@ -1,5 +1,5 @@
 import { fromAngle, scale, distance, type Vec2 } from '@core/geometry/vec';
-import { nodesFromDubins } from '@core/model/pathFromDubins';
+import { solveLegCurve, type CurveWarning, type LegShape } from './legCurve';
 import { createPath } from '@core/model/path';
 import type { CourseDocument, CoursePath, Obstacle, PathNode, TimingLine } from '@core/model/types';
 import {
@@ -7,11 +7,9 @@ import {
   entryPose,
   exitPose,
   fieldFrom,
-  solveLeg,
   timingPose,
   type Field,
   type RideParams,
-  type RideWarning,
 } from './ridePath';
 
 /**
@@ -100,7 +98,15 @@ function joinNodes(pieces: PathNode[][]): PathNode[] {
 export interface RideProblem {
   /** Onde o problema aparece: "3 para 4", "partida para 1". */
   where: string;
-  warning: RideWarning;
+  warning: CurveWarning;
+}
+
+/** Uma volta resolvida, para conferência. */
+export interface RideLeg {
+  where: string;
+  /** Ponto mais fechado da volta: é ele que diz se dá para galopar. */
+  minRadiusM: number;
+  shape: LegShape;
 }
 
 export interface RideResult {
@@ -108,7 +114,28 @@ export interface RideResult {
   problems: RideProblem[];
   /** Degraus percorridos, na ordem, para o relatório na interface. */
   stops: string[];
+  legs: RideLeg[];
 }
+
+/** Um degrau qualquer do percurso: cruzada de tempo ou salto. */
+type Gate =
+  | { label: string; kind: 'timing'; line: TimingLine }
+  | { label: string; kind: 'obstacle'; elements: Obstacle[] };
+
+/**
+ * Quanto de reta cabe entre dois pontos, sem as duas retas se atropelarem.
+ *
+ * Este é o conserto do defeito mais feio do primeiro assistente. Partida e
+ * obstáculo 1 costumam ficar a menos de 16 m um do outro; com 8 m de reta
+ * de cada lado, o ponto de CHEGADA nascia atrás do ponto de PARTIDA, e a
+ * única forma de voltar respeitando o raio mínimo era dar uma volta
+ * completa. O croqui saía cheio de laçadas onde o cavaleiro passa reto.
+ *
+ * Um terço do vão para cada lado deixa sempre um terço de folga no meio,
+ * que é onde a curva, se houver, acontece.
+ */
+export const straightBudget = (gap: number, pedido: number): number =>
+  Math.max(0, Math.min(pedido, gap / 3));
 
 /**
  * Monta o traçado do percurso inteiro.
@@ -123,89 +150,99 @@ export function buildCourseRide(
 ): RideResult | null {
   const obstacles = doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle');
   const timings = doc.objects.filter((o): o is TimingLine => o.kind === 'timing');
-  const arena = doc.objects.find((o) => o.kind === 'arena') ?? null;
+  const arena = doc.objects.find((o) => o.kind === 'arena');
   const field: Field = fieldFrom(arena?.kind === 'arena' ? arena : null, obstacles);
 
-  const stops = courseOrder(obstacles);
-  const partida = timings.find((t) => t.role === 'start') ?? null;
-  const chegada = timings.find((t) => t.role === 'finish') ?? null;
+  const partida = timings.find((t) => t.role === 'start');
+  const chegada = timings.find((t) => t.role === 'finish');
 
-  // Cada degrau contribui com um par entrada/saída; partida e chegada são
-  // cruzadas retas, igual a qualquer outro.
-  const portoes: { label: string; entry: ReturnType<typeof entryPose>; exit: ReturnType<typeof exitPose>; middle: PathNode[] }[] = [];
-
-  if (partida) {
-    portoes.push({
-      label: 'partida',
-      entry: timingPose(partida, params, 'antes', field),
-      exit: timingPose(partida, params, 'depois', field),
-      middle: [],
-    });
+  const gates: Gate[] = [];
+  if (partida) gates.push({ label: 'partida', kind: 'timing', line: partida });
+  for (const stop of courseOrder(obstacles)) {
+    gates.push({ label: stop.label, kind: 'obstacle', elements: stop.elements });
   }
+  if (chegada) gates.push({ label: 'chegada', kind: 'timing', line: chegada });
+  if (gates.length < 2) return null;
 
-  for (const stop of stops) {
-    const primeiro = stop.elements[0]!;
-    const ultimo = stop.elements[stop.elements.length - 1]!;
-    // Dentro da combinação a linha é reta obrigatória, sem volta nenhuma:
-    // é o que todo croqui mostra, e o que o cavalo faz.
-    const meio: PathNode[] = [];
-    for (let i = 0; i < stop.elements.length - 1; i += 1) {
-      meio.push(
-        ...straightNodes(
-          exitPose(stop.elements[i]!, params, field).pos,
-          entryPose(stop.elements[i + 1]!, params, field).pos,
-        ),
-      );
-    }
-    portoes.push({
-      label: stop.label,
-      entry: entryPose(primeiro, params, field),
-      exit: exitPose(ultimo, params, field),
-      middle: meio,
-    });
-  }
+  const com = (chave: 'approachM' | 'getawayM', metros: number): RideParams => ({
+    ...params,
+    [chave]: metros,
+  });
 
-  if (chegada) {
-    portoes.push({
-      label: 'chegada',
-      entry: timingPose(chegada, params, 'antes', field),
-      exit: timingPose(chegada, params, 'depois', field),
-      middle: [],
-    });
-  }
+  const entryOf = (g: Gate, reta: number) =>
+    g.kind === 'timing'
+      ? timingPose(g.line, com('approachM', reta), 'antes', field)
+      : entryPose(g.elements[0]!, com('approachM', reta), field);
 
-  if (portoes.length < 2) return null;
+  const exitOf = (g: Gate, reta: number) =>
+    g.kind === 'timing'
+      ? timingPose(g.line, com('getawayM', reta), 'depois', field)
+      : exitPose(g.elements[g.elements.length - 1]!, com('getawayM', reta), field);
+
+  // Primeiro as retas: cada vão decide quanto cabe de cada lado. Só depois
+  // se resolvem as voltas, já com as pontas nos lugares certos.
+  const entradas: ReturnType<typeof entryOf>[] = [];
+  const saidas: ReturnType<typeof exitOf>[] = [];
+
+  gates.forEach((g, i) => {
+    const anterior = gates[i - 1];
+    const proximo = gates[i + 1];
+
+    const vaoAntes = anterior ? distance(exitOf(anterior, 0).pos, entryOf(g, 0).pos) : Infinity;
+    const vaoDepois = proximo ? distance(exitOf(g, 0).pos, entryOf(proximo, 0).pos) : Infinity;
+
+    entradas[i] = entryOf(g, straightBudget(vaoAntes, params.approachM));
+    saidas[i] = exitOf(g, straightBudget(vaoDepois, params.getawayM));
+  });
+
+  const solucoes = gates.map((_, i) =>
+    i < gates.length - 1 ? solveLegCurve(saidas[i]!, entradas[i + 1]!, field, params) : null,
+  );
+
+  const pontaEntrada = (i: number): Vec2 => entradas[i]!.pos;
+  const pontaSaida = (i: number): Vec2 => saidas[i]!.pos;
 
   const pieces: PathNode[][] = [];
   const problems: RideProblem[] = [];
+  const legs: RideLeg[] = [];
 
-  portoes.forEach((portao, i) => {
-    // O salto em si: da aproximação à saída, sempre reto.
-    if (portao.middle.length > 0) {
-      pieces.push(straightNodes(portao.entry.pos, portao.middle[0]!.pos));
-      pieces.push(portao.middle);
-      pieces.push(straightNodes(portao.middle[portao.middle.length - 1]!.pos, portao.exit.pos));
+  gates.forEach((g, i) => {
+    // O salto em si, e a combinação por dentro: reta, sempre.
+    if (g.kind === 'obstacle' && g.elements.length > 1) {
+      let atual = pontaEntrada(i);
+      for (let k = 0; k < g.elements.length - 1; k += 1) {
+        const vao = distance(
+          exitPose(g.elements[k]!, com('getawayM', 0), field).pos,
+          entryPose(g.elements[k + 1]!, com('approachM', 0), field).pos,
+        );
+        const reta = straightBudget(vao, params.getawayM);
+        const fim = exitPose(g.elements[k]!, com('getawayM', reta), field).pos;
+        pieces.push(straightNodes(atual, fim));
+        atual = entryPose(g.elements[k + 1]!, com('approachM', reta), field).pos;
+        pieces.push(straightNodes(fim, atual));
+      }
+      pieces.push(straightNodes(atual, pontaSaida(i)));
     } else {
-      pieces.push(straightNodes(portao.entry.pos, portao.exit.pos));
+      pieces.push(straightNodes(pontaEntrada(i), pontaSaida(i)));
     }
 
-    const proximo = portoes[i + 1];
-    if (!proximo) return;
+    const proximo = gates[i + 1];
+    const solucao = solucoes[i];
+    if (!proximo || !solucao) return;
 
-    const solucao = solveLeg(portao.exit, proximo.entry, field, params);
-    if (!solucao) return;
-    pieces.push(nodesFromDubins(solucao.path));
+    pieces.push(solucao.nodes);
+    legs.push({
+      where: `${g.label} para ${proximo.label}`,
+      minRadiusM: solucao.minRadiusM,
+      shape: solucao.shape,
+    });
     for (const warning of solucao.warnings) {
-      problems.push({ where: `${portao.label} para ${proximo.label}`, warning });
+      problems.push({ where: `${g.label} para ${proximo.label}`, warning });
     }
   });
 
   const nodes = joinNodes(pieces);
   if (nodes.length < 2) return null;
 
-  return {
-    path: createPath(nodes),
-    problems,
-    stops: portoes.map((p) => p.label),
-  };
+  return { path: createPath(nodes), problems, stops: gates.map((g) => g.label), legs };
 }

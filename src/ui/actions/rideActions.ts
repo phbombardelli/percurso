@@ -1,13 +1,15 @@
 import { addObject } from '@core/commands/ops';
 import { buildCourseRide } from '@core/assist/courseRide';
-import { DEFAULT_RIDE, type RideParams, type RideWarning } from '@core/assist/ridePath';
+import { DEFAULT_RIDE, type RideParams } from '@core/assist/ridePath';
+import type { CurveWarning } from '@core/assist/legCurve';
 import { formatDistance, pathLength } from '@core/model/path';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 
-const MOTIVO: Record<RideWarning, string> = {
+const MOTIVO: Record<CurveWarning, string> = {
   'fora-da-pista': 'a volta não cabe dentro da pista',
   'passa-por-obstaculo': 'a volta passa por cima de outro obstáculo',
+  'curva-fechada': 'a curva fecha mais do que se galopa',
 };
 
 /**

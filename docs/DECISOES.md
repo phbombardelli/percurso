@@ -444,3 +444,39 @@ de 45 graus, cada um uma cúbica, com desvio medido de 0,09 mm no terreno.
 Não é um objeto especial e não é caixa-preta — quem não gostou de uma
 volta arrasta o nó, e a distância recalcula.
 
+## 36. Duas formas de volta, um juiz só
+
+O primeiro assistente ligava as poses pelo caminho mais curto de raio
+mínimo (Dubins). Na pista de verdade o croqui saiu cheio de LAÇADAS.
+
+O diagnóstico, medido e não suposto: para a volta do obstáculo 1 ao 2 de
+um percurso real, TODOS os caminhos possíveis giravam 330 graus ou mais.
+Não era escolha ruim entre opções boas — não havia opção boa. Exigir reta
+perpendicular de tamanho fixo nas duas pontas E raio mínimo entre elas é
+restritivo demais: quando dois saltos não estão bem alinhados, que é o
+caso quase sempre, a geometria só sabe responder com laçada.
+
+A cúbica de Hermite resolve o outro extremo: sai na direção do salto,
+chega na direção do próximo, e nunca laça. Mas numa volta grande ela
+responde com um BICO, porque não gira tanto sem se dobrar.
+
+Nenhuma das duas serve sozinha, e as duas juntas servem. Os dois
+geradores convivem e um juiz só decide, pelo mesmo critério: cabe na
+pista, não atropela obstáculo, e o ponto mais fechado ainda se galopa —
+vence quem tem menos problema e, no empate, a curva mais ampla. Na
+prática a cúbica ganha as voltas mansas e o arco-reta-arco as grandes.
+
+Duas correções que vieram do mesmo teste:
+
+- As retas se atropelavam. Partida e obstáculo 1 costumam distar menos de
+  16 m; com 8 m de reta de cada lado, o ponto de chegada nascia ATRÁS do
+  de partida, e voltar com raio mínimo exige uma volta completa. Cada vão
+  agora dá no máximo um terço de si para cada reta.
+- O raio tem teto no vão. Curva de 11 m não cabe em 10 m de vão, e a
+  geometria responde com laçada em vez de admitir que não cabe.
+
+Aprendizado de método, não de código: os testes unitários diziam
+"chegou no destino", e as laçadas chegavam ao destino. Faltava medir a
+FORMA — giro total e raio mínimo. São essas duas medidas que hoje
+reprovam a laçada e o bico.
+

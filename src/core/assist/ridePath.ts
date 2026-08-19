@@ -1,5 +1,5 @@
 import { dubinsPaths, samplePath, type DubinsPath, type Pose } from '@core/geometry/dubins';
-import { DEG, add, fromAngle, rotate, scale, sub, type Vec2 } from '@core/geometry/vec';
+import { DEG, add, distance, fromAngle, rotate, scale, sub, type Vec2 } from '@core/geometry/vec';
 import { arenaPoints } from '@core/model/arena';
 import { obstacleExtent } from '@core/library/obstacles';
 import type { Arena, Obstacle, TimingLine } from '@core/model/types';
@@ -30,6 +30,15 @@ export interface RideParams {
   tightRadiusM: number;
   /** Folga até o alambrado: o traçado não encosta na cerca. */
   railMarginM: number;
+  /**
+   * Quanto o cavaleiro aceita girar entre dois saltos, em graus.
+   *
+   * Existe porque o caminho geometricamente MAIS CURTO entre duas poses
+   * próximas e desencontradas é uma laçada apertada — e cavaleiro nenhum
+   * dá laçada. Acima deste limite o candidato é descartado, mesmo sendo o
+   * mais curto.
+   */
+  maxTurnDeg: number;
 }
 
 export const DEFAULT_RIDE: RideParams = {
@@ -38,6 +47,7 @@ export const DEFAULT_RIDE: RideParams = {
   radiusM: 11,
   tightRadiusM: 6,
   railMarginM: 2,
+  maxTurnDeg: 270,
 };
 
 /**
@@ -190,6 +200,8 @@ export interface LegSolution {
   warnings: RideWarning[];
   /** Raio realmente usado: menor que o preferido quando foi preciso fechar. */
   radiusM: number;
+  /** Reta extra usada depois do salto anterior e antes do seguinte. */
+  lead: { after: number; before: number };
 }
 
 /** Passo de amostragem: fino o bastante para não pular um paraflanco. */
@@ -218,18 +230,55 @@ function checkPath(path: DubinsPath, field: Field, params: RideParams): RideWarn
 }
 
 /**
- * Raios a tentar, do preferido ao mais fechado.
+ * Raios a tentar, do mais aberto ao mais fechado.
  *
  * A ordem é a regra de ouro do traçado: usa-se a curva mais aberta que
- * couber, e só se fecha quando não cabe. Um passo de 15% dá uma dúzia de
- * tentativas entre 11 m e 6 m, o que é barato e fino o bastante.
+ * couber, e só se fecha quando não cabe.
+ *
+ * O teto depende do VÃO. Quando dois saltos estão mais próximos que o raio
+ * preferido, não existe caminho sem laçada: a curva de 11 m simplesmente
+ * não cabe em 10 m de vão, e a geometria responde com uma volta completa,
+ * que é o que suja o croqui. Entre saltos próximos o cavaleiro faz uma
+ * curva curta, não uma laçada larga — daí o teto de metade do vão.
  */
-function radiiToTry(params: RideParams): number[] {
+function radiiToTry(params: RideParams, gapM: number): number[] {
+  const teto = Math.max(params.tightRadiusM, Math.min(params.radiusM, gapM / 2));
   const raios: number[] = [];
-  for (let r = params.radiusM; r > params.tightRadiusM; r *= 0.85) raios.push(r);
+  for (let r = teto; r > params.tightRadiusM; r *= 0.85) raios.push(r);
   raios.push(params.tightRadiusM);
   return raios;
 }
+
+/**
+ * Alongamentos a tentar nas retas, em metros, do mais econômico ao mais
+ * largo: (depois do salto anterior, antes do salto seguinte).
+ *
+ * Sem isto, o assistente obrigava o cavalo a entrar no salto a exatos 8 m
+ * dele. Quando o salto seguinte está desalinhado, não existe curva
+ * decente nesse espaço, e a geometria responde com uma laçada. O
+ * cavaleiro faz o contrário: sai mais largo e volta numa aproximação mais
+ * LONGA, que é onde a curva cabe. A ordem é a da economia — só se abre
+ * mão de espaço quando o aperto obriga.
+ */
+const EXTENSIONS: [number, number][] = [
+  [0, 0],
+  [0, 8],
+  [8, 0],
+  [8, 8],
+  [0, 18],
+  [18, 0],
+  [8, 18],
+  [18, 8],
+  [18, 18],
+  [0, 30],
+  [30, 0],
+  [30, 30],
+];
+
+const slide = (pose: Pose, metros: number, paraFrente: boolean): Pose => ({
+  pos: add(pose.pos, scale(fromAngle(pose.heading), paraFrente ? metros : -metros)),
+  heading: pose.heading,
+});
 
 /**
  * Resolve uma volta entre dois saltos.
@@ -248,8 +297,50 @@ export function solveLeg(
 ): LegSolution | null {
   let melhorRuim: LegSolution | null = null;
 
-  for (const raio of radiiToTry(params)) {
-    for (const path of dubinsPaths(from, to, raio)) {
+  for (const [depois, antes] of EXTENSIONS) {
+    const saida = slide(from, depois, true);
+    const chegada = slide(to, antes, false);
+    const achou = solveBetween(saida, chegada, field, params);
+    if (!achou) continue;
+    if (achou.warnings.length === 0) {
+      return { ...achou, lead: { after: depois, before: antes } };
+    }
+    if (melhorRuim === null || achou.warnings.length < melhorRuim.warnings.length) {
+      melhorRuim = { ...achou, lead: { after: depois, before: antes } };
+    }
+  }
+  if (melhorRuim) return melhorRuim;
+
+  // Nem alongando as retas existe volta sem laçada: o percurso pede o que
+  // o cavalo não faz. Entrega então a volta de MENOR giro possível, que é
+  // a menos absurda, e o aviso denuncia o aperto.
+  const vao = distance(from.pos, to.pos);
+  const ultimo = dubinsPaths(from, to, Math.max(1, Math.min(params.tightRadiusM, vao / 2)))
+    .sort((a, b) => totalTurn(a) - totalTurn(b))[0];
+  if (!ultimo) return null;
+  return {
+    path: ultimo,
+    warnings: checkPath(ultimo, field, params),
+    radiusM: ultimo.radius,
+    lead: { after: 0, before: 0 },
+  };
+}
+
+/** A busca por raio, com as pontas já fixadas. */
+function solveBetween(
+  from: Pose,
+  to: Pose,
+  field: Field,
+  params: RideParams,
+): Omit<LegSolution, 'lead'> | null {
+  let melhorRuim: Omit<LegSolution, 'lead'> | null = null;
+  const vao = distance(from.pos, to.pos);
+
+  for (const raio of radiiToTry(params, vao)) {
+    const candidatos = dubinsPaths(from, to, raio).filter(
+      (p) => totalTurn(p) <= params.maxTurnDeg,
+    );
+    for (const path of candidatos) {
       const warnings = checkPath(path, field, params);
       if (warnings.length === 0) return { path, warnings, radiusM: raio };
       if (melhorRuim === null || warnings.length < melhorRuim.warnings.length) {
@@ -257,7 +348,17 @@ export function solveLeg(
       }
     }
   }
+
+  // Sem candidato dentro do limite de giro devolve NULO, e não uma laçada.
+  // O recurso de último caso é do chamador, depois de esgotar as retas
+  // mais longas — aqui dentro ele aceitaria a laçada logo na primeira
+  // tentativa e as extensões nunca seriam experimentadas.
   return melhorRuim;
+}
+
+/** Quanto o caminho gira ao todo, somando os arcos, em graus. */
+export function totalTurn(path: DubinsPath): number {
+  return path.segments.reduce((s, seg) => s + (seg.kind === 'arco' ? seg.sweep : 0), 0);
 }
 
 /** Ângulo entre duas direções, em graus, sempre no intervalo [0, 180]. */
