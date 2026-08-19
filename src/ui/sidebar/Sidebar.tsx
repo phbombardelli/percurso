@@ -1,6 +1,7 @@
 import { OBSTACLES } from '@core/library/obstacles';
 import { ORNAMENTS } from '@core/library/ornaments';
 import { importBackgroundImage } from '@ui/actions/imageActions';
+import { traceCourse } from '@ui/actions/rideActions';
 import { useEditorStore } from '@store/editorStore';
 
 /**
@@ -148,6 +149,14 @@ export function Sidebar() {
           </button>
         </div>
       )}
+
+      <button
+        onClick={() => traceCourse()}
+        title="Desenha a linha que o cavaleiro faria, seguindo a numeração já lançada: partida, obstáculos em ordem, chegada. O resultado é um traçado comum, que você pode editar."
+      >
+        <span className="icon">➰</span>
+        <span className="label">Assistente</span>
+      </button>
 
       <button
         className={tool === 'timing-start' ? 'active' : ''}

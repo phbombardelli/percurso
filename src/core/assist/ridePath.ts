@@ -20,8 +20,14 @@ export interface RideParams {
   approachM: number;
   /** Reta perpendicular DEPOIS, que é o salto e a recepção. */
   getawayM: number;
-  /** Raio mínimo de curva ao galope. Curva boa é a de maior raio. */
-  minRadiusM: number;
+  /** Raio de curva preferido. Curva boa é a de maior raio. */
+  radiusM: number;
+  /**
+   * Raio mais fechado que o cavaleiro aceita quando o espaço aperta. Sem
+   * ele, obstáculo saltado contra o alambrado não teria volta nenhuma —
+   * e o cavaleiro, na pista, simplesmente fecha a curva.
+   */
+  tightRadiusM: number;
   /** Folga até o alambrado: o traçado não encosta na cerca. */
   railMarginM: number;
 }
@@ -29,8 +35,9 @@ export interface RideParams {
 export const DEFAULT_RIDE: RideParams = {
   approachM: 8,
   getawayM: 8,
-  minRadiusM: 11,
-  railMarginM: 3,
+  radiusM: 11,
+  tightRadiusM: 6,
+  railMarginM: 2,
 };
 
 /**
@@ -181,6 +188,8 @@ export interface LegSolution {
   path: DubinsPath;
   /** Vazio quando a volta é limpa. Nunca impede a entrega. */
   warnings: RideWarning[];
+  /** Raio realmente usado: menor que o preferido quando foi preciso fechar. */
+  radiusM: number;
 }
 
 /** Passo de amostragem: fino o bastante para não pular um paraflanco. */
@@ -209,12 +218,27 @@ function checkPath(path: DubinsPath, field: Field, params: RideParams): RideWarn
 }
 
 /**
+ * Raios a tentar, do preferido ao mais fechado.
+ *
+ * A ordem é a regra de ouro do traçado: usa-se a curva mais aberta que
+ * couber, e só se fecha quando não cabe. Um passo de 15% dá uma dúzia de
+ * tentativas entre 11 m e 6 m, o que é barato e fino o bastante.
+ */
+function radiiToTry(params: RideParams): number[] {
+  const raios: number[] = [];
+  for (let r = params.radiusM; r > params.tightRadiusM; r *= 0.85) raios.push(r);
+  raios.push(params.tightRadiusM);
+  return raios;
+}
+
+/**
  * Resolve uma volta entre dois saltos.
  *
- * A mais curta que passa limpa ganha. Quando nenhuma passa limpa — pista
- * apertada, obstáculo bem no meio —, devolve a mais curta assim mesmo,
- * COM os avisos: o desenhador precisa ver o problema e decidir, e um
- * traçado ausente esconderia o que um traçado marcado mostra.
+ * Tenta a curva mais aberta primeiro e vai fechando; a mais curta que
+ * passa limpa ganha. Quando nenhuma passa limpa — pista apertada,
+ * obstáculo bem no meio —, devolve a menos problemática assim mesmo, COM
+ * os avisos: o desenhador precisa ver o problema e decidir, e um traçado
+ * ausente esconderia o que um traçado marcado mostra.
  */
 export function solveLeg(
   from: Pose,
@@ -222,15 +246,18 @@ export function solveLeg(
   field: Field,
   params: RideParams = DEFAULT_RIDE,
 ): LegSolution | null {
-  const candidatos = dubinsPaths(from, to, params.minRadiusM);
-  if (candidatos.length === 0) return null;
+  let melhorRuim: LegSolution | null = null;
 
-  for (const path of candidatos) {
-    const warnings = checkPath(path, field, params);
-    if (warnings.length === 0) return { path, warnings };
+  for (const raio of radiiToTry(params)) {
+    for (const path of dubinsPaths(from, to, raio)) {
+      const warnings = checkPath(path, field, params);
+      if (warnings.length === 0) return { path, warnings, radiusM: raio };
+      if (melhorRuim === null || warnings.length < melhorRuim.warnings.length) {
+        melhorRuim = { path, warnings, radiusM: raio };
+      }
+    }
   }
-  const pior = candidatos[0]!;
-  return { path: pior, warnings: checkPath(pior, field, params) };
+  return melhorRuim;
 }
 
 /** Ângulo entre duas direções, em graus, sempre no intervalo [0, 180]. */

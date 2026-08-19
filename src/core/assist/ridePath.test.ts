@@ -148,7 +148,7 @@ describe('escolher a volta', () => {
     const b = vertical(55, 20, 120);
     const sol = solveLeg(exitPose(a, DEFAULT_RIDE), entryPose(b, DEFAULT_RIDE), fieldFrom(pista, [a, b]))!;
     for (const seg of sol.path.segments) {
-      if (seg.kind === 'arco') expect(seg.radius).toBeGreaterThanOrEqual(DEFAULT_RIDE.minRadiusM - 1e-9);
+      if (seg.kind === 'arco') expect(seg.radius).toBeGreaterThanOrEqual(DEFAULT_RIDE.tightRadiusM - 1e-9);
     }
   });
 
@@ -158,11 +158,11 @@ describe('escolher a volta', () => {
     const campo = fieldFrom(pista, [a, b]);
     const curto = solveLeg(exitPose(a, DEFAULT_RIDE), entryPose(b, DEFAULT_RIDE), campo, {
       ...DEFAULT_RIDE,
-      minRadiusM: 8,
+      radiusM: 8,
     })!;
     const largo = solveLeg(exitPose(a, DEFAULT_RIDE), entryPose(b, DEFAULT_RIDE), campo, {
       ...DEFAULT_RIDE,
-      minRadiusM: 15,
+      radiusM: 15,
     })!;
     expect(largo.path.length).toBeGreaterThan(curto.path.length);
   });
