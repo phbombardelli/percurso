@@ -6,7 +6,7 @@ import { newId } from '@core/model/ids';
 import type { CourseDocument, LayerId, ObjectId, SceneObject } from '@core/model/types';
 import {
   boundsCenter,
-  getBounds,
+  boundsIn,
   getPosition,
   getRotation,
   rotateAround,
@@ -78,7 +78,7 @@ export function rotateObjects(doc: CourseDocument, ids: ObjectId[], deltaDeg: nu
     if (r !== null) setRotation(objs[0]!, normalizeAngle(r + deltaDeg));
     return;
   }
-  const bounds = unionBounds(objs.map((o) => getBounds(o, doc.page.printScale)));
+  const bounds = unionBounds(objs.map((o) => boundsIn(doc, o)));
   if (!bounds) return;
   const pivot = boundsCenter(bounds);
   for (const obj of objs) rotateAround(obj, pivot, deltaDeg, doc.page.printScale);

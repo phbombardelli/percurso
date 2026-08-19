@@ -26,7 +26,8 @@ export type Tool =
   | 'obstacle'
   | 'timing-start'
   | 'timing-finish'
-  | 'path';
+  | 'path'
+  | 'text';
 
 interface EditorState {
   /**

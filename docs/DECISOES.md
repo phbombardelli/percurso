@@ -511,3 +511,37 @@ cabe; encurtando as retas, cabe. Reta demais com curva impossível é pior
 que reta menor com curva galopável — mas nunca abaixo do mínimo, senão o
 cavalo chega torto no salto.
 
+## 38. Anotações: dois sistemas de coordenadas, de propósito
+
+O texto livre mora em METROS do terreno; o quadro técnico e a tabela de
+alturas moram em MILÍMETROS de papel.
+
+Não é inconsistência, é a diferença entre o que cada um nomeia. O texto
+aponta um lugar da pista ("entrada", "aquecimento") e tem que andar junto
+quando a escala muda. O quadro é cabeçalho da folha: passar o croqui de
+1:200 para 1:500 encolhe a pista e não pode encolher a letra do quadro
+nem tirá-lo do canto onde foi posto. Os dois modelos já previam isso
+desde a fase 0, e o `transform` já sabia converter.
+
+A tabela de alturas NÃO guarda alturas próprias: lê os obstáculos do
+documento. É o que impede o erro clássico de manter duas fontes — o
+croqui imprimindo uma altura que o desenho não tem. Mudou a vara, mudou a
+tabela.
+
+O leiaute dos dois vive no núcleo, e não no componente de desenho, porque
+tem dois consumidores: o desenho e a SELEÇÃO. Antes disso a envoltória
+era estimada (uma conta de "mais ou menos 5 mm por linha") e mentia sobre
+o que estava desenhado — clicar acertava o vazio e errava a letra. Uma
+conta só, dois consumidores, como já vale para o desenho de tela e papel.
+
+O quadro traz um "preencher do desenho" que escreve distância, número de
+obstáculos e de esforços. São justamente os três campos que ficam errados
+quando digitados à mão e o percurso muda depois. Preenche só quando
+pedido: o §44 proíbe validação esportiva, e sobrescrever o que o
+desenhador digitou seria pior que deixar em branco.
+
+Verificado com PDF real, não presumido: os textos saem como TEXTO
+selecionável, e os acentos e o ordinal (Distância, Esforços, Nº)
+sobrevivem à conversão — a armadilha que já tinha mordido nas fases
+anteriores com travessão e sinal de menos.
+

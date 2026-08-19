@@ -1,6 +1,6 @@
 import { bringToFront, sendToBack, setLocked, setObjectPosition, setObjectRotation, deleteObjects } from '@core/commands/ops';
 import { ORNAMENTS } from '@core/library/ornaments';
-import { getBounds, getPosition, getRotation, unionBounds } from '@core/model/transform';
+import { boundsIn, getPosition, getRotation, unionBounds } from '@core/model/transform';
 import type { OrnamentType, SceneObject } from '@core/model/types';
 import { formatMeters } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
@@ -9,6 +9,9 @@ import { ArenaPanel } from './ArenaPanel';
 import { ImagePanel } from './ImagePanel';
 import { ObstaclePanel } from './ObstaclePanel';
 import { PathPanel } from './PathPanel';
+import { HeightTablePanel } from './HeightTablePanel';
+import { InfoBoxPanel } from './InfoBoxPanel';
+import { TextPanel } from './TextPanel';
 import { TimingPanel } from './TimingPanel';
 import { NumberField } from './NumberField';
 
@@ -32,7 +35,7 @@ export function ObjectPanel() {
   if (objs.length === 0) return null;
 
   const single = objs.length === 1 ? objs[0]! : null;
-  const bounds = unionBounds(objs.map((o) => getBounds(o, doc.page.printScale)));
+  const bounds = unionBounds(objs.map((o) => boundsIn(doc, o)));
 
   return (
     <section className="object-panel">
@@ -90,6 +93,9 @@ export function ObjectPanel() {
           {single.kind === 'obstacle' && <ObstaclePanel obstacle={single} />}
           {single.kind === 'timing' && <TimingPanel line={single} />}
           {single.kind === 'path' && <PathPanel path={single} />}
+          {single.kind === 'text' && <TextPanel label={single} />}
+          {single.kind === 'infobox' && <InfoBoxPanel box={single} />}
+          {single.kind === 'heighttable' && <HeightTablePanel table={single} />}
           {single.kind === 'ornament' && (
             <>
               <label className="field">

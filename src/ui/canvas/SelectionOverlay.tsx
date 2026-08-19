@@ -1,5 +1,5 @@
 import type { Vec2 } from '@core/geometry/vec';
-import { getBounds, unionBounds } from '@core/model/transform';
+import { boundsIn, unionBounds } from '@core/model/transform';
 import type { CourseDocument, ObjectId } from '@core/model/types';
 import { mmPerMeter } from '@core/scale/units';
 import { color } from '@render/style/tokens';
@@ -41,13 +41,13 @@ export function SelectionOverlay({
   const mm = (px: number) => px / zoom;
 
   const objs = doc.objects.filter((o) => selection.includes(o.id));
-  const bounds = unionBounds(objs.map((o) => getBounds(o, doc.page.printScale)));
+  const bounds = unionBounds(objs.map((o) => boundsIn(doc, o)));
 
   return (
     <g data-layer="overlay" pointerEvents="none">
       {objs.length > 1 &&
         objs.map((o) => {
-          const b = getBounds(o, doc.page.printScale);
+          const b = boundsIn(doc, o);
           const min = toPaper(b.min);
           const max = toPaper(b.max);
           return (

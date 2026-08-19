@@ -1,4 +1,4 @@
-import type { CourseDocument, ObjectId, SceneObject } from '@core/model/types';
+import type { CourseDocument, ObjectId, Obstacle, SceneObject } from '@core/model/types';
 import { isLayerVisible } from '@core/model/document';
 import { objectScope } from '@core/model/transform';
 import type { ObjectScope } from '@core/model/types';
@@ -9,6 +9,9 @@ import { GridLayer } from './layers/GridLayer';
 import { ImageLayer } from './layers/ImageLayer';
 import { ObstacleLayer } from './layers/ObstacleLayer';
 import { OrnamentLayer } from './layers/OrnamentLayer';
+import { TextLayer } from './layers/TextLayer';
+import { InfoBoxLayer } from './layers/InfoBoxLayer';
+import { HeightTableLayer } from './layers/HeightTableLayer';
 import { PathLayer } from './layers/PathLayer';
 import { TimingLayer } from './layers/TimingLayer';
 import { color, stroke } from './style/tokens';
@@ -158,6 +161,27 @@ export function RenderDocument(opts: RenderOptions) {
                 ornament={obj}
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
+                onPointerDown={onPointerDown}
+              />
+            );
+          case 'text':
+            return (
+              <TextLayer
+                key={obj.id}
+                label={obj}
+                printScale={doc.page.printScale}
+                originMm={doc.originMm}
+                onPointerDown={onPointerDown}
+              />
+            );
+          case 'infobox':
+            return <InfoBoxLayer key={obj.id} box={obj} onPointerDown={onPointerDown} />;
+          case 'heighttable':
+            return (
+              <HeightTableLayer
+                key={obj.id}
+                table={obj}
+                obstacles={doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle')}
                 onPointerDown={onPointerDown}
               />
             );

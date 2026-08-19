@@ -2,11 +2,12 @@ import type { Vec2 } from '@core/geometry/vec';
 import { rotate } from '@core/geometry/vec';
 import { obstacleExtent } from '@core/library/obstacles';
 import { timingExtent } from '@core/library/timing';
+import { heightTableLayout, infoBoxLayout } from './annotationLayout';
 import { arenaPoints } from './arena';
 import { flattenPath } from './path';
 import { paperToMeters } from '@core/scale/units';
 import type { Meters, PrintScale } from '@core/scale/units';
-import type { ObjectScope, SceneObject } from './types';
+import type { CourseDocument, ObjectScope, Obstacle, SceneObject } from './types';
 
 /**
  * Acesso genérico a posição, rotação e envoltória de qualquer objeto da
@@ -139,7 +140,12 @@ export function rotateAround(
 
 /* ------------------------------------------------------------ envoltória */
 
-export function getBounds(obj: SceneObject, printScale: PrintScale): Bounds {
+export function getBounds(
+  obj: SceneObject,
+  printScale: PrintScale,
+  /** Só a tabela de alturas precisa: ela mede pelas linhas que vai imprimir. */
+  obstacles: Obstacle[] = [],
+): Bounds {
   switch (obj.kind) {
     case 'arena':
       return boundsOf(arenaPoints(obj));
@@ -198,17 +204,31 @@ export function getBounds(obj: SceneObject, printScale: PrintScale): Bounds {
       ].map((c) => add(rotate(c, obj.rotation), obj.origin));
       return boundsOf(corners);
     }
+    // Quadro e tabela usam o MESMO leiaute do desenho, e não uma
+    // estimativa: seleção que não bate com o que se vê é seleção que erra
+    // o clique. A tabela não sabe dos obstáculos aqui, então usa a largura
+    // real e uma altura por linha — quem precisa do exato passa a lista.
     case 'infobox': {
       const pos = getPosition(obj, printScale);
-      const w = paperToMeters(obj.widthMm, printScale);
-      const h = paperToMeters(Math.max(10, obj.fields.length * 5), printScale);
-      return { min: pos, max: { x: pos.x + w, y: pos.y + h } };
+      const l = infoBoxLayout(obj);
+      return {
+        min: pos,
+        max: {
+          x: pos.x + paperToMeters(l.widthMm, printScale),
+          y: pos.y + paperToMeters(l.heightMm, printScale),
+        },
+      };
     }
     case 'heighttable': {
       const pos = getPosition(obj, printScale);
-      const w = paperToMeters(90, printScale);
-      const h = paperToMeters(30, printScale);
-      return { min: pos, max: { x: pos.x + w, y: pos.y + h } };
+      const l = heightTableLayout(obj, obstacles ?? []);
+      return {
+        min: pos,
+        max: {
+          x: pos.x + paperToMeters(l.widthMm, printScale),
+          y: pos.y + paperToMeters(l.heightMm, printScale),
+        },
+      };
     }
   }
 }
@@ -275,4 +295,19 @@ function polygonCentroid(points: Vec2[]): Vec2 {
   if (points.length === 0) return { x: 0, y: 0 };
   const sum = points.reduce((acc, p) => add(acc, p), { x: 0, y: 0 });
   return { x: sum.x / points.length, y: sum.y / points.length };
+}
+
+/**
+ * Limites de um objeto dentro do documento.
+ *
+ * Atalho para quem tem o documento na mão: a tabela de alturas mede pelos
+ * obstáculos, e esquecer de passá-los daria um retângulo de seleção menor
+ * que a tabela desenhada.
+ */
+export function boundsIn(doc: CourseDocument, obj: SceneObject): Bounds {
+  return getBounds(
+    obj,
+    doc.page.printScale,
+    doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle'),
+  );
 }

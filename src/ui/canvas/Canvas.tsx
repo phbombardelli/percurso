@@ -7,6 +7,7 @@ import { snapPoint, toMillimeterPrecision } from '@core/geometry/snap';
 import { distance, type Vec2 } from '@core/geometry/vec';
 import { createObstacle, nextObstacleNumber } from '@core/library/obstacles';
 import { createOrnament } from '@core/library/ornaments';
+import { createTextLabel } from '@core/library/annotations';
 import { createTimingLine } from '@core/library/timing';
 import { createPath, createPathNode, smoothedNodes } from '@core/model/path';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
@@ -271,6 +272,14 @@ export function Canvas() {
         );
         useDocumentStore.getState().apply('Inserir linha', (d) => addObject(d, linha));
         setSelection([linha.id]);
+        if (!e.shiftKey) setTool('select');
+        return;
+      }
+
+      if (tool === 'text') {
+        const texto = createTextLabel(snapped(toModel(e)));
+        useDocumentStore.getState().apply('Inserir texto', (d) => addObject(d, texto));
+        setSelection([texto.id]);
         if (!e.shiftKey) setTool('select');
         return;
       }

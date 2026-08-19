@@ -2,6 +2,7 @@ import { OBSTACLES } from '@core/library/obstacles';
 import { ORNAMENTS } from '@core/library/ornaments';
 import { importBackgroundImage } from '@ui/actions/imageActions';
 import { traceCourse } from '@ui/actions/rideActions';
+import { insertHeightTable, insertInfoBox } from '@ui/actions/annotationActions';
 import { useEditorStore } from '@store/editorStore';
 
 /**
@@ -11,12 +12,6 @@ import { useEditorStore } from '@store/editorStore';
  * percurso, só as da prova. Encurta a lista e, mais importante, deixa
  * claro o que está em jogo naquele momento.
  */
-const PENDENTES: { icon: string; label: string; phase: number }[] = [
-  { icon: 'T', label: 'Texto', phase: 10 },
-  { icon: '▤', label: 'Quadro técnico', phase: 10 },
-  { icon: '▦', label: 'Tabela de alturas', phase: 10 },
-];
-
 export function Sidebar() {
   const {
     mode,
@@ -151,6 +146,15 @@ export function Sidebar() {
       )}
 
       <button
+        className={tool === 'text' ? 'active' : ''}
+        onClick={() => alterna('text')}
+        title="Clique na pista para inserir um texto livre. O texto acompanha o desenho quando a escala muda."
+      >
+        <span className="icon">T</span>
+        <span className="label">Texto</span>
+      </button>
+
+      <button
         onClick={() => traceCourse()}
         title="Desenha a linha que o cavaleiro faria, seguindo a numeração já lançada: partida, obstáculos em ordem, chegada. O resultado é um traçado comum, que você pode editar."
       >
@@ -176,12 +180,21 @@ export function Sidebar() {
         <span className="label">Chegada</span>
       </button>
 
-      {PENDENTES.map((t) => (
-        <button key={t.label} disabled title={`${t.label} — fase ${t.phase}`}>
-          <span className="icon">{t.icon}</span>
-          <span className="label">{t.label}</span>
-        </button>
-      ))}
+      <button
+        onClick={insertInfoBox}
+        title="Quadro técnico da prova: tabela, altura, velocidade, distância, tempo. Fica na folha, no canto da margem."
+      >
+        <span className="icon">▤</span>
+        <span className="label">Quadro técnico</span>
+      </button>
+
+      <button
+        onClick={insertHeightTable}
+        title="Tabela de alturas por obstáculo. Lê os obstáculos do desenho: mudou a altura, a tabela muda junto."
+      >
+        <span className="icon">▦</span>
+        <span className="label">Tabela de alturas</span>
+      </button>
 
       <p className="sidebar-hint">
         A pista é fundo: para mexer nela, volte ao modo Pista.

@@ -5,7 +5,7 @@ import { moveObjectsSnapped, rotateObjects } from '@core/commands/ops';
 import { moveArenaVertex, resizeArenaByCorner } from '@core/commands/arenaOps';
 import { moveHandle, moveNode } from '@core/commands/pathOps';
 import {
-  getBounds,
+  boundsIn,
   boundsCenter,
   boundsContains,
   objectScope,
@@ -197,7 +197,7 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
       const { selection } = useEditorStore.getState();
       const { doc } = useDocumentStore.getState();
       const objs = doc.objects.filter((o) => selection.includes(o.id));
-      const bounds = unionBounds(objs.map((o) => getBounds(o, doc.page.printScale)));
+      const bounds = unionBounds(objs.map((o) => boundsIn(doc, o)));
       if (!bounds) return;
       const pivot = boundsCenter(bounds);
       const p = toModel(e);
@@ -305,7 +305,7 @@ export function useObjectGestures(toModel: (e: { clientX: number; clientY: numbe
         ? []
         : doc.objects
             .filter((o) => !o.locked && o.visible && objectScope(o) === modo)
-            .filter((o) => boundsContains(region, getBounds(o, doc.page.printScale)))
+            .filter((o) => boundsContains(region, boundsIn(doc, o)))
             .map((o) => o.id);
       useEditorStore.getState().setSelection(hits);
       return true;
