@@ -186,6 +186,11 @@ export function buildCourseRide(
   // se resolvem as voltas, já com as pontas nos lugares certos.
   const entradas: ReturnType<typeof entryOf>[] = [];
   const saidas: ReturnType<typeof exitOf>[] = [];
+  // Quanta reta cada ponta REALMENTE tem. A volta pode ceder parte dela
+  // para caber a curva, e precisa saber de quanto dispõe: ceder 6 m de uma
+  // reta que só tem 1,5 empurraria o traçado para além da vara.
+  const retaEntrada: number[] = [];
+  const retaSaida: number[] = [];
 
   gates.forEach((g, i) => {
     const anterior = gates[i - 1];
@@ -194,12 +199,20 @@ export function buildCourseRide(
     const vaoAntes = anterior ? distance(exitOf(anterior, 0).pos, entryOf(g, 0).pos) : Infinity;
     const vaoDepois = proximo ? distance(exitOf(g, 0).pos, entryOf(proximo, 0).pos) : Infinity;
 
-    entradas[i] = entryOf(g, straightBudget(vaoAntes, params.approachM));
-    saidas[i] = exitOf(g, straightBudget(vaoDepois, params.getawayM));
+    retaEntrada[i] = straightBudget(vaoAntes, params.approachM);
+    retaSaida[i] = straightBudget(vaoDepois, params.getawayM);
+    entradas[i] = entryOf(g, retaEntrada[i]!);
+    saidas[i] = exitOf(g, retaSaida[i]!);
   });
 
   const solucoes = gates.map((_, i) =>
-    i < gates.length - 1 ? solveLegCurve(saidas[i]!, entradas[i + 1]!, field, params) : null,
+    i < gates.length - 1
+      ? solveLegCurve(saidas[i]!, entradas[i + 1]!, field, {
+          ...params,
+          getawayM: retaSaida[i]!,
+          approachM: retaEntrada[i + 1]!,
+        })
+      : null,
   );
 
   // A volta pode ter cedido reta: as retas do salto param onde ela começa.

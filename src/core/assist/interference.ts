@@ -12,28 +12,28 @@ import type { Arena, CourseDocument, CoursePath, ObjectId, Obstacle } from '@cor
  * ele DEVE cruzar cada obstáculo que salta. A pergunta é se aquele
  * cruzamento está certo.
  *
- * E a regra do ofício é dura: o croqui é o TRAÇADO IDEAL, não o traçado
- * mais rápido. A linha passa pelo CENTRO do obstáculo, a 90 graus,
- * sempre. Não há tolerância de cavaleiro aqui, porque o desenho não
- * registra o que um cavalo fez — declara o que ele deve fazer.
+ * A regra do ofício é que o croqui é o TRAÇADO IDEAL: a linha passa pelo
+ * centro do obstáculo, a 90 graus, sempre. Mas essa regra obriga o
+ * PROGRAMA, não o desenhador. Quem desenha à mão desenha como quiser, e o
+ * programa aceita sem reclamar — quem assina o croqui é ele.
  *
- * A primeira versão disto errou justamente nesse ponto: aceitava até 40
- * graus de desvio e passagem a meia vara do centro, tratando o croqui
- * como se fosse a fotografia de uma prova. Não é.
+ * Por isso aqui NÃO se acusa salto tomado fora do centro nem fora do
+ * esquadro. Cheguei a implementar os dois e removi: era o programa
+ * opinando sobre o desenho alheio. A regra do traçado ideal vive onde
+ * pertence, do outro lado — nos testes do assistente, que garantem que a
+ * linha GERADA nunca nasce torta.
  *
- * As folgas que sobraram são de MEDIÇÃO, não de licença: existem para
- * arredondamento de curva não virar aviso, e são pequenas o bastante para
- * que qualquer desvio visível apareça.
+ * O que se acusa aqui é corpo no caminho: obstáculo por cima de
+ * obstáculo, obstáculo fora da pista, e linha atravessando um obstáculo
+ * que não está saltando.
  *
- * Nada aqui valida regra esportiva, que o §44 proíbe. É medição de
- * geometria, e nada é impedido — o desenhador vê o aviso e decide.
+ * Nada aqui valida regra esportiva, que o §44 proíbe, e nada é impedido —
+ * o desenhador vê o aviso e decide.
  */
 
 export type InterferenceKind =
   | 'obstaculos-sobrepostos'
   | 'tracado-cruza-obstaculo'
-  | 'salto-fora-do-centro'
-  | 'salto-fora-do-esquadro'
   | 'obstaculo-fora-da-pista';
 
 export interface Interference {
@@ -60,21 +60,13 @@ const nomeDe = (o: Obstacle): string => {
 };
 
 /**
- * Folga de medição do esquadro, em graus. Não é licença para cruzar
- * torto: é para arredondamento de curva não acusar o que ninguém vê.
- */
-const FOLGA_ESQUADRO = 2;
-
-/** Folga de medição do centro, em metros. Meio palmo de vara. */
-const FOLGA_CENTRO = 0.15;
-
-/**
  * A partir de quantos graus o cruzamento deixa de ser tentativa de salto.
  *
  * Passado o meio caminho, a linha corre mais ao longo da vara do que
- * através dela: não é salto torto, é atravessar o obstáculo no
- * comprimento. O caso extremo — linha deitada exatamente sobre a vara —
- * mede 90 graus de desvio e precisa ser chamado pelo nome certo.
+ * através dela: não é salto torto — que é assunto de quem desenha —, é
+ * atravessar o obstáculo no comprimento, que é estorvo. O caso extremo,
+ * uma linha deitada exatamente sobre a vara, mede 90 graus e precisa ser
+ * chamado pelo nome certo.
  */
 const LIMITE_SALTO = 45;
 
@@ -105,7 +97,9 @@ export interface JumpCrossing {
 export function jumpCrossing(pontos: Vec2[], obstacle: Obstacle): JumpCrossing | null {
   const aoLongo = fromAngle(obstacle.rotation);
   const normal = fromAngle(jumpHeading(obstacle));
-  const alcance = obstacle.faceWidthM / 2 + obstacle.wings.widthM;
+  // Só a vara conta como salto. Cruzar na região do paraflanco é bater no
+  // pilar, não saltar — e aí é estorvo de verdade, não estilo de desenho.
+  const alcance = obstacle.faceWidthM / 2;
   let melhor: JumpCrossing | null = null;
 
   for (let i = 1; i < pontos.length; i += 1) {
@@ -171,8 +165,6 @@ function entraNoCorpo(pontos: Vec2[], obstacle: Obstacle): Vec2 | null {
   return null;
 }
 
-const doisDecimais = (v: number) => v.toFixed(2).replace('.', ',');
-
 export function findInterferences(doc: CourseDocument): Interference[] {
   const obstacles = doc.objects.filter(
     (o): o is Obstacle => o.kind === 'obstacle' && o.visible,
@@ -234,22 +226,8 @@ export function findInterferences(doc: CourseDocument): Interference[] {
         continue;
       }
 
-      if (cruz.offSquareDeg > FOLGA_ESQUADRO) {
-        out.push({
-          kind: 'salto-fora-do-esquadro',
-          ids: [o.id, path.id],
-          at: cruz.at,
-          message: `O traçado cruza o ${nomeDe(o)} a ${cruz.offSquareDeg.toFixed(0)} graus do perpendicular`,
-        });
-      }
-      if (Math.abs(cruz.offCentreM) > FOLGA_CENTRO) {
-        out.push({
-          kind: 'salto-fora-do-centro',
-          ids: [o.id, path.id],
-          at: cruz.at,
-          message: `O traçado cruza o ${nomeDe(o)} a ${doisDecimais(Math.abs(cruz.offCentreM))} m do centro`,
-        });
-      }
+      // Cruzou a vara: está saltando. Como está saltando é decisão de quem
+      // desenha, e o programa não se mete.
     }
   }
 

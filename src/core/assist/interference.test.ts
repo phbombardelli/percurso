@@ -52,7 +52,7 @@ describe('medida do cruzamento', () => {
   });
 });
 
-describe('o croqui é o traçado ideal', () => {
+describe('o desenho é de quem assina', () => {
   it('reta pelo centro e a 90 graus não acusa nada', () => {
     const doc = comPista((d) => {
       addObject(d, salto(40, 25, 0, '1'));
@@ -61,48 +61,42 @@ describe('o croqui é o traçado ideal', () => {
     expect(findInterferences(doc)).toEqual([]);
   });
 
-  it('acusa o salto tomado fora do centro, mesmo em esquadro perfeito', () => {
+  it('salto tomado fora do centro é aceito sem reclamação', () => {
     const doc = comPista((d) => {
       addObject(d, salto(40, 25, 0, '1'));
-      // 80 cm ao lado do centro: perpendicular, mas não é o traçado ideal.
+      // 80 cm ao lado do centro. Não é o traçado ideal, mas quem desenhou
+      // desenhou assim, e o programa não opina sobre desenho alheio.
       addObject(d, linha([{ x: 40.8, y: 40 }, { x: 40.8, y: 10 }]));
-    });
-    const achados = findInterferences(doc);
-    expect(achados.map((a) => a.kind)).toEqual(['salto-fora-do-centro']);
-    expect(achados[0]!.message).toContain('0,80 m do centro');
-  });
-
-  it('acusa o salto tomado torto, mesmo passando pelo centro', () => {
-    const doc = comPista((d) => {
-      addObject(d, salto(40, 25, 0, '1'));
-      addObject(d, linha([{ x: 30, y: 40 }, { x: 50, y: 10 }]));
-    });
-    const achados = findInterferences(doc);
-    expect(achados.map((a) => a.kind)).toContain('salto-fora-do-esquadro');
-    expect(achados[0]!.message).toContain('do perpendicular');
-  });
-
-  it('acusa as duas coisas quando as duas estão erradas', () => {
-    const doc = comPista((d) => {
-      addObject(d, salto(40, 25, 0, '1'));
-      addObject(d, linha([{ x: 31, y: 40 }, { x: 51, y: 10 }]));
-    });
-    expect([...tipos(doc)].sort()).toEqual(['salto-fora-do-centro', 'salto-fora-do-esquadro']);
-  });
-
-  it('um desvio de arredondamento não vira aviso', () => {
-    const doc = comPista((d) => {
-      addObject(d, salto(40, 25, 0, '1'));
-      // 5 cm de desvio, sem inclinação: ruído de curva, não erro de traçado.
-      addObject(d, linha([{ x: 40.05, y: 40 }, { x: 40.05, y: 10 }]));
     });
     expect(findInterferences(doc)).toEqual([]);
   });
 
-  it('acusa o traçado que corta a vara no comprimento', () => {
+  it('salto tomado torto também é aceito', () => {
+    const doc = comPista((d) => {
+      addObject(d, salto(40, 25, 0, '1'));
+      addObject(d, linha([{ x: 30, y: 40 }, { x: 50, y: 10 }]));
+    });
+    expect(findInterferences(doc)).toEqual([]);
+  });
+
+  it('mas atravessar a vara no comprimento continua sendo estorvo', () => {
     const doc = comPista((d) => {
       addObject(d, salto(40, 25, 0, '1'));
       addObject(d, linha([{ x: 10, y: 25 }, { x: 70, y: 25 }]));
+    });
+    expect(tipos(doc)).toContain('tracado-cruza-obstaculo');
+  });
+
+  it('e passar pelo paraflanco é bater no pilar, não saltar', () => {
+    const doc = comPista((d) => {
+      const o = salto(40, 25, 0, '1');
+      addObject(d, o);
+      // Além da ponta da vara, na faixa do paraflanco.
+      const foraDaVara = o.faceWidthM / 2 + o.wings.widthM / 2;
+      addObject(d, linha([
+        { x: 40 + foraDaVara, y: 40 },
+        { x: 40 + foraDaVara, y: 10 },
+      ]));
     });
     expect(tipos(doc)).toContain('tracado-cruza-obstaculo');
   });

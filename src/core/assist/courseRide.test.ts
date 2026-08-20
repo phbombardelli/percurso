@@ -31,6 +31,9 @@ function percurso(): CourseDocument {
   const partida = createTimingLine('start', { x: 15, y: 45 });
   const chegada = createTimingLine('finish', { x: 65, y: 45 });
   return produce(createDocument(), (d) => {
+    // O documento novo já vem com uma pista padrão: sem limpar, ficariam
+    // duas, e as checagens de contorno mediriam contra a errada.
+    d.objects.length = 0;
     for (const p of [...pecas, partida, chegada]) addObject(d, p);
   });
 }
@@ -91,6 +94,7 @@ describe('traçado do percurso', () => {
 
   it('sem partida e sem chegada, ainda liga os obstáculos', () => {
     const doc = produce(createDocument(), (d) => {
+      d.objects.length = 0;
       addObject(d, createRectangleArena({ x: 0, y: 0 }, 80, 50));
       addObject(d, obstaculo('1', '', 25, 40));
       addObject(d, obstaculo('2', '', 60, 30, 90));
@@ -108,6 +112,7 @@ describe('traçado do percurso', () => {
 
   it('a combinação é ligada em reta, sem volta entre os elementos', () => {
     const doc = produce(createDocument(), (d) => {
+      d.objects.length = 0;
       addObject(d, createRectangleArena({ x: 0, y: 0 }, 80, 50));
       addObject(d, obstaculo('1', '', 20, 40));
       // 2A e 2B alinhados no mesmo eixo, a 8 m: uma combinação de verdade.
@@ -148,6 +153,7 @@ describe('traçado do percurso', () => {
     // o raio de aperto em largura, e aqui não há nem isso: não existe volta
     // possível, por mais reta que se ceda.
     const doc = produce(createDocument(), (d) => {
+      d.objects.length = 0;
       addObject(d, createRectangleArena({ x: 0, y: 0 }, 34, 15));
       addObject(d, obstaculo('1', '', 17, 5));
       addObject(d, obstaculo('2', '', 17, 11, 180));
@@ -177,10 +183,7 @@ describe('traçado do percurso', () => {
     const doc = percurso();
     const r = buildCourseRide(doc)!;
     const comTracado = produce(doc, (d) => addObject(d, r.path));
-    const doTracado = findInterferences(comTracado).filter(
-      (a) => a.kind === 'salto-fora-do-centro' || a.kind === 'salto-fora-do-esquadro',
-    );
-    expect(doTracado).toEqual([]);
+    expect(findInterferences(comTracado)).toEqual([]);
   });
 
   it('o traçado nasce sem bico: toda emenda é lisa', () => {

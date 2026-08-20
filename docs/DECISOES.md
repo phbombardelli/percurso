@@ -584,47 +584,57 @@ O PDF também ganhou ficha (título, assunto com a escala, criador). Croqui
 circula por e-mail e acaba numa pasta com dezenas de outros; sem isso ele
 aparece como "Untitled" na lista do leitor.
 
-## 40. O croqui é o traçado ideal
+## 40. O traçado ideal obriga o programa, não o desenhador
 
-Regra do ofício, dita pelo desenhador e que corrige a primeira versão
-desta fase: **a linha passa pelo CENTRO do obstáculo, a 90 graus, 100%
-das vezes. O croqui é o traçado ideal, não o traçado mais rápido.**
+Regra do ofício, dita pelo desenhador: **a linha passa pelo CENTRO do
+obstáculo, a 90 graus, 100% das vezes. O croqui é o traçado ideal, não o
+traçado mais rápido.**
 
-A primeira versão modelou tolerância de cavaleiro — aceitava até 40 graus
-de desvio e passagem a meia vara do centro — como se o croqui registrasse
-o que um cavalo fez. Não é isso: o croqui DECLARA o que o cavalo deve
-fazer. Onde eu tinha posto licença, o certo era exigência.
+E a delimitação que veio junto, e que muda tudo: *"se o desenhador
+desenhar à mão, o programa aceita. O que não pode é o programa ser
+programado para desenhar errado."*
 
-O que sobrou de folga é de MEDIÇÃO, não de licença: 2 graus e 15 cm,
-para arredondamento de curva não virar aviso. Qualquer desvio visível
-aparece.
+A regra obriga o PROGRAMA. Quem desenha à mão desenha como quiser.
 
-Com a regra certa, a detecção ganhou dois achados que antes não existiam,
-porque antes eram "aceitáveis": salto tomado fora do centro e salto
-tomado fora do esquadro. Os dois são medidos e ditos com número — "a 0,80
-m do centro", "a 12 graus do perpendicular".
+Errei duas vezes seguidas nisso, em direções opostas. Primeiro modelei
+tolerância de cavaleiro — até 40 graus de desvio, passagem a meia vara do
+centro — como se o croqui registrasse o que um cavalo fez; não registra,
+declara o que ele deve fazer. Depois, corrigindo, passei a ACUSAR salto
+fora do centro e fora do esquadro no desenho manual, e aí o programa
+estava opinando sobre desenho alheio. Os dois avisos foram removidos.
 
-A medição é sobre o EIXO da vara, a reta que passa pelo centro na direção
-da face, e não sobre o corpo desenhado: é o eixo que define onde o salto
-acontece. Passado 45 graus de desvio, o cruzamento deixa de ser salto
-torto e vira travessia no comprimento — o caso extremo, uma linha deitada
-exatamente sobre a vara, mede 90 graus e precisa do nome certo.
+Então a regra vive dos dois lados, cada um no seu lugar:
 
-O assistente já cumpria a regra por construção, e agora isso é teste: o
-traçado que ele gera cruza os cinco obstáculos do percurso de prova a
-0,00 cm do centro e 0,000 grau do esquadro. Um segundo teste fecha o
-círculo — o percurso traçado pelo assistente não se acusa na detecção.
+- Do lado do PROGRAMA, é teste: o traçado gerado pelo assistente cruza
+  todo obstáculo a menos de 1 mm do centro e menos de 0,01 grau do
+  esquadro. Um segundo teste fecha o círculo — percurso traçado pelo
+  assistente não se acusa na detecção.
+- Do lado do DESENHO, é silêncio: linha manual fora do centro ou torta
+  passa sem comentário.
 
-Os outros três achados continuam: obstáculos sobrepostos no chão,
-obstáculo fora da pista, e traçado atravessando obstáculo sem saltá-lo.
-Elementos de uma mesma combinação não são acusados de sobreposição, que
-ficam perto de propósito.
+A detecção acusa corpo no caminho, e só: obstáculo por cima de obstáculo,
+obstáculo fora da pista, e linha atravessando um obstáculo que não está
+saltando. Cruzar na faixa do paraflanco conta como estorvo, porque ali é
+bater no pilar, não saltar. Passado 45 graus de desvio, o cruzamento
+deixa de ser salto e vira travessia no comprimento — o caso extremo, uma
+linha deitada sobre a vara, mede 90 graus e precisa do nome certo.
 
-A decisão que mais importa: o aviso vive no OVERLAY, não no desenho. É
-ferramenta de trabalho e nunca sai no PDF nem na impressão — um alerta
+O aviso vive no OVERLAY e nunca sai no PDF nem na impressão: alerta
 impresso viraria erro na folha entregue à comissão. Verificado no SVG do
-papel, que é o mesmo que alimenta PDF e impressora: zero marcadores.
+papel, que é o mesmo que alimenta PDF e impressora.
 
-Nada é impedido nem corrigido sozinho. O §44 proíbe validação esportiva,
-e mesmo o que é geometria pura pode ser intencional. O programa mostra;
-quem assina o croqui decide.
+### O bug que a regra desenterrou
+
+Exigir a linha ideal do programa achou um defeito real que nenhum teste
+anterior pegava: um nó do traçado gerado caía a 21 cm do centro do
+obstáculo, com a reta do salto empurrada para além da vara.
+
+A causa: a volta pode ceder parte da reta para caber a curva, e o limite
+dessa cessão era calculado contra os 8 m NOMINAIS, não contra a reta que
+aquele salto realmente tinha. Ceder 6 m de uma reta de 1,5 m atravessa o
+obstáculo.
+
+O conserto criou outro defeito na hora, e vale registrar: passando a
+respeitar o mínimo de reta, uma reta já curta não tinha opção de cessão
+NENHUMA, e a volta ficava sem solução — trecho inteiro sumia do traçado.
+Ceder zero precisa ser sempre uma opção.

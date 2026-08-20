@@ -277,18 +277,24 @@ export function solveLegCurve(
  * senão o cavalo chega torto no salto.
  */
 function shrinksToTry(params: RideParams): { after: number; before: number }[] {
-  const passos = [0, 2, 4, 6];
-  const cabe = (v: number, base: number) => base - v >= MIN_STRAIGHT_M;
+  // Quanto dá para ceder de cada lado sem derrubar a reta abaixo do
+  // mínimo. Reta que já é curta não cede nada — e ceder zero é sempre uma
+  // opção, senão a volta ficaria sem solução nenhuma.
+  const teto = (base: number) => Math.max(0, base - MIN_STRAIGHT_M);
+  const tetoDepois = teto(params.getawayM);
+  const tetoAntes = teto(params.approachM);
+
+  const passos = (limite: number) => [0, 2, 4, 6].filter((v) => v <= limite);
   const out: { after: number; before: number }[] = [];
+
   for (const total of [0, 2, 4, 6, 8, 10, 12]) {
-    for (const after of passos) {
+    for (const after of passos(tetoDepois)) {
       const before = total - after;
-      if (before < 0 || !passos.includes(before)) continue;
-      if (!cabe(after, params.getawayM) || !cabe(before, params.approachM)) continue;
+      if (before < 0 || before > tetoAntes || !passos(tetoAntes).includes(before)) continue;
       out.push({ after, before });
     }
   }
-  return out;
+  return out.length > 0 ? out : [{ after: 0, before: 0 }];
 }
 
 const MIN_STRAIGHT_M = 3;
