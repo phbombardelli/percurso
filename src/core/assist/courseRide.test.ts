@@ -5,10 +5,11 @@ import { createObstacle } from '@core/library/obstacles';
 import { createTimingLine } from '@core/library/timing';
 import { createDocument } from '@core/model/document';
 import { createRectangleArena } from '@core/model/arena';
-import { pathLength } from '@core/model/path';
+import { flattenPath, pathLength } from '@core/model/path';
 import { distance } from '@core/geometry/vec';
 import type { Arena, CourseDocument, Obstacle } from '@core/model/types';
 import { DEFAULT_RIDE, entryPose, exitPose, fieldFrom } from './ridePath';
+import { findInterferences, jumpCrossing } from './interference';
 import { buildCourseRide, courseOrder, straightBudget } from './courseRide';
 
 function obstaculo(numero: string, letra: '' | 'A' | 'B' | 'C', x: number, y: number, rot = 0): Obstacle {
@@ -155,6 +156,31 @@ describe('traçado do percurso', () => {
     expect(r.path.nodes.length).toBeGreaterThan(1);
     expect(r.problems.length).toBeGreaterThan(0);
     expect(r.problems[0]!.where).toBe('1 para 2');
+  });
+
+  it('cruza TODO obstáculo pelo centro e a 90 graus', () => {
+    // A regra do ofício: o croqui é o traçado ideal, não o mais rápido.
+    // Sem tolerância — o que se admite aqui é erro de arredondamento.
+    const doc = percurso();
+    const r = buildCourseRide(doc)!;
+    const pontos = flattenPath(r.path, 0.02);
+
+    for (const o of doc.objects.filter((x): x is Obstacle => x.kind === 'obstacle')) {
+      const cruz = jumpCrossing(pontos, o);
+      expect(cruz, `sem cruzamento no obstáculo ${o.number}`).not.toBeNull();
+      expect(Math.abs(cruz!.offCentreM)).toBeLessThan(0.001);
+      expect(cruz!.offSquareDeg).toBeLessThan(0.01);
+    }
+  });
+
+  it('e o assistente não se acusa: percurso traçado por ele fica limpo', () => {
+    const doc = percurso();
+    const r = buildCourseRide(doc)!;
+    const comTracado = produce(doc, (d) => addObject(d, r.path));
+    const doTracado = findInterferences(comTracado).filter(
+      (a) => a.kind === 'salto-fora-do-centro' || a.kind === 'salto-fora-do-esquadro',
+    );
+    expect(doTracado).toEqual([]);
   });
 
   it('o traçado nasce sem bico: toda emenda é lisa', () => {

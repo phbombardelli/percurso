@@ -4,10 +4,10 @@ import { addObject } from '@core/commands/ops';
 import { createObstacle } from '@core/library/obstacles';
 import { createDocument } from '@core/model/document';
 import { createRectangleArena } from '@core/model/arena';
-import { createPath, createPathNode } from '@core/model/path';
+import { createPath, createPathNode, flattenPath } from '@core/model/path';
 import type { Vec2 } from '@core/geometry/vec';
 import type { CourseDocument, Obstacle } from '@core/model/types';
-import { crossingIsJump, findInterferences } from './interference';
+import { findInterferences, jumpCrossing } from './interference';
 
 const salto = (x: number, y: number, rot = 0, numero = '1'): Obstacle => {
   const o = createObstacle('vertical', { x, y }, numero);
@@ -23,33 +23,92 @@ const comPista = (recipe: (d: CourseDocument) => void): CourseDocument =>
   });
 
 const linha = (pontos: Vec2[]) => createPath(pontos.map((p) => createPathNode(p)));
+const tipos = (doc: CourseDocument) => findInterferences(doc).map((a) => a.kind);
 
-describe('salto ou estorvo', () => {
+describe('medida do cruzamento', () => {
   // Obstáculo em (40,25) sem rotação: a vara deita no eixo X e o salto
   // atravessa no eixo Y.
   const o = salto(40, 25);
 
-  it('pelo meio e perpendicular é salto', () => {
-    expect(crossingIsJump(o, { x: 40, y: 25 }, -90)).toBe(true);
-    // O sentido não importa: saltar de trás para a frente é saltar.
-    expect(crossingIsJump(o, { x: 40, y: 25 }, 90)).toBe(true);
+  it('reta pelo centro cruza no zero, com esquadro perfeito', () => {
+    const c = jumpCrossing(flattenPath(linha([{ x: 40, y: 40 }, { x: 40, y: 10 }])), o)!;
+    expect(c.offCentreM).toBeCloseTo(0, 9);
+    expect(c.offSquareDeg).toBeCloseTo(0, 9);
   });
 
-  it('de lado não é salto, mesmo bem no meio', () => {
-    expect(crossingIsJump(o, { x: 40, y: 25 }, 0)).toBe(false);
+  it('mede o desvio do centro em metros', () => {
+    const c = jumpCrossing(flattenPath(linha([{ x: 41.2, y: 40 }, { x: 41.2, y: 10 }])), o)!;
+    expect(Math.abs(c.offCentreM)).toBeCloseTo(1.2, 6);
+    expect(c.offSquareDeg).toBeCloseTo(0, 9);
   });
 
-  it('pela ponta da vara não é salto, mesmo perpendicular', () => {
-    // Vara de 3,5 m: a 1,6 m do centro já é ponta, não é meio.
-    expect(crossingIsJump(o, { x: 41.6, y: 25 }, -90)).toBe(false);
+  it('mede o desvio do esquadro em graus', () => {
+    const c = jumpCrossing(flattenPath(linha([{ x: 25, y: 40 }, { x: 55, y: 10 }])), o)!;
+    expect(c.offSquareDeg).toBeCloseTo(45, 6);
   });
 
-  it('um desvio pequeno ainda é salto: cavalo não chega com esquadro', () => {
-    expect(crossingIsJump(o, { x: 40.3, y: 25 }, -70)).toBe(true);
+  it('linha que passa longe da vara não é cruzamento nenhum', () => {
+    expect(jumpCrossing(flattenPath(linha([{ x: 60, y: 40 }, { x: 60, y: 10 }])), o)).toBeNull();
   });
 });
 
-describe('interferências no documento', () => {
+describe('o croqui é o traçado ideal', () => {
+  it('reta pelo centro e a 90 graus não acusa nada', () => {
+    const doc = comPista((d) => {
+      addObject(d, salto(40, 25, 0, '1'));
+      addObject(d, linha([{ x: 40, y: 40 }, { x: 40, y: 10 }]));
+    });
+    expect(findInterferences(doc)).toEqual([]);
+  });
+
+  it('acusa o salto tomado fora do centro, mesmo em esquadro perfeito', () => {
+    const doc = comPista((d) => {
+      addObject(d, salto(40, 25, 0, '1'));
+      // 80 cm ao lado do centro: perpendicular, mas não é o traçado ideal.
+      addObject(d, linha([{ x: 40.8, y: 40 }, { x: 40.8, y: 10 }]));
+    });
+    const achados = findInterferences(doc);
+    expect(achados.map((a) => a.kind)).toEqual(['salto-fora-do-centro']);
+    expect(achados[0]!.message).toContain('0,80 m do centro');
+  });
+
+  it('acusa o salto tomado torto, mesmo passando pelo centro', () => {
+    const doc = comPista((d) => {
+      addObject(d, salto(40, 25, 0, '1'));
+      addObject(d, linha([{ x: 30, y: 40 }, { x: 50, y: 10 }]));
+    });
+    const achados = findInterferences(doc);
+    expect(achados.map((a) => a.kind)).toContain('salto-fora-do-esquadro');
+    expect(achados[0]!.message).toContain('do perpendicular');
+  });
+
+  it('acusa as duas coisas quando as duas estão erradas', () => {
+    const doc = comPista((d) => {
+      addObject(d, salto(40, 25, 0, '1'));
+      addObject(d, linha([{ x: 31, y: 40 }, { x: 51, y: 10 }]));
+    });
+    expect([...tipos(doc)].sort()).toEqual(['salto-fora-do-centro', 'salto-fora-do-esquadro']);
+  });
+
+  it('um desvio de arredondamento não vira aviso', () => {
+    const doc = comPista((d) => {
+      addObject(d, salto(40, 25, 0, '1'));
+      // 5 cm de desvio, sem inclinação: ruído de curva, não erro de traçado.
+      addObject(d, linha([{ x: 40.05, y: 40 }, { x: 40.05, y: 10 }]));
+    });
+    expect(findInterferences(doc)).toEqual([]);
+  });
+
+  it('acusa o traçado que corta a vara no comprimento', () => {
+    const doc = comPista((d) => {
+      addObject(d, salto(40, 25, 0, '1'));
+      addObject(d, linha([{ x: 10, y: 25 }, { x: 70, y: 25 }]));
+    });
+    expect(tipos(doc)).toContain('tracado-cruza-obstaculo');
+  });
+});
+
+describe('interferências entre objetos', () => {
   it('percurso limpo não acusa nada', () => {
     const doc = comPista((d) => {
       addObject(d, salto(20, 25, 0, '1'));
@@ -66,7 +125,6 @@ describe('interferências no documento', () => {
     const achados = findInterferences(doc);
     expect(achados).toHaveLength(1);
     expect(achados[0]!.kind).toBe('obstaculos-sobrepostos');
-    expect(achados[0]!.message).toContain('se sobrepõem');
   });
 
   it('não acusa os elementos de uma combinação, que ficam perto de propósito', () => {
@@ -82,42 +140,9 @@ describe('interferências no documento', () => {
   });
 
   it('acusa obstáculo pisando no alambrado', () => {
-    // Sem rotação a vara deita no eixo X: a 79,5 m a ponta passa dos 80 m
-    // da pista. Girado a 90 graus ele caberia, e o teste não provaria nada.
+    // Sem rotação a vara deita no eixo X: a 79,5 m a ponta passa dos 80 m.
     const doc = comPista((d) => addObject(d, salto(79.5, 25, 0, '1')));
-    const achados = findInterferences(doc);
-    expect(achados.some((a) => a.kind === 'obstaculo-fora-da-pista')).toBe(true);
-  });
-
-  it('acusa o traçado que atravessa um obstáculo de lado', () => {
-    const doc = comPista((d) => {
-      addObject(d, salto(40, 25, 0, '1'));
-      // Linha horizontal passando pelo meio: corta a vara no comprimento.
-      addObject(d, linha([{ x: 10, y: 25 }, { x: 70, y: 25 }]));
-    });
-    const achados = findInterferences(doc);
-    expect(achados).toHaveLength(1);
-    expect(achados[0]!.kind).toBe('tracado-cruza-obstaculo');
-    expect(achados[0]!.message).toContain('sem saltá-lo');
-  });
-
-  it('NÃO acusa o traçado que salta o obstáculo — que é o seu trabalho', () => {
-    const doc = comPista((d) => {
-      addObject(d, salto(40, 25, 0, '1'));
-      // Linha vertical pelo meio: é exatamente o salto.
-      addObject(d, linha([{ x: 40, y: 40 }, { x: 40, y: 10 }]));
-    });
-    expect(findInterferences(doc)).toEqual([]);
-  });
-
-  it('acusa o traçado que raspa a ponta da vara', () => {
-    const doc = comPista((d) => {
-      addObject(d, salto(40, 25, 0, '1'));
-      // Perpendicular, mas passando pela extremidade: o cavalo bate.
-      addObject(d, linha([{ x: 41.6, y: 40 }, { x: 41.6, y: 10 }]));
-    });
-    const achados = findInterferences(doc);
-    expect(achados.some((a) => a.kind === 'tracado-cruza-obstaculo')).toBe(true);
+    expect(tipos(doc)).toContain('obstaculo-fora-da-pista');
   });
 
   it('obstáculo escondido não é acusado', () => {

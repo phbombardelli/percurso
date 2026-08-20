@@ -584,33 +584,47 @@ O PDF também ganhou ficha (título, assunto com a escala, criador). Croqui
 circula por e-mail e acaba numa pasta com dezenas de outros; sem isso ele
 aparece como "Untitled" na lista do leitor.
 
-## 40. Interferência: distinguir o salto do estorvo
+## 40. O croqui é o traçado ideal
 
-A pergunta difícil da fase 9 não é "o traçado cruza o obstáculo?" — ele
-DEVE cruzar cada obstáculo que salta. A pergunta é se aquele cruzamento é
-um salto ou um estorvo.
+Regra do ofício, dita pelo desenhador e que corrige a primeira versão
+desta fase: **a linha passa pelo CENTRO do obstáculo, a 90 graus, 100%
+das vezes. O croqui é o traçado ideal, não o traçado mais rápido.**
 
-O critério é geométrico e é o mesmo que o olho de quem monta usa: salto é
-cruzamento perto do meio da vara (até 55% da meia-largura) e a menos de
-40 graus do perpendicular. Fora disso o cavalo está batendo no obstáculo,
-não saltando. A tolerância de 40 graus existe porque cavalo não chega com
-esquadro; a do meio da vara, porque passar raspando o paraflanco é
-exatamente o que se quer denunciar.
+A primeira versão modelou tolerância de cavaleiro — aceitava até 40 graus
+de desvio e passagem a meia vara do centro — como se o croqui registrasse
+o que um cavalo fez. Não é isso: o croqui DECLARA o que o cavalo deve
+fazer. Onde eu tinha posto licença, o certo era exigência.
 
-O sentido não entra na conta: saltar de trás para a frente continua sendo
-saltar, e quem decide o sentido é a seta do croqui.
+O que sobrou de folga é de MEDIÇÃO, não de licença: 2 graus e 15 cm,
+para arredondamento de curva não virar aviso. Qualquer desvio visível
+aparece.
 
-Três achados, todos geometria e nenhum regra esportiva, que o §44 proíbe:
-obstáculos sobrepostos no chão, obstáculo fora da pista, e traçado
-atravessando obstáculo sem saltá-lo. Elementos de uma mesma combinação
-não são acusados de sobreposição — ficam perto de propósito.
+Com a regra certa, a detecção ganhou dois achados que antes não existiam,
+porque antes eram "aceitáveis": salto tomado fora do centro e salto
+tomado fora do esquadro. Os dois são medidos e ditos com número — "a 0,80
+m do centro", "a 12 graus do perpendicular".
+
+A medição é sobre o EIXO da vara, a reta que passa pelo centro na direção
+da face, e não sobre o corpo desenhado: é o eixo que define onde o salto
+acontece. Passado 45 graus de desvio, o cruzamento deixa de ser salto
+torto e vira travessia no comprimento — o caso extremo, uma linha deitada
+exatamente sobre a vara, mede 90 graus e precisa do nome certo.
+
+O assistente já cumpria a regra por construção, e agora isso é teste: o
+traçado que ele gera cruza os cinco obstáculos do percurso de prova a
+0,00 cm do centro e 0,000 grau do esquadro. Um segundo teste fecha o
+círculo — o percurso traçado pelo assistente não se acusa na detecção.
+
+Os outros três achados continuam: obstáculos sobrepostos no chão,
+obstáculo fora da pista, e traçado atravessando obstáculo sem saltá-lo.
+Elementos de uma mesma combinação não são acusados de sobreposição, que
+ficam perto de propósito.
 
 A decisão que mais importa: o aviso vive no OVERLAY, não no desenho. É
 ferramenta de trabalho e nunca sai no PDF nem na impressão — um alerta
 impresso viraria erro na folha entregue à comissão. Verificado no SVG do
 papel, que é o mesmo que alimenta PDF e impressora: zero marcadores.
 
-Nada é impedido nem corrigido sozinho. Mesmo o que é geometria pura pode
-ser intencional — obstáculo de decoração encostado no alambrado, por
-exemplo. O programa mostra; quem assina o croqui decide.
-
+Nada é impedido nem corrigido sozinho. O §44 proíbe validação esportiva,
+e mesmo o que é geometria pura pode ser intencional. O programa mostra;
+quem assina o croqui decide.
