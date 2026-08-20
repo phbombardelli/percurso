@@ -21,8 +21,18 @@ import { Menu, type MenuEntry } from './Menu';
  */
 export function Toolbar() {
   const { doc, undo, redo, canUndo, canRedo, apply, dirty, fileName } = useDocumentStore();
-  const { viewport, setViewport, tool, setTool, showPageFrame, togglePageFrame, mode, setMode } =
-    useEditorStore();
+  const {
+    viewport,
+    setViewport,
+    tool,
+    setTool,
+    showPageFrame,
+    togglePageFrame,
+    showInterference,
+    toggleInterference,
+    mode,
+    setMode,
+  } = useEditorStore();
   const [busy, setBusy] = useState(false);
 
   const exportPdf = async () => {
@@ -81,6 +91,10 @@ export function Toolbar() {
     {
       label: `${showPageFrame ? '✓ ' : '   '}Limites da página`,
       onSelect: togglePageFrame,
+    },
+    {
+      label: `${showInterference ? '✓ ' : '   '}Avisos de interferência`,
+      onSelect: toggleInterference,
     },
     'separator',
     { label: 'Ajustar à página', shortcut: 'Ctrl+0', onSelect: fitPage },

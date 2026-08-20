@@ -5,6 +5,7 @@ import type { Orientation, PageFormat, SheetCorner } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 import { ArenaLibraryPanel } from './ArenaLibraryPanel';
+import { InterferencePanel } from './InterferencePanel';
 import { ObjectPanel } from './ObjectPanel';
 
 const ROTULO_MARGEM = {
@@ -182,6 +183,8 @@ export function DocumentPanel() {
           </>
         )}
       </section>
+
+      {mode === 'percurso' && <InterferencePanel />}
 
       <section>
         <h3>Grid e snap</h3>

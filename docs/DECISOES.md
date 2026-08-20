@@ -584,3 +584,33 @@ O PDF também ganhou ficha (título, assunto com a escala, criador). Croqui
 circula por e-mail e acaba numa pasta com dezenas de outros; sem isso ele
 aparece como "Untitled" na lista do leitor.
 
+## 40. Interferência: distinguir o salto do estorvo
+
+A pergunta difícil da fase 9 não é "o traçado cruza o obstáculo?" — ele
+DEVE cruzar cada obstáculo que salta. A pergunta é se aquele cruzamento é
+um salto ou um estorvo.
+
+O critério é geométrico e é o mesmo que o olho de quem monta usa: salto é
+cruzamento perto do meio da vara (até 55% da meia-largura) e a menos de
+40 graus do perpendicular. Fora disso o cavalo está batendo no obstáculo,
+não saltando. A tolerância de 40 graus existe porque cavalo não chega com
+esquadro; a do meio da vara, porque passar raspando o paraflanco é
+exatamente o que se quer denunciar.
+
+O sentido não entra na conta: saltar de trás para a frente continua sendo
+saltar, e quem decide o sentido é a seta do croqui.
+
+Três achados, todos geometria e nenhum regra esportiva, que o §44 proíbe:
+obstáculos sobrepostos no chão, obstáculo fora da pista, e traçado
+atravessando obstáculo sem saltá-lo. Elementos de uma mesma combinação
+não são acusados de sobreposição — ficam perto de propósito.
+
+A decisão que mais importa: o aviso vive no OVERLAY, não no desenho. É
+ferramenta de trabalho e nunca sai no PDF nem na impressão — um alerta
+impresso viraria erro na folha entregue à comissão. Verificado no SVG do
+papel, que é o mesmo que alimenta PDF e impressora: zero marcadores.
+
+Nada é impedido nem corrigido sozinho. Mesmo o que é geometria pura pode
+ser intencional — obstáculo de decoração encostado no alambrado, por
+exemplo. O programa mostra; quem assina o croqui decide.
+

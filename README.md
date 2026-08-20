@@ -43,7 +43,7 @@ nem toca no DOM.
 | 6 | Imagem de fundo + calibração de escala | ✅ |
 | 7 | Obstáculos + propriedades + setas | ✅ |
 | 8 | Traçados, curvas, comprimento | ✅ |
-| 9 | Detecção de interferência | — |
+| 9 | Detecção de interferência | ✅ |
 | 10 | Textos, quadro técnico, tabela de alturas | ✅ |
 | 11 | Ornamentação | — |
 | 12 | Impressão, PDF, ajustar ao papel | ✅ |

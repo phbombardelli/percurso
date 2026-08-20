@@ -44,6 +44,11 @@ interface EditorState {
   /** Snap temporariamente suspenso (tecla Alt). */
   snapSuspended: boolean;
   showPageFrame: boolean;
+  /**
+   * Marcadores de interferência na tela. Ferramenta de trabalho: nunca
+   * sai no PDF nem na impressão, ligada ou desligada.
+   */
+  showInterference: boolean;
   /** Área de transferência do editor: cópias profundas, sem id. */
   clipboard: SceneObject[];
   /** Tipo de ornamento que a ferramenta de inserção vai criar. */
@@ -81,6 +86,7 @@ interface EditorState {
   setCursor: (p: Vec2 | null) => void;
   setSnapSuspended: (v: boolean) => void;
   togglePageFrame: () => void;
+  toggleInterference: () => void;
   setClipboard: (objs: SceneObject[]) => void;
   setOrnamentType: (t: OrnamentType) => void;
   setObstacleType: (t: ObstacleType) => void;
@@ -109,6 +115,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   cursorM: null,
   snapSuspended: false,
   showPageFrame: true,
+  showInterference: true,
   clipboard: [],
   ornamentType: 'arvore',
   obstacleType: 'vertical',
@@ -136,6 +143,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setCursor: (cursorM) => set({ cursorM }),
   setSnapSuspended: (snapSuspended) => set({ snapSuspended }),
   togglePageFrame: () => set((s) => ({ showPageFrame: !s.showPageFrame })),
+  toggleInterference: () => set((s) => ({ showInterference: !s.showInterference })),
   setClipboard: (clipboard) => set({ clipboard }),
   setOrnamentType: (ornamentType) => set({ ornamentType }),
   setObstacleType: (obstacleType) => set({ obstacleType }),
