@@ -545,3 +545,42 @@ selecionável, e os acentos e o ordinal (Distância, Esforços, Nº)
 sobrevivem à conversão — a armadilha que já tinha mordido nas fases
 anteriores com travessão e sinal de menos.
 
+## 39. A folha: escala declarada e espaço negociado
+
+Duas coisas fechavam a fase 12.
+
+**A escala impressa.** Croqui sem escala declarada não se confere com
+régua, e quem recebe a folha de outra pessoa pergunta isso primeiro. Vai
+o "1:250" escrito E a barra gráfica, porque as duas resolvem problemas
+diferentes: o número diz o que o milímetro vale, e a barra continua certa
+mesmo quando a folha é fotocopiada com redução — situação em que o número
+escrito passa a mentir. A barra procura um comprimento redondo (10, 20,
+25, 50 ou 100 m) que dê entre 2 e 6 cm de papel: barra em número quebrado
+não se lê.
+
+**O ajuste ao papel.** Antes reservava 25% da altura "para o cabeçalho",
+sempre, houvesse quadro ou não — demais quando a folha estava limpa, de
+menos quando havia uma tabela comprida. Agora mede-se a área realmente
+livre.
+
+A regra é a invasão por borda, e o detalhe que a fez funcionar custou uma
+falha de teste: uma anotação no canto superior esquerdo invade pela
+esquerda E pelo topo, e a primeira versão escolhia sempre a primeira que
+testava. O certo é o lado de MENOR invasão, que é o lado a que ela está
+encostada — é o que separa uma faixa larga e baixa, que é cabeçalho e
+custa só a sua altura, de uma caixa alta e estreita, que é lateral e
+custa só a sua largura. Descontar pelo lado errado jogava fora meia
+folha.
+
+Consequência boa e não planejada: a tabela de alturas muda de papel
+sozinha conforme cresce. Vazia é baixa e larga, e desconta como
+cabeçalho; com doze obstáculos vira alta e estreita, e passa a descontar
+como lateral.
+
+Anotação no meio da folha não desconta nada: quem a pôs ali quis que
+ficasse sobre o desenho.
+
+O PDF também ganhou ficha (título, assunto com a escala, criador). Croqui
+circula por e-mail e acaba numa pasta com dezenas de outros; sem isso ele
+aparece como "Untitled" na lista do leitor.
+

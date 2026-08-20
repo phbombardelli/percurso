@@ -46,7 +46,7 @@ nem toca no DOM.
 | 9 | Detecção de interferência | — |
 | 10 | Textos, quadro técnico, tabela de alturas | ✅ |
 | 11 | Ornamentação | — |
-| 12 | Impressão, PDF, ajustar ao papel | — |
+| 12 | Impressão, PDF, ajustar ao papel | ✅ |
 | 13 | Assistente de traçado | ✅ (parâmetros por calibrar) |
 
 Decisões técnicas em [docs/DECISOES.md](docs/DECISOES.md).

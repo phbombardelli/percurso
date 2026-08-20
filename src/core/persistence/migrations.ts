@@ -151,7 +151,24 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   2: v2ToV3,
   3: v3ToV4,
   4: v4ToV5,
+  5: v5ToV6,
 };
+
+/**
+ * 5 -> 6: legenda de escala na página.
+ *
+ * Croqui antigo passa a declarar a escala, ligada e no canto inferior
+ * direito, que é onde os planos oficiais a imprimem. Ligar por padrão é
+ * a escolha certa: a legenda só ajuda, e um croqui sem escala declarada
+ * é um croqui que não se confere com régua.
+ */
+function v5ToV6(doc: RawDocument): RawDocument {
+  const page = doc.page as Record<string, unknown> | undefined;
+  if (page && page.scaleLabel == null) {
+    page.scaleLabel = { visible: true, corner: 'inferior-direito', bar: true };
+  }
+  return doc;
+}
 
 export function applyMigrations(
   doc: RawDocument,

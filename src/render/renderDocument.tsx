@@ -12,6 +12,7 @@ import { OrnamentLayer } from './layers/OrnamentLayer';
 import { TextLayer } from './layers/TextLayer';
 import { InfoBoxLayer } from './layers/InfoBoxLayer';
 import { HeightTableLayer } from './layers/HeightTableLayer';
+import { ScaleLegend } from './layers/ScaleLegend';
 import { PathLayer } from './layers/PathLayer';
 import { TimingLayer } from './layers/TimingLayer';
 import { color, stroke } from './style/tokens';
@@ -199,6 +200,9 @@ export function RenderDocument(opts: RenderOptions) {
           </g>
         );
       })}
+
+      {/* Por último, para a legenda nunca ficar debaixo de um objeto. */}
+      <ScaleLegend page={doc.page} />
     </>
   );
 }

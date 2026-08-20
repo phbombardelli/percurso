@@ -24,10 +24,28 @@ async function svgToPdf(svg: SVGSVGElement, widthMm: number, heightMm: number): 
   return pdf;
 }
 
+/**
+ * Ficha do arquivo PDF.
+ *
+ * Croqui circula por e-mail e acaba numa pasta com dezenas de outros; sem
+ * isto ele aparece como "Untitled" na lista do leitor de PDF. O título
+ * sai do nome do arquivo, e o assunto declara a escala, que é a primeira
+ * coisa que se pergunta ao abrir um croqui de outra pessoa.
+ */
+function marcarFicha(pdf: jsPDF, doc: CourseDocument, fileName: string): void {
+  pdf.setProperties({
+    title: fileName.replace(/\.pdf$/i, ''),
+    subject: `Croqui de percurso - escala 1:${doc.page.printScale}`,
+    creator: 'Percurso',
+    keywords: 'salto, percurso, croqui, equitacao',
+  });
+}
+
 export async function exportDocumentPdf(doc: CourseDocument, fileName: string): Promise<void> {
   const handle = buildPaperSvg(doc);
   try {
     const pdf = await svgToPdf(handle.svg, handle.widthMm, handle.heightMm);
+    marcarFicha(pdf, doc, fileName);
     pdf.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
   } finally {
     handle.dispose();
@@ -39,6 +57,7 @@ export async function documentPdfDataUrl(doc: CourseDocument): Promise<string> {
   const handle = buildPaperSvg(doc);
   try {
     const pdf = await svgToPdf(handle.svg, handle.widthMm, handle.heightMm);
+    marcarFicha(pdf, doc, 'croqui');
     return pdf.output('datauristring');
   } finally {
     handle.dispose();

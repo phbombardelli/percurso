@@ -67,6 +67,27 @@ export const PAGE_FORMATS = {
 export type PageFormat = keyof typeof PAGE_FORMATS | 'custom';
 export type Orientation = 'portrait' | 'landscape';
 
+export type SheetCorner =
+  | 'inferior-direito'
+  | 'inferior-esquerdo'
+  | 'superior-direito'
+  | 'superior-esquerdo';
+
+/**
+ * Legenda de escala impressa na folha.
+ *
+ * Croqui sem escala declarada não se confere: quem recebe a folha precisa
+ * poder medir com régua e saber o que o milímetro vale. Os planos
+ * oficiais trazem isso escrito, e alguns trazem a barra gráfica, que
+ * continua correta mesmo se a folha for fotocopiada com redução.
+ */
+export interface ScaleLabel {
+  visible: boolean;
+  corner: SheetCorner;
+  /** A barra gráfica, além do "1:250" escrito. */
+  bar: boolean;
+}
+
 export interface PageSetup {
   format: PageFormat;
   widthMm: Millimeters;
@@ -74,6 +95,7 @@ export interface PageSetup {
   orientation: Orientation;
   marginsMm: { top: number; right: number; bottom: number; left: number };
   printScale: PrintScale;
+  scaleLabel: ScaleLabel;
 }
 
 /** Dimensões da página já considerando a orientação. */

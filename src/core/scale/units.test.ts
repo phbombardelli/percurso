@@ -18,6 +18,7 @@ const a3landscape: PageSetup = {
   orientation: 'landscape',
   marginsMm: { top: 10, right: 10, bottom: 10, left: 10 },
   printScale: 250,
+  scaleLabel: { visible: true, corner: 'inferior-direito', bar: true },
 };
 
 describe('conversão metro ↔ papel', () => {

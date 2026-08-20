@@ -1,11 +1,18 @@
 import { centerOnPage, fitScaleToPage, firstArena } from '@core/model/document';
 import { GRID_STEPS } from '@core/geometry/snap';
 import { PAGE_FORMATS, STANDARD_SCALES, formatMeters } from '@core/scale/units';
-import type { Orientation, PageFormat } from '@core/scale/units';
+import type { Orientation, PageFormat, SheetCorner } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 import { ArenaLibraryPanel } from './ArenaLibraryPanel';
 import { ObjectPanel } from './ObjectPanel';
+
+const ROTULO_MARGEM = {
+  top: 'Topo',
+  right: 'Direita',
+  bottom: 'Base',
+  left: 'Esquerda',
+} as const;
 
 export function DocumentPanel() {
   const { doc, apply } = useDocumentStore();
@@ -50,20 +57,39 @@ export function DocumentPanel() {
           </select>
         </Field>
 
-        <Field label="Margens (mm)">
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={doc.page.marginsMm.top}
-            onChange={(e) => {
-              const v = Number(e.target.value) || 0;
-              apply('Margens', (d) => {
+        <h3>Margens (mm)</h3>
+        <div className="margin-grid">
+          {(['top', 'right', 'bottom', 'left'] as const).map((lado) => (
+            <label key={lado} className="margin-cell">
+              <span>{ROTULO_MARGEM[lado]}</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={doc.page.marginsMm[lado]}
+                onChange={(e) => {
+                  const v = Math.max(0, Number(e.target.value) || 0);
+                  apply(`Margem ${ROTULO_MARGEM[lado].toLowerCase()}`, (d) => {
+                    d.page.marginsMm[lado] = v;
+                  });
+                }}
+              />
+            </label>
+          ))}
+        </div>
+        <div className="row-buttons">
+          <button
+            title="Aplica a margem de cima nos quatro lados"
+            onClick={() =>
+              apply('Margens iguais', (d) => {
+                const v = d.page.marginsMm.top;
                 d.page.marginsMm = { top: v, right: v, bottom: v, left: v };
-              });
-            }}
-          />
-        </Field>
+              })
+            }
+          >
+            Igualar
+          </button>
+        </div>
       </section>
 
       <section>
@@ -107,6 +133,54 @@ export function DocumentPanel() {
         <p className="note">
           1 m no terreno = {formatMeters(1000 / doc.page.printScale, 2)} mm no papel.
         </p>
+
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={doc.page.scaleLabel.visible}
+            onChange={(e) =>
+              apply('Legenda de escala', (d) => {
+                d.page.scaleLabel.visible = e.target.checked;
+              })
+            }
+          />
+          Imprimir a escala na folha
+        </label>
+        {doc.page.scaleLabel.visible && (
+          <>
+            <Field label="Canto">
+              <select
+                value={doc.page.scaleLabel.corner}
+                onChange={(e) =>
+                  apply('Canto da legenda', (d) => {
+                    d.page.scaleLabel.corner = e.target.value as SheetCorner;
+                  })
+                }
+              >
+                <option value="inferior-direito">Inferior direito</option>
+                <option value="inferior-esquerdo">Inferior esquerdo</option>
+                <option value="superior-direito">Superior direito</option>
+                <option value="superior-esquerdo">Superior esquerdo</option>
+              </select>
+            </Field>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={doc.page.scaleLabel.bar}
+                onChange={(e) =>
+                  apply('Barra de escala', (d) => {
+                    d.page.scaleLabel.bar = e.target.checked;
+                  })
+                }
+              />
+              Barra gráfica
+            </label>
+            <p className="note dim">
+              A barra continua certa mesmo se a folha for copiada reduzida;
+              o número escrito, não.
+            </p>
+          </>
+        )}
       </section>
 
       <section>
