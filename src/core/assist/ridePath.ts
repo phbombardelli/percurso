@@ -31,12 +31,14 @@ export interface RideParams {
   /** Folga até o alambrado: o traçado não encosta na cerca. */
   railMarginM: number;
   /**
-   * Quanto o cavaleiro aceita girar entre dois saltos, em graus.
+   * Teto de giro entre dois saltos, em graus.
    *
-   * Existe porque o caminho geometricamente MAIS CURTO entre duas poses
-   * próximas e desencontradas é uma laçada apertada — e cavaleiro nenhum
-   * dá laçada. Acima deste limite o candidato é descartado, mesmo sendo o
-   * mais curto.
+   * Não serve mais para caçar laçada — quem faz isso é o custo, que
+   * compara o giro de todos os candidatos. Este teto agora só barra o
+   * absurdo, e precisa ser generoso: a CURVA PARA TRÁS, que é a saída
+   * legítima quando o salto seguinte fica logo ao lado e virado para
+   * outro lado, gira mais de 270 graus por definição. Um teto apertado
+   * proibia a única volta possível junto com a laçada.
    */
   maxTurnDeg: number;
 }
@@ -47,7 +49,7 @@ export const DEFAULT_RIDE: RideParams = {
   radiusM: 11,
   tightRadiusM: 6,
   railMarginM: 2,
-  maxTurnDeg: 270,
+  maxTurnDeg: 420,
 };
 
 /**

@@ -638,3 +638,47 @@ O conserto criou outro defeito na hora, e vale registrar: passando a
 respeitar o mínimo de reta, uma reta já curta não tinha opção de cessão
 NENHUMA, e a volta ficava sem solução — trecho inteiro sumia do traçado.
 Ceder zero precisa ser sempre uma opção.
+
+## 41. Curva para trás
+
+Conceito do ofício que faltava no modelo, e que uma prova real expôs: no
+percurso do desenhador, o obstáculo 6 fica logo ao lado do 5 e virado
+para outra direção. Entre a saída de um e a entrada do outro sobram menos
+de 4 m, com 90 graus de diferença. Não existe ligação curta possível, e a
+volta que o assistente desenhava ali era impossível de galopar.
+
+A saída do cavaleiro é a CURVA PARA TRÁS: seguir em frente depois do
+salto, dar a volta por fora e voltar numa aproximação bem mais longa.
+
+O programa tinha perdido a capacidade de fazer isso. O solucionador só
+sabia ENCURTAR a reta para caber a curva; alongá-la, que é o que cria o
+espaço da volta, não era opção. Agora a reta mexe nos dois sentidos:
+negativo cede, positivo afasta o ponto do obstáculo.
+
+E havia uma proibição que atrapalhava junto. Para caçar as laçadas de uma
+versão anterior eu tinha posto um teto de 270 graus de giro — e a curva
+para trás gira mais que isso por definição. O teto proibia a única volta
+possível.
+
+O que separa a laçada da curva para trás não é o tamanho do giro: é a
+NECESSIDADE. Então o teto virou generoso (420 graus, só para barrar
+absurdo) e quem decide passou a ser o custo: giro total mais uma taxa de
+90 graus por troca de mão. A laçada aparecia onde havia opção mansa e
+perde no custo; a curva para trás só aparece quando não havia nenhuma, e
+ganha por falta de concorrente. Uma medida resolve os dois casos sem
+proibir nenhum.
+
+Dois ajustes que a medição exigiu:
+
+- O custo é comparado em degraus de 5 graus. No valor cru, meio grau
+  decidia antes da amplitude e TODA volta caía no raio de aperto — uma
+  curva de raio 6 gira um tiquinho menos que a mesma de raio 11 e ganhava
+  por isso. Com o degrau, o empate devolve a decisão à curva mais ampla.
+- Alongar os dois lados em medidas diferentes quase nunca ajuda e
+  multiplicava a busca: o percurso inteiro levava 1,6 s. Alongando só de
+  um lado por vez, mais dois simétricos, caiu para 0,69 s com o mesmo
+  resultado.
+
+No percurso da prova real: 8 voltas, nenhum problema, e o 5 para o 6
+resolvido com 30 m de reta a mais e uma volta de 251 graus.
+

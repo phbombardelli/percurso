@@ -219,13 +219,15 @@ export function buildCourseRide(
   const desliza = (pose: Pose, metros: number, paraFrente: boolean): Vec2 =>
     add(pose.pos, scale(fromAngle(pose.heading), paraFrente ? metros : -metros));
 
+  // Positivo afasta do obstáculo: a reta do salto vai até onde a volta
+  // começa, seja ela encurtada (cedeu reta) ou alongada (curva para trás).
   const pontaEntrada = (i: number): Vec2 => {
     const anterior = solucoes[i - 1];
-    return anterior ? desliza(entradas[i]!, anterior.shrink.before, true) : entradas[i]!.pos;
+    return anterior ? desliza(entradas[i]!, -anterior.lead.before, true) : entradas[i]!.pos;
   };
   const pontaSaida = (i: number): Vec2 => {
     const propria = solucoes[i];
-    return propria ? desliza(saidas[i]!, propria.shrink.after, false) : saidas[i]!.pos;
+    return propria ? desliza(saidas[i]!, propria.lead.after, true) : saidas[i]!.pos;
   };
 
   const pieces: PathNode[][] = [];

@@ -1,5 +1,5 @@
 import { cubicPoint, type Cubic } from '@core/geometry/bezier';
-import { add, distance, fromAngle, scale, sub, type Vec2 } from '@core/geometry/vec';
+import { DEG, add, distance, fromAngle, scale, sub, type Vec2 } from '@core/geometry/vec';
 import { dubinsPaths, samplePath, type Pose } from '@core/geometry/dubins';
 import { nodesFromDubins } from '@core/model/pathFromDubins';
 import type { PathNode } from '@core/model/types';
@@ -113,15 +113,19 @@ export type LegShape = 'curva' | 'arco-reta-arco';
 export interface CurveSolution {
   nodes: PathNode[];
   /**
-   * Quanto de reta foi cedido de cada lado para caber a curva, em metros.
-   * O construtor precisa saber para encurtar as retas do salto.
+   * Metros a mais de reta usados de cada lado. Negativo é reta cedida
+   * para caber a curva; positivo é reta ganha para caber a curva para
+   * trás. O construtor precisa saber para desenhar a reta do salto até o
+   * ponto certo.
    */
-  shrink: { after: number; before: number };
+  lead: { after: number; before: number };
   warnings: CurveWarning[];
   /** Menor raio da volta — o aperto real que o cavalo enfrenta. */
   minRadiusM: number;
   /** Quantas vezes a linha troca de mão. Volta boa troca zero ou uma vez. */
   inflections: number;
+  /** Giro total da volta, em graus. Medida de economia. */
+  turnDeg: number;
   shape: LegShape;
 }
 
@@ -219,7 +223,7 @@ export function solveLegCurve(
   const candidatos: CurveSolution[] = [];
 
   const julga = (
-    shrink: { after: number; before: number },
+    lead: { after: number; before: number },
     nodes: PathNode[],
     pontos: Vec2[],
     minRadiusM: number,
@@ -229,23 +233,25 @@ export function solveLegCurve(
     if (minRadiusM < params.tightRadiusM) warnings.push('curva-fechada');
     candidatos.push({
       nodes,
-      shrink,
+      lead,
       warnings,
       minRadiusM,
       inflections: inflectionCount(pontos),
+      turnDeg: turnOfPoints(pontos),
       shape,
     });
   };
 
-  for (const shrink of shrinksToTry(params)) {
-    const saida = slide(from, shrink.after, false);
-    const chegada = slide(to, shrink.before, true);
+  for (const lead of leadsToTry(params)) {
+    // Positivo afasta do obstáculo: a saída avança e a chegada recua.
+    const saida = slide(from, lead.after);
+    const chegada = slide(to, -lead.before);
     const teto = reachableRadius(saida, chegada);
 
     for (const tension of TENSIONS) {
       const curve = legCurve(saida, chegada, tension);
       const raio = Math.min(minRadiusOf(curve), teto);
-      julga(shrink, curveNodes(curve), samplesOfCubic(curve), raio, 'curva');
+      julga(lead, curveNodes(curve), samplesOfCubic(curve), raio, 'curva');
     }
 
     // Arco-reta-arco: indispensável nas voltas grandes, onde a cúbica bica.
@@ -255,7 +261,7 @@ export function solveLegCurve(
       for (const path of dubinsPaths(saida, chegada, raio)) {
         const giro = path.segments.reduce((t, seg) => t + (seg.kind === 'arco' ? seg.sweep : 0), 0);
         if (giro > params.maxTurnDeg) continue;
-        julga(shrink, nodesFromDubins(path), samplePath(path, 0.5), Math.min(raio, teto), 'arco-reta-arco');
+        julga(lead, nodesFromDubins(path), samplePath(path, 0.5), Math.min(raio, teto), 'arco-reta-arco');
       }
     }
   }
@@ -276,31 +282,64 @@ export function solveLegCurve(
  * Nunca abaixo do mínimo: alguma reta perpendicular sempre tem que haver,
  * senão o cavalo chega torto no salto.
  */
-function shrinksToTry(params: RideParams): { after: number; before: number }[] {
-  // Quanto dá para ceder de cada lado sem derrubar a reta abaixo do
-  // mínimo. Reta que já é curta não cede nada — e ceder zero é sempre uma
-  // opção, senão a volta ficaria sem solução nenhuma.
-  const teto = (base: number) => Math.max(0, base - MIN_STRAIGHT_M);
-  const tetoDepois = teto(params.getawayM);
-  const tetoAntes = teto(params.approachM);
+function leadsToTry(params: RideParams): { after: number; before: number }[] {
+  const piso = (base: number) => -Math.max(0, base - MIN_STRAIGHT_M);
+  const cede = (base: number) => [0, -2, -4, -6].filter((v) => v >= piso(base));
+  const alonga = [6, 12, 20, 30];
 
-  const passos = (limite: number) => [0, 2, 4, 6].filter((v) => v <= limite);
   const out: { after: number; before: number }[] = [];
 
-  for (const total of [0, 2, 4, 6, 8, 10, 12]) {
-    for (const after of passos(tetoDepois)) {
-      const before = total - after;
-      if (before < 0 || before > tetoAntes || !passos(tetoAntes).includes(before)) continue;
-      out.push({ after, before });
-    }
+  // Ceder reta: as combinações dos dois lados, que são poucas e baratas.
+  for (const after of cede(params.getawayM)) {
+    for (const before of cede(params.approachM)) out.push({ after, before });
   }
+
+  // Alongar: só de UM lado por vez, mais alguns simétricos. Alongar os
+  // dois lados em medidas diferentes quase nunca ajuda e multiplicava o
+  // custo da busca — o percurso inteiro levava um segundo e meio.
+  for (const v of alonga) {
+    out.push({ after: v, before: 0 });
+    out.push({ after: 0, before: v });
+  }
+  out.push({ after: 12, before: 12 }, { after: 20, before: 20 });
+
+  // Do mais econômico ao mais largo: mexer na reta é concessão, e só se
+  // faz a que for necessária.
+  out.sort(
+    (a, b) =>
+      Math.abs(a.after) + Math.abs(a.before) - (Math.abs(b.after) + Math.abs(b.before)),
+  );
   return out.length > 0 ? out : [{ after: 0, before: 0 }];
+}
+
+/**
+ * Quanto a linha gira ao todo, somando as viradas, em graus.
+ *
+ * Serve de medida de ECONOMIA e vale para as duas formas de volta, o que
+ * é o ponto: uma curva mansa gira 60 graus, uma laçada gira 330, e uma
+ * curva para trás legítima gira 270 — mas só ganha quando nada menor
+ * passa nas exigências. É assim que a laçada some sem que a curva para
+ * trás seja proibida junto.
+ */
+export function turnOfPoints(pontos: Vec2[]): number {
+  let total = 0;
+  for (let i = 2; i < pontos.length; i += 1) {
+    const a = sub(pontos[i - 1]!, pontos[i - 2]!);
+    const b = sub(pontos[i]!, pontos[i - 1]!);
+    const escala = Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y);
+    if (escala === 0) continue;
+    const cruzado = (a.x * b.y - a.y * b.x) / escala;
+    const alinhado = (a.x * b.x + a.y * b.y) / escala;
+    total += Math.abs(Math.atan2(cruzado, alinhado)) / DEG;
+  }
+  return total;
 }
 
 const MIN_STRAIGHT_M = 3;
 
-const slide = (pose: Pose, metros: number, paraFrente: boolean): Pose => ({
-  pos: add(pose.pos, scale(fromAngle(pose.heading), paraFrente ? metros : -metros)),
+/** Desliza a pose ao longo da própria direção. Sinal já vem do chamador. */
+const slide = (pose: Pose, metros: number): Pose => ({
+  pos: add(pose.pos, scale(fromAngle(pose.heading), metros)),
   heading: pose.heading,
 });
 
@@ -324,17 +363,33 @@ const galopavel = (c: CurveSolution, params: RideParams) => c.minRadiusM >= para
  * A ordem do juiz.
  *
  * Primeiro o que é impedimento de fato: sair da pista ou atropelar
- * obstáculo. Depois separa quem dá para galopar de quem não dá.
+ * obstáculo. Depois separa quem dá para galopar de quem não dá — entre as
+ * ingalopáveis vale o menor aperto, e nada mais.
  *
- * Entre as galopáveis vence a que troca menos de mão — a inflexão à
- * esquerda antes de uma curva à direita é o vício que o olho de quem
- * monta reprova primeiro — e, no empate, a mais ampla.
+ * Entre as galopáveis vence o menor CUSTO, que soma o giro total da volta
+ * com uma taxa por troca de mão. É a medida de economia, e é ela que
+ * separa a laçada da curva para trás: as duas giram muito, mas a laçada
+ * aparece onde havia opção mansa, e a curva para trás só aparece quando
+ * não havia nenhuma. Comparar giro resolve as duas de uma vez, sem
+ * precisar proibir volta grande — proibir era o que quebrava o traçado
+ * entre saltos colados, onde a volta grande é a única saída.
  *
- * Entre as ingalopáveis a conta se inverte: o que importa é o aperto, e
- * comparar inflexão antes do raio elegia o BICO, que tecnicamente não
- * troca de mão porque inverte passando pelo zero. Foi o que aconteceu na
- * primeira tentativa desta regra.
+ * A taxa da inflexão vale 90 graus de curva: cavaleiro que vai virar à
+ * direita não começa torcendo à esquerda, e o desvio custa caro no olho
+ * de quem monta mesmo quando o raio está bom.
+ *
+ * A reta mexida entra por último. Só se cede ou se alonga reta quando
+ * isso compra alguma coisa.
+ *
+ * O custo é comparado em degraus de 5 graus, e não no valor cru. Sem
+ * isso, meio grau de diferença decidia antes da amplitude e TODA volta
+ * caía no raio de aperto: uma curva de raio 6 gira um tiquinho menos que
+ * a mesma curva de raio 11, e ganhava por isso. Empate em degrau devolve
+ * a decisão a quem deve tê-la — a curva mais ampla.
  */
+const TAXA_INFLEXAO = 90;
+const DEGRAU_CUSTO = 5;
+
 function compara(a: CurveSolution, b: CurveSolution, params: RideParams): number {
   const duros = (c: CurveSolution) => c.warnings.filter((w) => w !== 'curva-fechada').length;
   if (duros(a) !== duros(b)) return duros(a) - duros(b);
@@ -343,16 +398,12 @@ function compara(a: CurveSolution, b: CurveSolution, params: RideParams): number
   const gb = galopavel(b, params);
   if (ga !== gb) return ga ? -1 : 1;
 
-  const cedeu = (c: CurveSolution) => c.shrink.after + c.shrink.before;
-  if (!ga) return b.minRadiusM - a.minRadiusM || cedeu(a) - cedeu(b);
+  const mexeu = (c: CurveSolution) => Math.abs(c.lead.after) + Math.abs(c.lead.before);
+  if (!ga) return b.minRadiusM - a.minRadiusM || mexeu(a) - mexeu(b);
 
-  // Entre as galopáveis, a reta cedida é o último critério: só se abre mão
-  // dela quando ela não estava comprando nada.
-  return (
-    a.inflections - b.inflections ||
-    cedeu(a) - cedeu(b) ||
-    b.minRadiusM - a.minRadiusM
-  );
+  const custo = (c: CurveSolution) =>
+    Math.round((c.turnDeg + c.inflections * TAXA_INFLEXAO) / DEGRAU_CUSTO);
+  return custo(a) - custo(b) || b.minRadiusM - a.minRadiusM || mexeu(a) - mexeu(b);
 }
 
 /** A curva em nós do traçado: dois nós, alças na direção dos saltos. */
