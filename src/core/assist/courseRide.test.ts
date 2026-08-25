@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import { addObject } from '@core/commands/ops';
 import { createObstacle } from '@core/library/obstacles';
-import { createTimingLine } from '@core/library/timing';
+import { placeTimingLine } from '@core/library/timing';
 import { createDocument } from '@core/model/document';
 import { createRectangleArena } from '@core/model/arena';
 import { flattenPath, pathLength } from '@core/model/path';
@@ -28,8 +28,10 @@ function percurso(): CourseDocument {
     obstaculo('3', '', 45, 12, 180),
     obstaculo('4', '', 20, 22, 270),
   ];
-  const partida = createTimingLine('start', { x: 15, y: 45 });
-  const chegada = createTimingLine('finish', { x: 65, y: 45 });
+  // Cruzadas colocadas em relação ao primeiro e ao último salto, como o
+  // programa as coloca: no eixo do salto, paralelas à face.
+  const partida = placeTimingLine('start', pecas[1] as Obstacle, 12);
+  const chegada = placeTimingLine('finish', pecas[4] as Obstacle, 12);
   return produce(createDocument(), (d) => {
     // O documento novo já vem com uma pista padrão: sem limpar, ficariam
     // duas, e as checagens de contorno mediriam contra a errada.

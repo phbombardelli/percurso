@@ -712,3 +712,35 @@ O relatório passou a nomear as voltas feitas por fora. Curva para trás é
 decisão visível: o desenhador precisa saber que ali a linha sai e volta de
 propósito, e não por defeito do assistente.
 
+## 43. A cruzada de tempo não se larga: coloca-se
+
+Regra do ofício: entre a partida e o primeiro obstáculo, e entre o último
+e a chegada, NUNCA existe volta. O cavalo cruza a partida já apontado
+para o primeiro salto, e segue reto do último para a chegada.
+
+Enquanto a cruzada podia ser largada em qualquer ponto da pista com um
+clique, o assistente tinha de inventar uma ligação entre ela e o
+obstáculo — e inventava, com laçada e tudo. O aviso da prova real
+denunciou exatamente isso: "partida para 1" e "7 para chegada" listadas
+como curvas para trás.
+
+Consertar o solucionador seria remendo. O erro estava um passo antes: a
+cruzada não é um objeto que se posiciona livremente, é uma consequência
+do percurso.
+
+Agora se escolhe a DISTÂNCIA, entre 9 e 15 m, e o resto sai por
+construção: a cruzada fica no eixo do salto, paralela à face, com os
+centros coincidindo — as duas unidas por uma reta perpendicular aos seus
+comprimentos. A partida atrás do primeiro obstáculo, a chegada à frente
+do último, e a seta acompanhando a do salto.
+
+Uma de cada por percurso: recolocar substitui, em vez de empilhar.
+
+E o assistente ganhou a garantia correspondente: perna que toca uma
+cruzada de tempo é RETA, sem procurar curva nenhuma. Não é otimização, é
+a regra — procurar curva ali era o defeito.
+
+Efeito colateral bom: os testes que largavam a cruzada num ponto
+arbitrário passaram a acusar bico na emenda, porque agora a reta é
+imposta. Estavam modelando um percurso que o programa não constrói mais.
+

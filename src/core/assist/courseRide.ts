@@ -1,6 +1,6 @@
 import { add, fromAngle, scale, distance, type Vec2 } from '@core/geometry/vec';
 import type { Pose } from '@core/geometry/dubins';
-import { solveLegCurve, type CurveWarning, type LegShape } from './legCurve';
+import { solveLegCurve, type CurveSolution, type CurveWarning, type LegShape } from './legCurve';
 import { createPath } from '@core/model/path';
 import type { CourseDocument, CoursePath, Obstacle, PathNode, TimingLine } from '@core/model/types';
 import {
@@ -61,6 +61,25 @@ export function courseOrder(obstacles: Obstacle[]): RideStop[] {
     }
   }
   return stops;
+}
+
+/**
+ * Ligação reta entre duas poses, entregue no formato de uma volta.
+ *
+ * Serve às cruzadas de tempo, que por construção ficam no eixo do salto
+ * que servem: a ligação é uma reta, e não há o que resolver. Vem como
+ * `CurveSolution` para o construtor não precisar de um caminho especial.
+ */
+function retaEntre(de: Pose, para: Pose): CurveSolution {
+  return {
+    nodes: straightNodes(de.pos, para.pos),
+    lead: { after: 0, before: 0 },
+    warnings: [],
+    minRadiusM: Infinity,
+    inflections: 0,
+    turnDeg: 0,
+    shape: 'curva',
+  };
 }
 
 /** Nós de um trecho reto, com alças colineares para a emenda ficar lisa. */
@@ -209,15 +228,24 @@ export function buildCourseRide(
     saidas[i] = exitOf(g, retaSaida[i]!);
   });
 
-  const solucoes = gates.map((_, i) =>
-    i < gates.length - 1
-      ? solveLegCurve(saidas[i]!, entradas[i + 1]!, field, {
-          ...params,
-          getawayM: retaSaida[i]!,
-          approachM: retaEntrada[i + 1]!,
-        })
-      : null,
-  );
+  const solucoes = gates.map((g, i) => {
+    const proximo = gates[i + 1];
+    if (!proximo) return null;
+
+    // Cruzada de tempo nunca tem volta: o cavalo cruza a partida já
+    // apontado para o primeiro salto, e segue reto do último para a
+    // chegada. Procurar curva aqui era o que produzia aquelas voltas
+    // absurdas entre a partida e o obstáculo 1.
+    if (g.kind === 'timing' || proximo.kind === 'timing') {
+      return retaEntre(saidas[i]!, entradas[i + 1]!);
+    }
+
+    return solveLegCurve(saidas[i]!, entradas[i + 1]!, field, {
+      ...params,
+      getawayM: retaSaida[i]!,
+      approachM: retaEntrada[i + 1]!,
+    });
+  });
 
   // A volta pode ter cedido reta: as retas do salto param onde ela começa.
   const desliza = (pose: Pose, metros: number, paraFrente: boolean): Vec2 =>

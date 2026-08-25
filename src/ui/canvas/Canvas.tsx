@@ -8,7 +8,6 @@ import { distance, type Vec2 } from '@core/geometry/vec';
 import { createObstacle, nextObstacleNumber } from '@core/library/obstacles';
 import { createOrnament } from '@core/library/ornaments';
 import { createTextLabel } from '@core/library/annotations';
-import { createTimingLine } from '@core/library/timing';
 import { createPath, createPathNode, smoothedNodes } from '@core/model/path';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
 import { deepClone } from '@core/model/clone';
@@ -263,17 +262,6 @@ export function Canvas() {
         else ed.addPathNode(no);
         // O arrasto a partir daqui curva o nó recém-criado.
         pathDragFrom.current = p;
-        return;
-      }
-
-      if (tool === 'timing-start' || tool === 'timing-finish') {
-        const linha = createTimingLine(
-          tool === 'timing-start' ? 'start' : 'finish',
-          snapped(toModel(e)),
-        );
-        useDocumentStore.getState().apply('Inserir linha', (d) => addObject(d, linha));
-        setSelection([linha.id]);
-        if (!e.shiftKey) setTool('select');
         return;
       }
 

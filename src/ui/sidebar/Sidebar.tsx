@@ -3,6 +3,8 @@ import { ORNAMENTS } from '@core/library/ornaments';
 import { importBackgroundImage } from '@ui/actions/imageActions';
 import { traceCourse } from '@ui/actions/rideActions';
 import { insertHeightTable, insertInfoBox } from '@ui/actions/annotationActions';
+import { insertTimingLine, TIMING_LIMITS } from '@ui/actions/timingActions';
+import { clampTimingDistance } from '@core/library/timing';
 import { useEditorStore } from '@store/editorStore';
 
 /**
@@ -23,6 +25,8 @@ export function Sidebar() {
     setObstacleType,
     pathSmooth,
     setPathSmooth,
+    timingDistanceM,
+    setTimingDistance,
   } = useEditorStore();
 
   const alterna = (alvo: typeof tool) => setTool(tool === alvo ? 'select' : alvo);
@@ -163,22 +167,33 @@ export function Sidebar() {
       </button>
 
       <button
-        className={tool === 'timing-start' ? 'active' : ''}
-        onClick={() => alterna('timing-start')}
-        title="Linha de partida: dois paraflancos, o traço entre eles e a seta de passagem."
+        onClick={() => insertTimingLine('start')}
+        title="Coloca a partida no eixo do PRIMEIRO obstáculo, à distância escolhida. Não se clica na pista: o lugar é consequência do percurso."
       >
         <span className="icon">⇥</span>
         <span className="label">Partida</span>
       </button>
 
       <button
-        className={tool === 'timing-finish' ? 'active' : ''}
-        onClick={() => alterna('timing-finish')}
-        title="Linha de chegada."
+        onClick={() => insertTimingLine('finish')}
+        title="Coloca a chegada no eixo do ÚLTIMO obstáculo, à distância escolhida."
       >
         <span className="icon">⇤</span>
         <span className="label">Chegada</span>
       </button>
+
+      <label className="tool-options timing-distance">
+        <span>Distância</span>
+        <input
+          type="number"
+          min={TIMING_LIMITS.min}
+          max={TIMING_LIMITS.max}
+          step={0.5}
+          value={timingDistanceM}
+          onChange={(e) => setTimingDistance(clampTimingDistance(Number(e.target.value) || 0))}
+        />
+        <em>m</em>
+      </label>
 
       <button
         onClick={insertInfoBox}

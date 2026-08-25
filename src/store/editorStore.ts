@@ -24,8 +24,6 @@ export type Tool =
   | 'arena-polygon'
   | 'calibrate'
   | 'obstacle'
-  | 'timing-start'
-  | 'timing-finish'
   | 'path'
   | 'text';
 
@@ -43,6 +41,8 @@ interface EditorState {
   cursorM: Vec2 | null;
   /** Snap temporariamente suspenso (tecla Alt). */
   snapSuspended: boolean;
+  /** Distância da cruzada de tempo ao obstáculo que ela serve, em metros. */
+  timingDistanceM: number;
   showPageFrame: boolean;
   /**
    * Marcadores de interferência na tela. Ferramenta de trabalho: nunca
@@ -85,6 +85,7 @@ interface EditorState {
   clearSelection: () => void;
   setCursor: (p: Vec2 | null) => void;
   setSnapSuspended: (v: boolean) => void;
+  setTimingDistance: (metros: number) => void;
   togglePageFrame: () => void;
   toggleInterference: () => void;
   setClipboard: (objs: SceneObject[]) => void;
@@ -114,6 +115,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   selection: [],
   cursorM: null,
   snapSuspended: false,
+  timingDistanceM: 12,
   showPageFrame: true,
   showInterference: true,
   clipboard: [],
@@ -142,6 +144,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   clearSelection: () => set({ selection: [] }),
   setCursor: (cursorM) => set({ cursorM }),
   setSnapSuspended: (snapSuspended) => set({ snapSuspended }),
+  setTimingDistance: (timingDistanceM) => set({ timingDistanceM }),
   togglePageFrame: () => set((s) => ({ showPageFrame: !s.showPageFrame })),
   toggleInterference: () => set((s) => ({ showInterference: !s.showInterference })),
   setClipboard: (clipboard) => set({ clipboard }),
