@@ -36,6 +36,24 @@ export function traceCourse(params: RideParams = DEFAULT_RIDE): void {
   apply('Assistente de traçado', (d) => addObject(d, resultado.path));
   useEditorStore.getState().setSelection([resultado.path.id]);
 
+  // Curva para trás é decisão visível: o desenhador tem que saber que ali
+  // a linha sai e volta de propósito, e não por defeito do assistente.
+  const porFora = resultado.legs.filter((l) => l.lead.after > 0 || l.lead.before > 0);
+  if (porFora.length > 0 && resultado.problems.length === 0) {
+    const lista = porFora.map((l) => `  ${l.where}`).join('\n');
+    window.alert(
+      [
+        `Traçado desenhado: ${resultado.stops.join(' - ')}`,
+        `${formatDistance(pathLength(resultado.path))} m`,
+        '',
+        'Estas voltas foram feitas por fora (curva para trás), porque não',
+        'havia ligação direta possível:',
+        lista,
+      ].join('\n'),
+    );
+    return;
+  }
+
   if (resultado.problems.length > 0) {
     const lista = resultado.problems
       .map((p) => `  ${p.where}: ${MOTIVO[p.warning]}`)

@@ -109,6 +109,10 @@ export interface RideLeg {
   minRadiusM: number;
   /** Trocas de mão da linha. Zero é o normal; uma é um S de verdade. */
   inflections: number;
+  /** Giro total, em graus. */
+  turnDeg: number;
+  /** Reta a mais usada de cada lado. Positivo é curva para trás. */
+  lead: { after: number; before: number };
   shape: LegShape;
 }
 
@@ -263,6 +267,8 @@ export function buildCourseRide(
       where: `${g.label} para ${proximo.label}`,
       minRadiusM: solucao.minRadiusM,
       inflections: solucao.inflections,
+      turnDeg: solucao.turnDeg,
+      lead: solucao.lead,
       shape: solucao.shape,
     });
     for (const warning of solucao.warnings) {

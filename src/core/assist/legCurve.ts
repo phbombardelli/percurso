@@ -220,6 +220,57 @@ export function solveLegCurve(
   field: Field,
   params: RideParams = DEFAULT_RIDE,
 ): CurveSolution {
+  const leads = leadsToTry(params);
+
+  // Primeiro a linha DIRETA: sem alongar reta nenhuma. Havendo ali uma
+  // volta galopável e limpa, é ela — cavaleiro não dá a volta por fora
+  // quando dá para ir direto.
+  const direta = avalia(leads.filter((l) => l.after <= 0 && l.before <= 0), from, to, field, params);
+  const melhorDireta = escolhe(direta, params);
+  if (melhorDireta && serve(melhorDireta, params) && melhorDireta.turnDeg <= GIRO_MANSO) {
+    return melhorDireta;
+  }
+
+  // Só então a curva para trás, que custa reta e metros. É RECURSO, não
+  // alternativa de igual para igual: comparar as duas famílias no mesmo
+  // balcão fazia a volta por fora ganhar sempre que a direta ficava um
+  // pouco apertada, e o croqui virava um emaranhado de laçadas.
+  const porFora = avalia(leads.filter((l) => l.after > 0 || l.before > 0), from, to, field, params);
+  const melhorPorFora = escolhe(porFora, params);
+  if (melhorPorFora && serve(melhorPorFora, params)) return melhorPorFora;
+
+  // Nenhuma serve: entrega a menos ruim, com os avisos.
+  return escolhe([...direta, ...porFora], params) ?? melhorDireta!;
+}
+
+/** Volta que dá para galopar e não esbarra em nada. */
+const serve = (c: CurveSolution, params: RideParams): boolean =>
+  c.warnings.length === 0 && c.minRadiusM >= params.tightRadiusM;
+
+/**
+ * Giro até o qual a volta direta ainda é "mansa", em graus.
+ *
+ * A ordem de preferência do ofício é: volta direta mansa, depois curva
+ * para trás, e só em último caso volta direta com giro grande. Sem este
+ * degrau, uma laçada de 350 graus passava como direta — limpa e
+ * galopável, portanto aceita — e o croqui enchia de rabiscos onde a volta
+ * por fora teria resolvido com elegância.
+ *
+ * Meia volta e um quarto: mais que isso a linha já está se enrolando.
+ */
+const GIRO_MANSO = 200;
+
+const escolhe = (lista: CurveSolution[], params: RideParams): CurveSolution | null =>
+  lista.length === 0 ? null : [...lista].sort((a, b) => compara(a, b, params))[0]!;
+
+/** Gera e julga todos os candidatos para um conjunto de alongamentos. */
+function avalia(
+  leads: { after: number; before: number }[],
+  from: Pose,
+  to: Pose,
+  field: Field,
+  params: RideParams,
+): CurveSolution[] {
   const candidatos: CurveSolution[] = [];
 
   const julga = (
@@ -242,7 +293,7 @@ export function solveLegCurve(
     });
   };
 
-  for (const lead of leadsToTry(params)) {
+  for (const lead of leads) {
     // Positivo afasta do obstáculo: a saída avança e a chegada recua.
     const saida = slide(from, lead.after);
     const chegada = slide(to, -lead.before);
@@ -255,8 +306,6 @@ export function solveLegCurve(
     }
 
     // Arco-reta-arco: indispensável nas voltas grandes, onde a cúbica bica.
-    // Laçadas ficam de fora pelo limite de giro — foram elas que sujaram o
-    // primeiro croqui de verdade.
     for (const raio of radiiForLeg(params)) {
       for (const path of dubinsPaths(saida, chegada, raio)) {
         const giro = path.segments.reduce((t, seg) => t + (seg.kind === 'arco' ? seg.sweep : 0), 0);
@@ -265,23 +314,9 @@ export function solveLegCurve(
       }
     }
   }
-
-  candidatos.sort((a, b) => compara(a, b, params));
-  return candidatos[0]!;
+  return candidatos;
 }
 
-/**
- * Quanto de reta se pode ceder de cada lado, em metros.
- *
- * Numa virada fechada entre saltos próximos não sobra espaço para curvar:
- * as duas retas de 8 m comem quase todo o vão. O cavaleiro resolve isso
- * cedendo reta — encurta a saída, encurta a aproximação, e ganha o espaço
- * da curva. É troca, não perda: reta demais com curva impossível é pior
- * que reta menor com curva galopável.
- *
- * Nunca abaixo do mínimo: alguma reta perpendicular sempre tem que haver,
- * senão o cavalo chega torto no salto.
- */
 function leadsToTry(params: RideParams): { after: number; before: number }[] {
   const piso = (base: number) => -Math.max(0, base - MIN_STRAIGHT_M);
   const cede = (base: number) => [0, -2, -4, -6].filter((v) => v >= piso(base));

@@ -682,3 +682,33 @@ Dois ajustes que a medição exigiu:
 No percurso da prova real: 8 voltas, nenhum problema, e o 5 para o 6
 resolvido com 30 m de reta a mais e uma volta de 251 graus.
 
+## 42. A volta por fora é recurso, não alternativa
+
+A primeira versão da curva para trás virou caos no percurso real: laçadas
+por toda parte, linhas se cruzando, o croqui ilegível.
+
+A causa foi trocar uma proibição rígida (teto de giro) por uma comparação
+GLOBAL de custo. Com isso a volta por fora passou a disputar de igual
+para igual com a linha direta, e ganhava sempre que a direta ficava um
+pouco apertada — não só quando era impossível.
+
+A ordem do ofício não é uma comparação, é uma escala de recurso:
+
+1. Volta direta MANSA — até 200 graus de giro, galopável e limpa. Se
+   existir, é ela. Cavaleiro não dá a volta por fora quando dá para ir
+   direto.
+2. Curva para trás, quando a direta mansa não existe.
+3. Volta direta com giro grande, em último caso.
+
+A busca ficou em estágios, nessa ordem, em vez de um balcão único. O
+degrau dos 200 graus é o que faltava: sem ele, uma laçada de 350 graus
+passava como "direta, limpa e galopável" e era aceita, quando a volta por
+fora teria resolvido com elegância.
+
+De quebra, a busca em estágios é mais rápida — quase sempre para no
+primeiro. O percurso inteiro caiu de 1,6 s para meio segundo.
+
+O relatório passou a nomear as voltas feitas por fora. Curva para trás é
+decisão visível: o desenhador precisa saber que ali a linha sai e volta de
+propósito, e não por defeito do assistente.
+
