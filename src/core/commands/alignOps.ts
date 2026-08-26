@@ -22,16 +22,34 @@ const meiaVara = (o: Obstacle): number => (o.spreadM ?? 0) / 2;
 /**
  * Ordena os obstáculos na ordem em que o cavalo os encontra.
  *
- * O eixo é o do PRIMEIRO da lista dada — é ele que manda, e é ele que fica
- * parado no alinhamento. Os demais se projetam nesse eixo e se ordenam por
- * quem vem antes no sentido do salto.
+ * A ordem é a da NUMERAÇÃO: 1, 2, 3a, 3b, 4, 5a, 5b, 5c. É o percurso que
+ * define quem vem antes, e não a geometria.
+ *
+ * A primeira versão ordenava pela projeção no eixo do salto, o que dava
+ * na mesma quando os elementos já estavam em linha — e dava resultado
+ * confuso justamente quando não estavam, que é quando a ferramenta é
+ * usada. Obstáculo torto ou fora do lugar aparecia na ordem errada, e o
+ * campo "5b - 5a" não quer dizer nada.
+ *
+ * Obstáculo sem número vai para o fim, ordenado pela projeção: aí não há
+ * numeração a respeitar, e a geometria é o que sobra.
  */
 export function orderAlongLine(obstacles: Obstacle[]): Obstacle[] {
   const primeiro = obstacles[0];
   if (!primeiro) return [];
   const dir = fromAngle(jumpHeading(primeiro));
   const projeta = (o: Obstacle) => o.pos.x * dir.x + o.pos.y * dir.y;
-  return [...obstacles].sort((a, b) => projeta(a) - projeta(b));
+
+  const numeroDe = (o: Obstacle) => {
+    const n = parseInt(o.number, 10);
+    return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+  };
+  const letraDe = (o: Obstacle) => (o.letter === '' ? 0 : o.letter.charCodeAt(0));
+
+  return [...obstacles].sort(
+    (a, b) =>
+      numeroDe(a) - numeroDe(b) || letraDe(a) - letraDe(b) || projeta(a) - projeta(b),
+  );
 }
 
 /**

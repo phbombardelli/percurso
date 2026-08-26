@@ -32,20 +32,45 @@ const acha = (doc: CourseDocument, numero: string) =>
   obstaculos(doc).find((o) => o.number === numero)!;
 
 describe('ordem na linha', () => {
-  it('segue o sentido do salto, não a ordem de seleção', () => {
-    // Saltos para o norte (Y decrescente): o de maior Y vem primeiro.
-    const a = salto('vertical', 40, 40, 'A');
-    const b = salto('vertical', 40, 30, 'B');
-    const c = salto('vertical', 40, 20, 'C');
-    expect(orderAlongLine([c, a, b]).map((o) => o.number)).toEqual(['A', 'B', 'C']);
+  it('é a da numeração do percurso, não a da geometria', () => {
+    // De propósito fora de lugar: 5b antes de 5a no terreno.
+    const b = salto('vertical', 40, 40, '5');
+    const a = salto('vertical', 40, 30, '5');
+    const c = salto('vertical', 40, 20, '5');
+    a.letter = 'A';
+    b.letter = 'B';
+    c.letter = 'C';
+    expect(orderAlongLine([c, b, a]).map((o) => o.letter)).toEqual(['A', 'B', 'C']);
   });
 
-  it('com a seta invertida, a ordem se inverte junto', () => {
-    const a = salto('vertical', 40, 40, 'A');
-    const b = salto('vertical', 40, 30, 'B');
+  it('ordena por número antes de letra: 3b vem antes de 4', () => {
+    const tresA = salto('vertical', 40, 20, '3');
+    const tresB = salto('vertical', 40, 40, '3');
+    const quatro = salto('vertical', 40, 30, '4');
+    tresA.letter = 'A';
+    tresB.letter = 'B';
+    expect(orderAlongLine([quatro, tresB, tresA]).map((o) => `${o.number}${o.letter}`)).toEqual([
+      '3A',
+      '3B',
+      '4',
+    ]);
+  });
+
+  it('sem número, cai na geometria', () => {
+    // Saltos para o norte (Y decrescente): o de maior Y vem primeiro.
+    const a = salto('vertical', 40, 40, '');
+    const b = salto('vertical', 40, 30, '');
+    const c = salto('vertical', 40, 20, '');
+    const ordem = orderAlongLine([c, a, b]);
+    expect(ordem.map((o) => o.pos.y)).toEqual([40, 30, 20]);
+  });
+
+  it('sem número e com a seta invertida, a geometria se inverte junto', () => {
+    const a = salto('vertical', 40, 40, '');
+    const b = salto('vertical', 40, 30, '');
     a.arrow.reversed = true;
     b.arrow.reversed = true;
-    expect(orderAlongLine([a, b]).map((o) => o.number)).toEqual(['B', 'A']);
+    expect(orderAlongLine([a, b])[0]!.pos.y).toBe(30);
   });
 });
 

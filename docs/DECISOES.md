@@ -805,10 +805,11 @@ PROCURAR a distância olhando o croqui, não digitar um número e conferir
 depois. Arrastar move a linha a cada décimo, e o arrasto inteiro entra no
 histórico como um gesto só.
 
-## 46. Combinações e linhas retas
+## 46. Composto e linha reta
 
 Ferramenta para montar duplo, triplo e linha reta: selecionam-se 2 ou 3
-obstáculos, digita-se a distância de cada vão, e eles ficam alinhados.
+obstáculos, digita-se a distância de cada vão, e os elementos se ajustam
+no croqui na hora.
 
 O cerne é a MEDIDA. A distância entre dois saltos não é de centro a
 centro: é da vara de saída do anterior até a vara de entrada do seguinte,
@@ -817,20 +818,26 @@ no programa, com oxer nas duas pontas: vãos de 7,60 e 10,90 m saem com
 8,35 e 11,65 m entre os centros — a meia largura do oxer em cada ponta.
 Errar isso é errar quase uma passada inteira.
 
-Alinhar é a outra metade: mesmo eixo, mesma inclinação, mesmo sentido de
-seta. Combinação torta não é combinação, são dois obstáculos próximos.
+A ordem é a da NUMERAÇÃO do percurso: 1, 2, 3a, 3b, 4, 5a, 5b, 5c. A
+primeira versão ordenava pela projeção no eixo do salto, o que dava na
+mesma quando os elementos já estavam em linha — e dava resultado confuso
+justamente quando não estavam, que é quando a ferramenta é usada. Um
+campo rotulado "5b - 5a" não quer dizer nada. Sem número, aí sim vale a
+geometria: não há numeração a respeitar.
 
-Três decisões de comportamento:
+Digitar a distância JÁ aplica. O painel não guarda rascunho: os campos
+mostram o que o documento tem, e mudar um deles move os obstáculos. Um
+rascunho interno criaria duas verdades, e a do painel ficaria velha assim
+que alguém arrastasse um obstáculo.
+
+Duas decisões de comportamento:
 
 - O PRIMEIRO elemento não se move. Alinhar acerta os outros em relação a
-  ele. Se todos se movessem, cada aplicação arrastaria a combinação pela
+  ele. Se todos se movessem, cada ajuste arrastaria a combinação pela
   pista e o desenhador perderia o lugar que escolheu.
-- A ordem é a do SALTO, não a da seleção: quem vem antes é quem o cavalo
-  encontra primeiro, projetado no eixo do primeiro. Selecionar de trás
-  para a frente dá o mesmo resultado.
-- Os campos nascem medindo o que já existe, e nada é aplicado sozinho.
-  Alinhar move obstáculo alheio; move quando se pede.
+- O botão "Endireitar" põe em linha sem mudar distância, para o caso de
+  os números já estarem certos e a inclinação não.
 
 O vão pode ser negativo, e isso é informação: quer dizer que os corpos
-estão sobrepostos. A ferramenta mostra o número em vez de esconder.
-
+estão sobrepostos, ou que a numeração contradiz a posição no terreno. A
+ferramenta mostra o número em vez de esconder.
