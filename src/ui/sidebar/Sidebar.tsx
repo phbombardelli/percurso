@@ -4,6 +4,7 @@ import { importBackgroundImage } from '@ui/actions/imageActions';
 import { traceCourse } from '@ui/actions/rideActions';
 import { insertHeightTable, insertInfoBox } from '@ui/actions/annotationActions';
 import { insertTimingLine, TIMING_LIMITS } from '@ui/actions/timingActions';
+import { startGuidedRide } from '@ui/actions/guidedActions';
 import { clampTimingDistance } from '@core/library/timing';
 import { useEditorStore } from '@store/editorStore';
 
@@ -156,6 +157,14 @@ export function Sidebar() {
       >
         <span className="icon">T</span>
         <span className="label">Texto</span>
+      </button>
+
+      <button
+        onClick={startGuidedRide}
+        title="Percorre o percurso pernada a pernada e mostra as formas de fazer cada volta, para você escolher."
+      >
+        <span className="icon">◑</span>
+        <span className="label">Por trechos</span>
       </button>
 
       <button

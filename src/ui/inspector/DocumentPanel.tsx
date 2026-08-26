@@ -6,6 +6,7 @@ import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 import { ArenaLibraryPanel } from './ArenaLibraryPanel';
 import { InterferencePanel } from './InterferencePanel';
+import { GuidedPanel } from './GuidedPanel';
 import { ObjectPanel } from './ObjectPanel';
 
 const ROTULO_MARGEM = {
@@ -22,6 +23,7 @@ export function DocumentPanel() {
 
   return (
     <aside className="panel">
+      <GuidedPanel />
       <ObjectPanel />
       {mode === 'pista' && <ArenaLibraryPanel />}
       <h2>Documento</h2>

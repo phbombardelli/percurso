@@ -243,6 +243,85 @@ export function solveLegCurve(
   return escolhe([...direta, ...porFora], params) ?? melhorDireta!;
 }
 
+/**
+ * As formas realmente DIFERENTES de fazer uma pernada.
+ *
+ * Existe porque a calibração mostrou que o assistente não sabe escolher:
+ * ele erra 40% na distância total de uma prova real, e nenhum ajuste de
+ * parâmetro conserta. Gerar boas opções, porém, ele sabe — e escolher é
+ * o que o desenhador sabe fazer.
+ *
+ * O trabalho aqui é PODAR. A busca produz centenas de candidatos, quase
+ * todos variações imperceptíveis do mesmo desenho: meio grau de giro, dez
+ * centímetros de raio. Mostrar tudo seria inútil. O que se agrupa é a
+ * FORMA — para que lado vira, quantas vezes troca de mão, se vai direto
+ * ou por fora, e quanto gira em degraus grossos. De cada grupo sobra o
+ * melhor exemplar.
+ */
+export function legCandidates(
+  from: Pose,
+  to: Pose,
+  field: Field,
+  params: RideParams = DEFAULT_RIDE,
+  maximo = 6,
+): CurveSolution[] {
+  const todos = avalia(leadsToTry(params), from, to, field, params);
+  if (todos.length === 0) return [];
+
+  const melhor = [...todos].sort((a, b) => compara(a, b, params))[0]!;
+
+  // Poda antes de agrupar. Duas regras, e as duas são sobre o que NÃO é
+  // alternativa:
+  //
+  // Havendo caminho limpo, caminho com problema não é opção — é o mesmo
+  // trajeto com um defeito.
+  //
+  // E um caminho que gira meia volta a mais que o melhor não é outra
+  // maneira de fazer a pernada: é um desvio. Numa reta absoluta, sem essa
+  // regra, a lista vinha com seis "opções", cinco delas voltas por fora
+  // desnecessárias.
+  const limpoExiste = todos.some((c) => c.warnings.length === 0);
+  const tetoGiro = melhor.turnDeg + 180;
+  const candidatos = todos.filter(
+    (c) => (!limpoExiste || c.warnings.length === 0) && c.turnDeg <= tetoGiro,
+  );
+
+  const porForma = new Map<string, CurveSolution>();
+  for (const c of candidatos) {
+    const chave = assinatura(c);
+    const atual = porForma.get(chave);
+    if (!atual || compara(c, atual, params) < 0) porForma.set(chave, c);
+  }
+
+  return [...porForma.values()].sort((a, b) => compara(a, b, params)).slice(0, maximo);
+}
+
+/**
+ * Assinatura da forma. Duas voltas com a mesma assinatura são a mesma
+ * ideia desenhada com meio grau de diferença.
+ */
+function assinatura(c: CurveSolution): string {
+  // Ir por fora não entra na assinatura: o GIRO já distingue a volta
+  // direta da volta por fora, e marcar as duas coisas fazia a mesma reta
+  // aparecer duas vezes — uma delas com seis metros a mais e nenhuma
+  // diferença de desenho.
+  return `${maoInicial(c.nodes)}|${c.inflections}|${Math.round(c.turnDeg / 45)}`;
+}
+
+/** Para que lado a linha vira primeiro: -1 esquerda, 1 direita, 0 reta. */
+function maoInicial(nodes: PathNode[]): number {
+  const pontos = nodes.map((n) => n.pos);
+  for (let i = 2; i < pontos.length; i += 1) {
+    const a = sub(pontos[i - 1]!, pontos[i - 2]!);
+    const b = sub(pontos[i]!, pontos[i - 1]!);
+    const escala = Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y);
+    if (escala === 0) continue;
+    const cruzado = (a.x * b.y - a.y * b.x) / escala;
+    if (Math.abs(cruzado) > 0.02) return Math.sign(cruzado);
+  }
+  return 0;
+}
+
 /** Volta que dá para galopar e não esbarra em nada. */
 const serve = (c: CurveSolution, params: RideParams): boolean =>
   c.warnings.length === 0 && c.minRadiusM >= params.tightRadiusM;

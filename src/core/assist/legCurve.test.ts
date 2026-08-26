@@ -5,7 +5,7 @@ import { createPath, flattenPath } from '@core/model/path';
 import { distance } from '@core/geometry/vec';
 import type { Obstacle } from '@core/model/types';
 import { DEFAULT_RIDE, entryPose, exitPose, fieldFrom } from './ridePath';
-import { solveLegCurve, turnOfPoints } from './legCurve';
+import { legCandidates, solveLegCurve, turnOfPoints } from './legCurve';
 
 const salto = (numero: string, x: number, y: number, rotation: number): Obstacle => {
   const o = createObstacle('vertical', { x, y }, numero);
@@ -85,5 +85,58 @@ describe('a volta grande só aparece quando é preciso', () => {
     expect(v.giroDeg).toBeGreaterThan(120);
     expect(v.giroDeg).toBeLessThan(260);
     expect(v.warnings).toEqual([]);
+  });
+});
+
+describe('opções da pernada', () => {
+  const opcoes = (a: Obstacle, b: Obstacle) => {
+    const campo = fieldFrom(pista, [a, b]);
+    return legCandidates(
+      exitPose(a, DEFAULT_RIDE, campo),
+      entryPose(b, DEFAULT_RIDE, campo),
+      campo,
+      DEFAULT_RIDE,
+    );
+  };
+
+  it('numa reta absoluta, oferece uma opção só', () => {
+    // Dois saltos alinhados e no mesmo sentido: não há o que escolher.
+    const lista = opcoes(salto('1', 40, 45, 0), salto('2', 40, 15, 0));
+    expect(lista).toHaveLength(1);
+    expect(lista[0]!.turnDeg).toBeLessThan(5);
+  });
+
+  it('numa volta de verdade, oferece caminhos diferentes', () => {
+    const lista = opcoes(salto('1', 25, 40, 0), salto('2', 60, 40, 180));
+    expect(lista.length).toBeGreaterThan(1);
+
+    // E são ideias diferentes, não a mesma curva com meio grau a mais.
+    const formas = new Set(
+      lista.map((c) => `${c.inflections}|${Math.round(c.turnDeg / 45)}|${c.lead.after > 0}`),
+    );
+    expect(formas.size).toBeGreaterThan(1);
+  });
+
+  it('a primeira da lista é a que o assistente escolheria sozinho', () => {
+    const a = salto('1', 25, 40, 0);
+    const b = salto('2', 60, 40, 180);
+    const campo = fieldFrom(pista, [a, b]);
+    const de = exitPose(a, DEFAULT_RIDE, campo);
+    const para = entryPose(b, DEFAULT_RIDE, campo);
+
+    const sozinho = solveLegCurve(de, para, campo, DEFAULT_RIDE);
+    const primeira = legCandidates(de, para, campo, DEFAULT_RIDE)[0]!;
+    expect(primeira.turnDeg).toBeCloseTo(sozinho.turnDeg, 6);
+  });
+
+  it('não devolve uma lista enorme de variações do mesmo desenho', () => {
+    const lista = opcoes(salto('1', 20, 45, 0), salto('2', 60, 20, 45));
+    expect(lista.length).toBeLessThanOrEqual(6);
+  });
+
+  it('oferece a curva para trás quando ela é a saída', () => {
+    // A cena do 5 para o 6: colados e virados para lados diferentes.
+    const lista = opcoes(salto('5', 40, 40, 90), salto('6', 52, 32, 0));
+    expect(lista.some((c) => c.lead.after > 0 || c.lead.before > 0)).toBe(true);
   });
 });

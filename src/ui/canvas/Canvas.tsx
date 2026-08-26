@@ -40,6 +40,7 @@ import { ArenaDraft, ArenaHandles } from './ArenaHandles';
 import { PathDraft, PathHandles } from './PathHandles';
 import { CalibrationOverlay } from './CalibrationOverlay';
 import { RULER_SIZE, Rulers } from './Rulers';
+import { GuidedOverlay } from './GuidedOverlay';
 import { InterferenceOverlay } from './InterferenceOverlay';
 import { SelectionOverlay } from './SelectionOverlay';
 import { useObjectGestures } from './useObjectGestures';
@@ -543,6 +544,8 @@ export function Canvas() {
               gestures.beginDrag(e, id);
             }}
           />
+          <GuidedOverlay zoom={viewport.zoom} />
+
           <InterferenceOverlay zoom={viewport.zoom} />
 
           <SelectionOverlay

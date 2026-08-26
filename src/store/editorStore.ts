@@ -8,6 +8,7 @@ import type {
   PathNode,
   SceneObject,
 } from '@core/model/types';
+import { withChoice, type GuidedRide } from '@core/assist/guidedRide';
 import type { Viewport } from '@core/scale/viewport';
 import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 
@@ -43,6 +44,13 @@ interface EditorState {
   snapSuspended: boolean;
   /** Distância da cruzada de tempo ao obstáculo que ela serve, em metros. */
   timingDistanceM: number;
+  /**
+   * Traçado por trechos em andamento. Fica no editor, e não no documento:
+   * é rascunho de trabalho, some ao sair, e nada dele vai para o arquivo
+   * até o desenhador aplicar.
+   */
+  guided: GuidedRide | null;
+  guidedLeg: number;
   showPageFrame: boolean;
   /**
    * Marcadores de interferência na tela. Ferramenta de trabalho: nunca
@@ -86,6 +94,10 @@ interface EditorState {
   setCursor: (p: Vec2 | null) => void;
   setSnapSuspended: (v: boolean) => void;
   setTimingDistance: (metros: number) => void;
+  startGuided: (ride: GuidedRide) => void;
+  setGuidedLeg: (index: number) => void;
+  chooseGuidedOption: (option: number) => void;
+  endGuided: () => void;
   togglePageFrame: () => void;
   toggleInterference: () => void;
   setClipboard: (objs: SceneObject[]) => void;
@@ -116,6 +128,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   cursorM: null,
   snapSuspended: false,
   timingDistanceM: 12,
+  guided: null,
+  guidedLeg: 0,
   showPageFrame: true,
   showInterference: true,
   clipboard: [],
@@ -145,6 +159,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   setCursor: (cursorM) => set({ cursorM }),
   setSnapSuspended: (snapSuspended) => set({ snapSuspended }),
   setTimingDistance: (timingDistanceM) => set({ timingDistanceM }),
+  startGuided: (guided) => set({ guided, guidedLeg: 0, selection: [] }),
+  setGuidedLeg: (guidedLeg) => set({ guidedLeg }),
+  chooseGuidedOption: (option) =>
+    set((s) => (s.guided ? { guided: withChoice(s.guided, s.guidedLeg, option) } : s)),
+  endGuided: () => set({ guided: null, guidedLeg: 0 }),
   togglePageFrame: () => set((s) => ({ showPageFrame: !s.showPageFrame })),
   toggleInterference: () => set((s) => ({ showInterference: !s.showInterference })),
   setClipboard: (clipboard) => set({ clipboard }),

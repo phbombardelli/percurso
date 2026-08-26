@@ -83,7 +83,7 @@ function retaEntre(de: Pose, para: Pose): CurveSolution {
 }
 
 /** Nós de um trecho reto, com alças colineares para a emenda ficar lisa. */
-function straightNodes(from: Vec2, to: Vec2): PathNode[] {
+export function straightNodes(from: Vec2, to: Vec2): PathNode[] {
   const comprimento = distance(from, to);
   if (comprimento < 1e-9) return [];
   const heading = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
@@ -99,7 +99,7 @@ function straightNodes(from: Vec2, to: Vec2): PathNode[] {
  * único que herda a alça de entrada de um lado e a de saída do outro —
  * é o que evita um bico onde a volta encontra a reta do salto.
  */
-function joinNodes(pieces: PathNode[][]): PathNode[] {
+export function joinNodes(pieces: PathNode[][]): PathNode[] {
   const out: PathNode[] = [];
   for (const piece of pieces) {
     if (piece.length === 0) continue;
@@ -170,10 +170,29 @@ export const straightBudget = (gap: number, pedido: number): number =>
  * Fora isso sempre entrega, com os problemas anotados: a volta impossível
  * precisa aparecer desenhada para o desenhador ver onde está o aperto.
  */
-export function buildCourseRide(
+/**
+ * Preparo do percurso: degraus, poses e retas, tudo o que não depende de
+ * qual volta se escolhe.
+ *
+ * Existe separado porque tem dois consumidores: o assistente que decide
+ * sozinho e o guiado, em que quem decide é o desenhador. Os dois têm de
+ * partir exatamente das mesmas pontas, senão a linha escolhida à mão não
+ * encaixaria nas retas dos saltos.
+ */
+export interface CoursePrep {
+  gates: Gate[];
+  entradas: Pose[];
+  saidas: Pose[];
+  retaEntrada: number[];
+  retaSaida: number[];
+  field: Field;
+  params: RideParams;
+}
+
+export function courseGates(
   doc: CourseDocument,
   params: RideParams = DEFAULT_RIDE,
-): RideResult | null {
+): CoursePrep | null {
   const obstacles = doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle');
   const timings = doc.objects.filter((o): o is TimingLine => o.kind === 'timing');
   const arena = doc.objects.find((o) => o.kind === 'arena');
@@ -207,8 +226,8 @@ export function buildCourseRide(
 
   // Primeiro as retas: cada vão decide quanto cabe de cada lado. Só depois
   // se resolvem as voltas, já com as pontas nos lugares certos.
-  const entradas: ReturnType<typeof entryOf>[] = [];
-  const saidas: ReturnType<typeof exitOf>[] = [];
+  const entradas: Pose[] = [];
+  const saidas: Pose[] = [];
   // Quanta reta cada ponta REALMENTE tem. A volta pode ceder parte dela
   // para caber a curva, e precisa saber de quanto dispõe: ceder 6 m de uma
   // reta que só tem 1,5 empurraria o traçado para além da vara.
@@ -226,6 +245,66 @@ export function buildCourseRide(
     retaSaida[i] = straightBudget(vaoDepois, params.getawayM);
     entradas[i] = entryOf(g, retaEntrada[i]!);
     saidas[i] = exitOf(g, retaSaida[i]!);
+  });
+
+  return { gates, entradas, saidas, retaEntrada, retaSaida, field, params };
+}
+
+/**
+ * A reta do salto: da entrada à saída, passando pelos elementos de uma
+ * combinação. Já esticada até onde a volta escolhida começa.
+ */
+export function gateStraightNodes(
+  prep: CoursePrep,
+  i: number,
+  leads: { lead: { after: number; before: number } }[],
+): PathNode[] {
+  const { gates, entradas, saidas, field, params } = prep;
+  const g = gates[i]!;
+  const com = (chave: 'approachM' | 'getawayM', metros: number): RideParams => ({
+    ...params,
+    [chave]: metros,
+  });
+
+  const desliza = (pose: Pose, metros: number): Vec2 =>
+    add(pose.pos, scale(fromAngle(pose.heading), metros));
+
+  const anterior = leads[i - 1];
+  const propria = leads[i];
+  const inicio = anterior ? desliza(entradas[i]!, -anterior.lead.before) : entradas[i]!.pos;
+  const fim = propria ? desliza(saidas[i]!, propria.lead.after) : saidas[i]!.pos;
+
+  if (g.kind === 'obstacle' && g.elements.length > 1) {
+    const pedacos: PathNode[][] = [];
+    let atual = inicio;
+    for (let k = 0; k < g.elements.length - 1; k += 1) {
+      const vao = distance(
+        exitPose(g.elements[k]!, com('getawayM', 0), field).pos,
+        entryPose(g.elements[k + 1]!, com('approachM', 0), field).pos,
+      );
+      const reta = straightBudget(vao, params.getawayM);
+      const meio = exitPose(g.elements[k]!, com('getawayM', reta), field).pos;
+      pedacos.push(straightNodes(atual, meio));
+      atual = entryPose(g.elements[k + 1]!, com('approachM', reta), field).pos;
+      pedacos.push(straightNodes(meio, atual));
+    }
+    pedacos.push(straightNodes(atual, fim));
+    return joinNodes(pedacos);
+  }
+  return straightNodes(inicio, fim);
+}
+
+export function buildCourseRide(
+  doc: CourseDocument,
+  params: RideParams = DEFAULT_RIDE,
+): RideResult | null {
+  const preparo = courseGates(doc, params);
+  if (!preparo) return null;
+  const { gates, entradas, saidas, retaEntrada, retaSaida, field } = preparo;
+
+  const com = (chave: 'approachM' | 'getawayM', metros: number): RideParams => ({
+    ...params,
+    [chave]: metros,
   });
 
   const solucoes = gates.map((g, i) => {

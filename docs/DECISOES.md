@@ -886,3 +886,46 @@ Erro de ordem que vale registrar: eu devia ter medido o ruído do método
 ANTES de construir a varredura de 240 combinações. Varri parâmetros com
 uma régua que não tinha resolução para a pergunta.
 
+## 48. O assistente gera; o desenhador escolhe
+
+A calibração deixou o assistente automático num impasse: ele erra 40% na
+distância de uma prova real, nenhum parâmetro conserta, e desenhar à mão
+sai irregular mesmo suavizando. O desenhador precisava de algo que
+funcionasse já.
+
+A saída veio dele, e é melhor que a minha: o assistente não sabe
+ESCOLHER, mas sabe GERAR. Então o percurso é percorrido pernada a
+pernada, e onde há mais de uma forma de fazer, as formas são apresentadas
+e quem decide é quem assina o croqui.
+
+Isso contorna o impasse pela raiz. A escolha automática é um palpite meu
+sobre o que um cavaleiro faria; a escolha à mão é conhecimento de ofício.
+E onde só existe uma forma — reta absoluta, cruzada de tempo — não há o
+que perguntar, e não se pergunta.
+
+O trabalho técnico foi PODAR. A busca produz centenas de candidatos,
+quase todos o mesmo desenho com meio grau de diferença. Três regras
+reduzem isso a no máximo seis opções de verdade:
+
+- Havendo caminho limpo, caminho com problema não é opção — é o mesmo
+  trajeto com um defeito.
+- Caminho que gira meia volta a mais que o melhor não é outra maneira de
+  fazer a pernada, é um desvio. Numa reta absoluta, sem esta regra, vinham
+  seis "opções", cinco delas voltas por fora desnecessárias.
+- O que resta se agrupa pela FORMA: para que lado vira primeiro, quantas
+  vezes troca de mão, e quanto gira em degraus de 45 graus. De cada grupo
+  fica o melhor exemplar.
+
+O preparo do percurso — degraus, poses, retas — passou a ser função
+própria, com dois consumidores: o assistente automático e o guiado. Os
+dois partem exatamente das mesmas pontas, senão a linha escolhida à mão
+não encaixaria nas retas dos saltos.
+
+A escolha se faz olhando a LINHA, não a lista: as opções aparecem no
+desenho, a escolhida forte e as outras finas, e clicar na linha escolhe.
+Os números (giro, raio, comprimento) estão no painel para conferir, não
+para decidir.
+
+O rascunho vive no editor, não no documento: some ao sair, e nada vai
+para o arquivo até aplicar.
+
