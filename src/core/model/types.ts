@@ -260,9 +260,30 @@ export interface HeightTable extends BaseObject {
  * tabela de alturas e não recebe número de percurso — mas tem paraflancos
  * e seta, como no croqui impresso.
  */
+/**
+ * Vínculo da cruzada com o obstáculo que ela serve.
+ *
+ * A partida pertence ao primeiro obstáculo e a chegada ao último. Guardar
+ * o vínculo — e não só a posição — é o que permite a cruzada ACOMPANHAR o
+ * obstáculo quando ele é movido ou girado. Sem isso, mexer no obstáculo 1
+ * deixava a partida para trás, desalinhada, e a regra de "nunca há volta
+ * na cronometragem" se perdia silenciosamente.
+ */
+export interface TimingAnchor {
+  obstacleId: ObjectId;
+  /**
+   * Distância em metros até a VARA, não até o centro: da partida à vara
+   * de entrada, ou da vara de saída à chegada. Num oxer as duas coisas
+   * diferem pela largura do salto.
+   */
+  distanceM: Meters;
+}
+
 export interface TimingLine extends BaseObject {
   kind: 'timing';
   role: 'start' | 'finish';
+  /** `null` em cruzada solta, de croqui antigo ou posicionada à mão. */
+  anchor: TimingAnchor | null;
   pos: Vec2;
   rotation: number;
   /** Distância entre os dois paraflancos. */
@@ -365,4 +386,4 @@ export interface CourseDocument {
   assets: Record<string, Asset>;
 }
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;

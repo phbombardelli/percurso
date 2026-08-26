@@ -8,7 +8,7 @@ import { createDocument } from '@core/model/document';
 import { createRectangleArena } from '@core/model/arena';
 import { distance, fromAngle } from '@core/geometry/vec';
 import type { Obstacle } from '@core/model/types';
-import { clampTimingDistance, placeTimingLine, TIMING_DISTANCE } from './timing';
+import { clampTimingDistance, placeTimingLine, syncTimingLines, TIMING_DISTANCE } from './timing';
 
 const salto = (numero: string, x: number, y: number, rotation = 0): Obstacle => {
   const o = createObstacle('vertical', { x, y }, numero);
@@ -49,6 +49,32 @@ describe('colocação da cruzada de tempo', () => {
     expect(p.arrow.reversed).toBe(true);
     // Invertido, o salto é para o sul: a partida vai para o norte.
     expect(p.pos.y).toBeLessThan(o.pos.y);
+  });
+
+  it('num oxer, mede da VARA e não do centro', () => {
+    const oxer = createObstacle('oxer', { x: 40, y: 25 }, '1');
+    const largura = oxer.spreadM!;
+    expect(largura).toBeGreaterThan(0);
+
+    // Partida a 12 m da vara de ENTRADA, que fica a meia largura do centro.
+    const p = placeTimingLine('start', oxer, 12);
+    expect(distance(p.pos, oxer.pos)).toBeCloseTo(12 + largura / 2, 9);
+
+    // Chegada a 12 m da vara de SAÍDA, do outro lado.
+    const c = placeTimingLine('finish', oxer, 12);
+    expect(distance(c.pos, oxer.pos)).toBeCloseTo(12 + largura / 2, 9);
+  });
+
+  it('cada cruzada tem a sua distância', () => {
+    const o = salto('1', 40, 25);
+    expect(distance(placeTimingLine('start', o, 9.4).pos, o.pos)).toBeCloseTo(9.4, 9);
+    expect(distance(placeTimingLine('finish', o, 14.7).pos, o.pos)).toBeCloseTo(14.7, 9);
+  });
+
+  it('aceita décimo de metro', () => {
+    const o = salto('1', 40, 25);
+    expect(distance(placeTimingLine('start', o, 10.3).pos, o.pos)).toBeCloseTo(10.3, 9);
+    expect(clampTimingDistance(11.7)).toBe(11.7);
   });
 
   it('a distância é obrigada a ficar entre 9 e 15 m', () => {
@@ -96,5 +122,59 @@ describe('nunca há volta na cronometragem', () => {
         expect(perna.turnDeg).toBeCloseTo(0, 6);
       }
     }
+  });
+});
+
+describe('a cruzada acompanha o obstáculo', () => {
+  const cena = () =>
+    produce(createDocument(), (d) => {
+      d.objects.length = 0;
+      addObject(d, createRectangleArena({ x: 0, y: 0 }, 90, 55));
+      const um = salto('1', 40, 40);
+      addObject(d, um);
+      addObject(d, placeTimingLine('start', um, 12));
+    });
+
+  const partida = (doc: ReturnType<typeof cena>) =>
+    doc.objects.find((o) => o.kind === 'timing')!;
+  const obstaculo = (doc: ReturnType<typeof cena>) =>
+    doc.objects.find((o): o is Obstacle => o.kind === 'obstacle')!;
+
+  it('segue quando o obstáculo é movido', () => {
+    const antes = cena();
+    const depois = produce(antes, (d) => {
+      obstaculo(d).pos = { x: 60, y: 20 };
+      syncTimingLines(d);
+    });
+    const linha = partida(depois);
+    expect(linha.kind === 'timing' && distance(linha.pos, { x: 60, y: 20 })).toBeCloseTo(12, 9);
+  });
+
+  it('segue quando o obstáculo é girado', () => {
+    const depois = produce(cena(), (d) => {
+      obstaculo(d).rotation = 55;
+      syncTimingLines(d);
+    });
+    const linha = partida(depois);
+    expect(linha.kind === 'timing' && linha.rotation).toBe(55);
+  });
+
+  it('perde o vínculo, sem sumir, quando o obstáculo é apagado', () => {
+    const depois = produce(cena(), (d) => {
+      d.objects = d.objects.filter((o) => o.kind !== 'obstacle');
+      syncTimingLines(d);
+    });
+    const linha = partida(depois);
+    expect(linha.kind === 'timing' && linha.anchor).toBeNull();
+  });
+
+  it('mudar a distância move a linha', () => {
+    const depois = produce(cena(), (d) => {
+      const l = partida(d);
+      if (l.kind === 'timing' && l.anchor) l.anchor.distanceM = 15;
+      syncTimingLines(d);
+    });
+    const linha = partida(depois);
+    expect(linha.kind === 'timing' && distance(linha.pos, { x: 40, y: 40 })).toBeCloseTo(15, 9);
   });
 });

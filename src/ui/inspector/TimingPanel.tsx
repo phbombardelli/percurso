@@ -1,15 +1,53 @@
 import { setTimingLine, setTimingWings } from '@core/commands/timingOps';
+import { clampTimingDistance, TIMING_DISTANCE } from '@core/library/timing';
+import { obstacleLabel } from '@core/library/obstacles';
 import type { TimingLine, WingStyle } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
 import { NumberField } from './NumberField';
 import { WingStyleField } from './WingStyleField';
 
 export function TimingPanel({ line }: { line: TimingLine }) {
-  const { apply } = useDocumentStore();
+  const { doc, apply } = useDocumentStore();
   const travado = line.locked;
+  const dono = line.anchor
+    ? doc.objects.find((o) => o.id === line.anchor!.obstacleId)
+    : undefined;
 
   return (
     <>
+      {line.anchor && dono?.kind === 'obstacle' ? (
+        <>
+          <NumberField
+            label="Distância"
+            unit="m"
+            value={line.anchor.distanceM}
+            decimals={1}
+            step={TIMING_DISTANCE.passo}
+            min={TIMING_DISTANCE.min}
+            max={TIMING_DISTANCE.max}
+            disabled={travado}
+            onCommit={(v) =>
+              apply('Distância da cruzada', (d) => {
+                const alvo = d.objects.find((o) => o.id === line.id);
+                if (alvo?.kind === 'timing' && alvo.anchor) {
+                  alvo.anchor.distanceM = clampTimingDistance(v);
+                }
+              })
+            }
+          />
+          <p className="note">
+            {line.role === 'start' ? 'Da linha até a vara de entrada' : 'Da vara de saída até a linha'} do
+            obstáculo {obstacleLabel(dono) || 'sem número'}. Acompanha o obstáculo quando ele
+            se move ou gira.
+          </p>
+        </>
+      ) : (
+        <p className="note dim">
+          Cruzada solta, sem vínculo com obstáculo. Use os botões Partida e
+          Chegada para colocá-la em relação ao percurso.
+        </p>
+      )}
+
       <label className="field">
         <span>Papel</span>
         <select

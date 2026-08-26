@@ -744,3 +744,36 @@ Efeito colateral bom: os testes que largavam a cruzada num ponto
 arbitrário passaram a acusar bico na emenda, porque agora a reta é
 imposta. Estavam modelando um percurso que o programa não constrói mais.
 
+## 44. A cruzada segue o obstáculo
+
+Quatro afinações da regra 43, todas do desenhador:
+
+**Cada cruzada tem a sua distância.** Partida e chegada não precisam ficar
+à mesma distância dos seus obstáculos, e agora cada uma guarda a sua. O
+campo da barra lateral é só o padrão da inserção; depois de colocada,
+cada linha se ajusta no próprio painel.
+
+**Décimo de metro.** O passo era de meio metro, que é grosso demais para
+um número que sai impresso.
+
+**A medida é da VARA, não do centro.** Da partida até a vara de entrada,
+e da vara de saída até a chegada. Num vertical dá no mesmo; num oxer de
+1,50 m a diferença é de 75 cm de cada lado. Medido no programa: com a
+distância em 12 m, a cruzada fica a 12,75 m do centro do oxer — 12,00 m
+da vara, que é o número que o desenhador pediu.
+
+**A cruzada acompanha o obstáculo.** Esta foi a que mexeu no modelo: a
+linha passou a guardar o VÍNCULO (a que obstáculo pertence e a que
+distância), e não só a posição. Mover ou girar o obstáculo 1 recoloca a
+partida sozinha.
+
+A invariante é garantida num lugar só — depois de qualquer alteração do
+documento, no `apply` da loja. Não em cada comando que move obstáculo: são
+oito caminhos diferentes (mover, girar, colar, duplicar, desfazer,
+refazer, aplicar modelo de pista, arrastar no canvas) e bastaria esquecer
+um para a regra de "nunca há volta na cronometragem" se perder em
+silêncio. Invariante que depende de lembrança não é invariante.
+
+Cruzada cujo obstáculo foi apagado perde o vínculo e fica onde está.
+Apagar a linha junto seria decidir pelo desenhador.
+

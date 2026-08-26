@@ -168,7 +168,7 @@ export function Sidebar() {
 
       <button
         onClick={() => insertTimingLine('start')}
-        title="Coloca a partida no eixo do PRIMEIRO obstáculo, à distância escolhida. Não se clica na pista: o lugar é consequência do percurso."
+        title="Coloca a partida no eixo do PRIMEIRO obstáculo, à distância escolhida da vara de entrada. Não se clica na pista: o lugar é consequência do percurso."
       >
         <span className="icon">⇥</span>
         <span className="label">Partida</span>
@@ -176,7 +176,7 @@ export function Sidebar() {
 
       <button
         onClick={() => insertTimingLine('finish')}
-        title="Coloca a chegada no eixo do ÚLTIMO obstáculo, à distância escolhida."
+        title="Coloca a chegada no eixo do ÚLTIMO obstáculo, medida da vara de saída."
       >
         <span className="icon">⇤</span>
         <span className="label">Chegada</span>
@@ -188,7 +188,7 @@ export function Sidebar() {
           type="number"
           min={TIMING_LIMITS.min}
           max={TIMING_LIMITS.max}
-          step={0.5}
+          step={TIMING_LIMITS.passo}
           value={timingDistanceM}
           onChange={(e) => setTimingDistance(clampTimingDistance(Number(e.target.value) || 0))}
         />

@@ -37,6 +37,7 @@ export function createTimingLine(
     scope: 'percurso',
     z: 0,
     role,
+    anchor: null,
     pos,
     rotation: 0,
     widthM: 8,
@@ -66,8 +67,18 @@ export const allTimingLines = (doc: CourseDocument): TimingLine[] =>
 export const hasTimingRole = (doc: CourseDocument, role: 'start' | 'finish'): boolean =>
   allTimingLines(doc).some((l) => l.role === role);
 
-/** Limites da distância da cruzada ao obstáculo que ela serve, em metros. */
-export const TIMING_DISTANCE = { min: 9, max: 15, padrao: 12 };
+/** Limites da distância da cruzada à vara que ela serve, em metros. */
+export const TIMING_DISTANCE = { min: 9, max: 15, padrao: 12, passo: 0.1 };
+
+/**
+ * Meia largura do SALTO, em metros — só as varas, sem paraflanco.
+ *
+ * A distância da cronometragem se mede da partida até a VARA DE ENTRADA,
+ * e da VARA DE SAÍDA até a chegada. Num vertical dá no mesmo; num oxer de
+ * 1,60 m de largura a diferença é de 80 cm de cada lado, que é muito para
+ * um número que sai impresso no quadro técnico.
+ */
+const meiaVara = (obstacle: Obstacle): number => (obstacle.spreadM ?? 0) / 2;
 
 export const clampTimingDistance = (metros: number): number =>
   Math.min(TIMING_DISTANCE.max, Math.max(TIMING_DISTANCE.min, metros));
@@ -93,13 +104,41 @@ export function placeTimingLine(
   distanceM: number,
   label?: string,
 ): TimingLine {
-  const heading = obstacle.rotation + (obstacle.arrow.reversed ? 90 : -90);
-  const d = clampTimingDistance(distanceM);
-  const sentido = role === 'start' ? -d : d;
+  const linha = createTimingLine(role, obstacle.pos, label);
+  linha.anchor = { obstacleId: obstacle.id, distanceM: clampTimingDistance(distanceM) };
+  alinha(linha, obstacle);
+  return linha;
+}
 
-  const linha = createTimingLine(role, add(obstacle.pos, scale(fromAngle(heading), sentido)), label);
+/** Põe a cruzada no lugar que o vínculo manda. */
+function alinha(linha: TimingLine, obstacle: Obstacle): void {
+  if (!linha.anchor) return;
+  const heading = obstacle.rotation + (obstacle.arrow.reversed ? 90 : -90);
+  const daVara = meiaVara(obstacle) + clampTimingDistance(linha.anchor.distanceM);
+  const sentido = linha.role === 'start' ? -daVara : daVara;
+
+  linha.pos = add(obstacle.pos, scale(fromAngle(heading), sentido));
   linha.rotation = obstacle.rotation;
   // A seta acompanha o salto: quem passa pela cruzada vai na mesma direção.
   linha.arrow.reversed = obstacle.arrow.reversed;
-  return linha;
+}
+
+/**
+ * Recoloca toda cruzada vinculada, a partir do obstáculo que ela segue.
+ *
+ * Chamada depois de QUALQUER alteração do documento, e não em cada comando
+ * que move obstáculo. É a diferença entre garantir uma invariante e
+ * lembrar de mantê-la em oito lugares: mover, girar, colar, desfazer,
+ * aplicar modelo de pista — todos passam por aqui sem saber disso.
+ *
+ * Cruzada cujo obstáculo sumiu perde o vínculo e fica onde está. Apagar a
+ * linha junto seria decidir pelo desenhador.
+ */
+export function syncTimingLines(doc: CourseDocument): void {
+  for (const obj of doc.objects) {
+    if (obj.kind !== 'timing' || !obj.anchor) continue;
+    const dono = doc.objects.find((o) => o.id === obj.anchor!.obstacleId);
+    if (dono?.kind === 'obstacle') alinha(obj, dono);
+    else obj.anchor = null;
+  }
 }

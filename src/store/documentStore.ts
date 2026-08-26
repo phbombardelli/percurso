@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { applyPatches, enablePatches, produceWithPatches, type Patch } from 'immer';
 import type { CourseDocument } from '@core/model/types';
 import { createDocument } from '@core/model/document';
+import { syncTimingLines } from '@core/library/timing';
 import type { FileHandleLike } from '@platform/fileSystem';
 
 enablePatches();
@@ -46,7 +47,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   apply: (label, recipe, mergeKey) => {
     const state = get();
-    const [nextDoc, redo, undo] = produceWithPatches(state.doc, recipe);
+    const [nextDoc, redo, undo] = produceWithPatches(state.doc, (draft) => {
+      recipe(draft);
+      // Invariante da cronometragem, garantida num lugar só: a cruzada
+      // vinculada acompanha o obstáculo, tenha ele sido movido, girado,
+      // colado ou trazido de volta pelo desfazer. Espalhar isso pelos
+      // comandos seria esquecer em um deles.
+      syncTimingLines(draft);
+    });
     if (redo.length === 0) return;
 
     const last = state.past[state.past.length - 1];

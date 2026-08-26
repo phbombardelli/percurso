@@ -152,6 +152,7 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   3: v3ToV4,
   4: v4ToV5,
   5: v5ToV6,
+  6: v6ToV7,
 };
 
 /**
@@ -166,6 +167,20 @@ function v5ToV6(doc: RawDocument): RawDocument {
   const page = doc.page as Record<string, unknown> | undefined;
   if (page && page.scaleLabel == null) {
     page.scaleLabel = { visible: true, corner: 'inferior-direito', bar: true };
+  }
+  return doc;
+}
+
+/**
+ * 6 -> 7: a cruzada de tempo passa a poder seguir o obstáculo.
+ *
+ * Croqui antigo tem cruzada solta, e solta ela continua: `anchor` nulo
+ * quer dizer "ninguém a segue". Vincular sozinho seria adivinhar a qual
+ * obstáculo ela pertence, e adivinhar moveria o desenho de alguém.
+ */
+function v6ToV7(doc: RawDocument): RawDocument {
+  for (const obj of (doc.objects as Record<string, unknown>[]) ?? []) {
+    if (obj.kind === 'timing' && obj.anchor === undefined) obj.anchor = null;
   }
   return doc;
 }
