@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "calibrar": "vitest run --include \"calibracao/**/*.calib.ts\""
   },
   "dependencies": {
     "immer": "^10.1.1",

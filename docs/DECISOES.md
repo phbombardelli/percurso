@@ -841,3 +841,48 @@ Duas decisões de comportamento:
 O vão pode ser negativo, e isso é informação: quer dizer que os corpos
 estão sobrepostos, ou que a numeração contradiz a posição no terreno. A
 ferramenta mostra o número em vez de esconder.
+
+## 47. A calibração respondeu outra pergunta
+
+Montei a calibração do assistente contra croqui oficial: transcrever um
+percurso de distância conhecida, rodar o assistente e varrer os
+parâmetros até bater. Começou pelo FEI World Challenge 2020 (pista 65x45,
+420 m impressos), que é o croqui de grade mais limpa.
+
+Primeiro acerto do método: o croqui imprime algumas distâncias entre
+obstáculos, e usá-las para CONFERIR a transcrição pegou três posições
+minhas erradas antes de qualquer calibração — uma delas por 3,5 m. Onde o
+croqui declara o número, o número manda; leitura de pixel só onde não há
+alternativa.
+
+Depois disso, três medidas, e nenhuma foi a esperada:
+
+**O assistente dá 587 m contra 420 oficiais: 40% a mais.**
+
+**Nenhum parâmetro conserta.** Das 240 combinações varridas, a melhor
+ainda dá 523 m, 24% acima. Variar reta, raio, aperto e margem move o
+total entre 569 e 618 m — cinco por cento de amplitude para explicar um
+erro de quarenta.
+
+**E o ruído da minha leitura é do tamanho do erro.** Sacudindo as
+inclinações em apenas 5 graus, que é menos do que se erra lendo uma
+imagem, o total varia 156 m. O erro a explicar é 167 m.
+
+A conclusão que importa: calibrar parâmetros contra croqui lido a olho
+não conclui nada, porque o ruído do método é do tamanho do sinal. Insistir
+seria fingir precisão.
+
+Mas sobrou um sinal robusto, e é ele que vale: mesmo a amostra mais
+favorável do ruído dá 562 m, 34% acima. O excesso não vem da leitura, vem
+do MODELO. E o relatório por perna mostra onde: giros de 287, 356 e 399
+graus, e uma volta com raio de 0,1 m, que é um bico aceito como solução.
+Percurso real não tem volta de 400 graus.
+
+Então o próximo passo não é ajustar parâmetro, é reduzir giro — e a
+medida que guia isso é o GIRO POR PERNA, que eu já tenho, e não a
+distância total, que eu não consigo medir com precisão.
+
+Erro de ordem que vale registrar: eu devia ter medido o ruído do método
+ANTES de construir a varredura de 240 combinações. Varri parâmetros com
+uma régua que não tinha resolução para a pergunta.
+
