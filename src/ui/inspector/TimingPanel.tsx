@@ -35,6 +35,29 @@ export function TimingPanel({ line }: { line: TimingLine }) {
               })
             }
           />
+          {/* Arrastar move a linha no desenho a cada passo: é o jeito de
+              procurar a distância olhando o croqui, e não o número. */}
+          <input
+            className="timing-slider"
+            type="range"
+            min={TIMING_DISTANCE.min}
+            max={TIMING_DISTANCE.max}
+            step={TIMING_DISTANCE.passo}
+            value={line.anchor.distanceM}
+            disabled={travado}
+            onChange={(e) => {
+              const v = clampTimingDistance(Number(e.target.value));
+              apply(
+                'Distância da cruzada',
+                (d) => {
+                  const alvo = d.objects.find((o) => o.id === line.id);
+                  if (alvo?.kind === 'timing' && alvo.anchor) alvo.anchor.distanceM = v;
+                },
+                // Arrastar o controle é um gesto só no histórico.
+                `cruzada-${line.id}`,
+              );
+            }}
+          />
           <p className="note">
             {line.role === 'start' ? 'Da linha até a vara de entrada' : 'Da vara de saída até a linha'} do
             obstáculo {obstacleLabel(dono) || 'sem número'}. Acompanha o obstáculo quando ele

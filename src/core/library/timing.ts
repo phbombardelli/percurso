@@ -1,5 +1,6 @@
 import { add, fromAngle, scale, type Vec2 } from '@core/geometry/vec';
 import { newId } from '@core/model/ids';
+import { courseOrder } from '@core/assist/courseRide';
 import type { CourseDocument, Obstacle, TimingLine, WingsAppearance } from '@core/model/types';
 
 /**
@@ -124,21 +125,66 @@ function alinha(linha: TimingLine, obstacle: Obstacle): void {
 }
 
 /**
- * Recoloca toda cruzada vinculada, a partir do obstáculo que ela segue.
+ * O obstáculo a que a cruzada pertence: o primeiro do percurso para a
+ * partida, o último para a chegada. Numa combinação, o elemento por onde
+ * se entra ou por onde se sai.
+ */
+function donoDe(role: 'start' | 'finish', doc: CourseDocument): Obstacle | null {
+  const stops = courseOrder(
+    doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle'),
+  );
+  if (stops.length === 0) return null;
+  const degrau = role === 'start' ? stops[0]! : stops[stops.length - 1]!;
+  return role === 'start'
+    ? degrau.elements[0]!
+    : degrau.elements[degrau.elements.length - 1]!;
+}
+
+/**
+ * Recoloca toda cruzada a partir do obstáculo que ela serve.
  *
  * Chamada depois de QUALQUER alteração do documento, e não em cada comando
  * que move obstáculo. É a diferença entre garantir uma invariante e
  * lembrar de mantê-la em oito lugares: mover, girar, colar, desfazer,
  * aplicar modelo de pista — todos passam por aqui sem saber disso.
  *
- * Cruzada cujo obstáculo sumiu perde o vínculo e fica onde está. Apagar a
- * linha junto seria decidir pelo desenhador.
+ * Cruzada SEM vínculo é adotada: a partida pertence ao primeiro obstáculo
+ * e a chegada ao último, sempre, então não há o que adivinhar. Isso
+ * conserta sozinho o croqui feito antes de a cruzada aprender a seguir, e
+ * evita a armadilha de uma linha que parece igual às outras e não anda —
+ * foi exatamente o que aconteceu na prova real. A distância adotada é a
+ * que a linha já tinha, trazida para dentro dos limites.
+ *
+ * Cruzada de percurso sem obstáculo numerado fica solta, porque aí não há
+ * a quem pertencer.
  */
 export function syncTimingLines(doc: CourseDocument): void {
   for (const obj of doc.objects) {
-    if (obj.kind !== 'timing' || !obj.anchor) continue;
-    const dono = doc.objects.find((o) => o.id === obj.anchor!.obstacleId);
-    if (dono?.kind === 'obstacle') alinha(obj, dono);
-    else obj.anchor = null;
+    if (obj.kind !== 'timing') continue;
+
+    const vinculado = obj.anchor
+      ? doc.objects.find((o) => o.id === obj.anchor!.obstacleId)
+      : undefined;
+    const dono = vinculado?.kind === 'obstacle' ? vinculado : donoDe(obj.role, doc);
+
+    if (!dono) {
+      obj.anchor = null;
+      continue;
+    }
+    obj.anchor = {
+      obstacleId: dono.id,
+      distanceM: clampTimingDistance(obj.anchor?.distanceM ?? distanciaAtual(obj, dono)),
+    };
+    alinha(obj, dono);
   }
+}
+
+/** Distância da linha à vara, deduzida de onde ela está hoje. */
+function distanciaAtual(linha: TimingLine, obstacle: Obstacle): number {
+  const heading = obstacle.rotation + (obstacle.arrow.reversed ? 90 : -90);
+  const eixo = fromAngle(heading);
+  const dx = linha.pos.x - obstacle.pos.x;
+  const dy = linha.pos.y - obstacle.pos.y;
+  const aoLongo = Math.abs(dx * eixo.x + dy * eixo.y);
+  return aoLongo - meiaVara(obstacle);
 }

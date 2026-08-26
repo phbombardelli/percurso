@@ -777,3 +777,31 @@ silêncio. Invariante que depende de lembrança não é invariante.
 Cruzada cujo obstáculo foi apagado perde o vínculo e fica onde está.
 Apagar a linha junto seria decidir pelo desenhador.
 
+## 45. Vínculo não pode ser opcional em silêncio
+
+O desenhador moveu o primeiro e o último obstáculo, e as cruzadas não
+acompanharam — apesar de o mecanismo estar certo e testado.
+
+O motivo: as linhas dele tinham sido colocadas ANTES de a cruzada
+aprender a seguir, e por isso não tinham vínculo. Na tela ficavam
+idênticas às vinculadas. Uma armadilha silenciosa, e culpa da decisão
+anterior: eu tinha resolvido que migração não vincularia sozinha, "para
+não adivinhar".
+
+Só que aqui não há o que adivinhar. A partida pertence ao primeiro
+obstáculo e a chegada ao último — é a definição, não uma inferência.
+
+Então a cruzada sem vínculo é ADOTADA na sincronização, com a distância
+que ela já tinha, trazida para dentro dos 9 a 15 m. Conserta sozinho o
+croqui antigo e fecha a armadilha: não existe mais cruzada que parece
+igual e não anda.
+
+Fica solta só quando não há obstáculo numerado, porque aí não há a quem
+pertencer.
+
+Segunda correção, de uso: a distância ganhou um controle deslizante. O
+campo numérico só confirma no Enter ou ao sair, e o desenhador quer
+PROCURAR a distância olhando o croqui, não digitar um número e conferir
+depois. Arrastar move a linha a cada décimo, e o arrasto inteiro entra no
+histórico como um gesto só.
+

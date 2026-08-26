@@ -8,7 +8,13 @@ import { createDocument } from '@core/model/document';
 import { createRectangleArena } from '@core/model/arena';
 import { distance, fromAngle } from '@core/geometry/vec';
 import type { Obstacle } from '@core/model/types';
-import { clampTimingDistance, placeTimingLine, syncTimingLines, TIMING_DISTANCE } from './timing';
+import {
+  clampTimingDistance,
+  createTimingLine,
+  placeTimingLine,
+  syncTimingLines,
+  TIMING_DISTANCE,
+} from './timing';
 
 const salto = (numero: string, x: number, y: number, rotation = 0): Obstacle => {
   const o = createObstacle('vertical', { x, y }, numero);
@@ -176,5 +182,67 @@ describe('a cruzada acompanha o obstáculo', () => {
     });
     const linha = partida(depois);
     expect(linha.kind === 'timing' && distance(linha.pos, { x: 40, y: 40 })).toBeCloseTo(15, 9);
+  });
+});
+
+describe('cruzada sem vínculo é adotada', () => {
+  /**
+   * O caso que apareceu na prova real: linhas colocadas antes de a cruzada
+   * aprender a seguir. Ficavam iguais às outras na tela e não andavam
+   * quando o obstáculo se movia — armadilha silenciosa.
+   */
+  const solta = () =>
+    produce(createDocument(), (d) => {
+      d.objects.length = 0;
+      addObject(d, createRectangleArena({ x: 0, y: 0 }, 90, 55));
+      addObject(d, salto('1', 40, 40));
+      addObject(d, salto('2', 70, 20, 90));
+      const linha = createTimingLine('start', { x: 40, y: 52 });
+      linha.anchor = null;
+      addObject(d, linha);
+    });
+
+  const partida = (doc: ReturnType<typeof solta>) =>
+    doc.objects.find((o) => o.kind === 'timing')!;
+
+  it('adota o primeiro obstáculo, com a distância que já tinha', () => {
+    const depois = produce(solta(), (d) => syncTimingLines(d));
+    const linha = partida(depois);
+    expect(linha.kind === 'timing' && linha.anchor?.distanceM).toBeCloseTo(12, 6);
+  });
+
+  it('e a partir daí acompanha, que era o que não acontecia', () => {
+    const depois = produce(solta(), (d) => {
+      syncTimingLines(d);
+      const o = d.objects.find((x): x is Obstacle => x.kind === 'obstacle' && x.number === '1')!;
+      o.pos = { x: 15, y: 15 };
+      syncTimingLines(d);
+    });
+    const linha = partida(depois);
+    expect(linha.kind === 'timing' && distance(linha.pos, { x: 15, y: 15 })).toBeCloseTo(12, 6);
+  });
+
+  it('a chegada adota o ÚLTIMO obstáculo, não o primeiro', () => {
+    const doc = produce(solta(), (d) => {
+      const c = createTimingLine('finish', { x: 70, y: 8 });
+      c.anchor = null;
+      addObject(d, c);
+      syncTimingLines(d);
+    });
+    const chegada = doc.objects.find((o) => o.kind === 'timing' && o.role === 'finish')!;
+    const dois = doc.objects.find((o): o is Obstacle => o.kind === 'obstacle' && o.number === '2')!;
+    expect(chegada.kind === 'timing' && chegada.anchor?.obstacleId).toBe(dois.id);
+  });
+
+  it('sem obstáculo numerado, fica solta mesmo', () => {
+    const doc = produce(createDocument(), (d) => {
+      d.objects.length = 0;
+      const l = createTimingLine('start', { x: 10, y: 10 });
+      l.anchor = null;
+      addObject(d, l);
+      syncTimingLines(d);
+    });
+    const linha = doc.objects.find((o) => o.kind === 'timing')!;
+    expect(linha.kind === 'timing' && linha.anchor).toBeNull();
   });
 });
