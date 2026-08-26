@@ -50,6 +50,7 @@ nem toca no DOM.
 | 13 | Assistente de traçado | ✅ automático e por trechos |
 
 Decisões técnicas em [docs/DECISOES.md](docs/DECISOES.md).
+O que falta em [docs/PENDENCIAS.md](docs/PENDENCIAS.md).
 
 ## Atalhos
 
