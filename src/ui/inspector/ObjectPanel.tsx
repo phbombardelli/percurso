@@ -1,7 +1,7 @@
 import { bringToFront, sendToBack, setLocked, setObjectPosition, setObjectRotation, deleteObjects } from '@core/commands/ops';
 import { ORNAMENTS } from '@core/library/ornaments';
 import { boundsIn, getPosition, getRotation, unionBounds } from '@core/model/transform';
-import type { OrnamentType, SceneObject } from '@core/model/types';
+import type { Obstacle, OrnamentType, SceneObject } from '@core/model/types';
 import { formatMeters } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
@@ -9,6 +9,7 @@ import { ArenaPanel } from './ArenaPanel';
 import { ImagePanel } from './ImagePanel';
 import { ObstaclePanel } from './ObstaclePanel';
 import { PathPanel } from './PathPanel';
+import { CombinationPanel } from './CombinationPanel';
 import { HeightTablePanel } from './HeightTablePanel';
 import { InfoBoxPanel } from './InfoBoxPanel';
 import { TextPanel } from './TextPanel';
@@ -35,7 +36,14 @@ export function ObjectPanel() {
   if (objs.length === 0) return null;
 
   const single = objs.length === 1 ? objs[0]! : null;
+  // Dois ou três obstáculos selecionados é o gesto de quem vai montar uma
+  // combinação ou uma linha reta: a ferramenta aparece sozinha.
+  const combinacao = objs.filter((o): o is Obstacle => o.kind === 'obstacle');
+  const ehCombinacao =
+    !single && combinacao.length === objs.length && combinacao.length >= 2 && combinacao.length <= 3;
   const bounds = unionBounds(objs.map((o) => boundsIn(doc, o)));
+
+  if (ehCombinacao) return <CombinationPanel obstacles={combinacao} />;
 
   return (
     <section className="object-panel">

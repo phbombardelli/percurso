@@ -805,3 +805,32 @@ PROCURAR a distância olhando o croqui, não digitar um número e conferir
 depois. Arrastar move a linha a cada décimo, e o arrasto inteiro entra no
 histórico como um gesto só.
 
+## 46. Combinações e linhas retas
+
+Ferramenta para montar duplo, triplo e linha reta: selecionam-se 2 ou 3
+obstáculos, digita-se a distância de cada vão, e eles ficam alinhados.
+
+O cerne é a MEDIDA. A distância entre dois saltos não é de centro a
+centro: é da vara de saída do anterior até a vara de entrada do seguinte,
+que é o vão que o cavalo galopa e o número que vai para o croqui. Medido
+no programa, com oxer nas duas pontas: vãos de 7,60 e 10,90 m saem com
+8,35 e 11,65 m entre os centros — a meia largura do oxer em cada ponta.
+Errar isso é errar quase uma passada inteira.
+
+Alinhar é a outra metade: mesmo eixo, mesma inclinação, mesmo sentido de
+seta. Combinação torta não é combinação, são dois obstáculos próximos.
+
+Três decisões de comportamento:
+
+- O PRIMEIRO elemento não se move. Alinhar acerta os outros em relação a
+  ele. Se todos se movessem, cada aplicação arrastaria a combinação pela
+  pista e o desenhador perderia o lugar que escolheu.
+- A ordem é a do SALTO, não a da seleção: quem vem antes é quem o cavalo
+  encontra primeiro, projetado no eixo do primeiro. Selecionar de trás
+  para a frente dá o mesmo resultado.
+- Os campos nascem medindo o que já existe, e nada é aplicado sozinho.
+  Alinhar move obstáculo alheio; move quando se pede.
+
+O vão pode ser negativo, e isso é informação: quer dizer que os corpos
+estão sobrepostos. A ferramenta mostra o número em vez de esconder.
+
