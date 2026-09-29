@@ -1,4 +1,10 @@
-import { alignCombination, currentGaps, orderAlongLine } from '@core/commands/alignOps';
+import {
+  alignCombination,
+  COMBINATION_GAP,
+  currentGaps,
+  orderAlongLine,
+  sameCombination,
+} from '@core/commands/alignOps';
 import { obstacleLabel } from '@core/library/obstacles';
 import type { Obstacle } from '@core/model/types';
 import { useDocumentStore } from '@store/documentStore';
@@ -50,18 +56,23 @@ export function CombinationPanel({ obstacles }: { obstacles: Obstacle[] }) {
 
       <p className="note">Na ordem do percurso: {ordenados.map(nome).join(' - ')}</p>
 
-      {ordenados.slice(1).map((o, i) => (
-        <NumberField
-          key={o.id}
-          label={`${nome(ordenados[i]!, i)} - ${nome(o, i + 1)}`}
-          unit="m"
-          value={vaos[i] ?? 0}
-          decimals={2}
-          step={0.1}
-          disabled={travado}
-          onCommit={(v) => ajusta(i, v)}
-        />
-      ))}
+      {ordenados.slice(1).map((o, i) => {
+        const composto = sameCombination(ordenados[i]!, o);
+        return (
+          <NumberField
+            key={o.id}
+            label={`${nome(ordenados[i]!, i)} - ${nome(o, i + 1)}`}
+            unit="m"
+            value={vaos[i] ?? 0}
+            decimals={2}
+            step={0.1}
+            min={composto ? COMBINATION_GAP.min : undefined}
+            max={composto ? COMBINATION_GAP.max : undefined}
+            disabled={travado}
+            onCommit={(v) => ajusta(i, v)}
+          />
+        );
+      })}
 
       <div className="row-buttons">
         <button
@@ -75,7 +86,9 @@ export function CombinationPanel({ obstacles }: { obstacles: Obstacle[] }) {
 
       <p className="note dim">
         Da vara de saída de um até a vara de entrada do seguinte. O primeiro
-        elemento não se move: os outros se acertam em relação a ele.
+        elemento não se move: os outros se acertam em relação a ele. Dentro
+        de um composto (5A, 5B...) o vão fica entre {COMBINATION_GAP.min} e{' '}
+        {COMBINATION_GAP.max} m; entre números diferentes é livre.
       </p>
     </section>
   );

@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "calibrar": "vitest run --include \"calibracao/**/*.calib.ts\""
+    "calibrar": "vitest run --config calibracao/vitest.config.ts"
   },
   "dependencies": {
     "immer": "^10.1.1",

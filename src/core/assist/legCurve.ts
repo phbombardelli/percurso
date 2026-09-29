@@ -1,6 +1,6 @@
 import { cubicPoint, type Cubic } from '@core/geometry/bezier';
 import { DEG, add, distance, fromAngle, scale, sub, type Vec2 } from '@core/geometry/vec';
-import { dubinsPaths, samplePath, type Pose } from '@core/geometry/dubins';
+import { dubinsPaths, poseAt, samplePath, type DubinsPath, type Pose } from '@core/geometry/dubins';
 import { nodesFromDubins } from '@core/model/pathFromDubins';
 import type { PathNode } from '@core/model/types';
 import {
@@ -106,7 +106,7 @@ function secondDerivative(c: Cubic, t: number): Vec2 {
   };
 }
 
-export type CurveWarning = RideWarning | 'curva-fechada';
+export type CurveWarning = RideWarning | 'curva-fechada' | 'giro-excessivo';
 
 export type LegShape = 'curva' | 'arco-reta-arco';
 
@@ -227,15 +227,23 @@ export function solveLegCurve(
   // quando dá para ir direto.
   const direta = avalia(leads.filter((l) => l.after <= 0 && l.before <= 0), from, to, field, params);
   const melhorDireta = escolhe(direta, params);
+  const porFora = avalia(leads.filter((l) => l.after > 0 || l.before > 0), from, to, field, params);
+
   if (melhorDireta && serve(melhorDireta, params) && melhorDireta.turnDeg <= GIRO_MANSO) {
-    return melhorDireta;
+    // Alongar a reta sem girar mais não é volta por fora: é a MESMA volta
+    // usando o espaço da pista, e ela entra no mesmo balcão. É o que deixa
+    // a meia-volta subir a lateral e virar no alto, ampla, em vez de cortar
+    // a pista numa reta diagonal entre dois arcos apertados (decisão 51).
+    const parelhas = porFora.filter(
+      (c) => serve(c, params) && c.turnDeg <= melhorDireta.turnDeg + GIRO_PARELHO,
+    );
+    return escolhe([melhorDireta, ...parelhas], params)!;
   }
 
-  // Só então a curva para trás, que custa reta e metros. É RECURSO, não
-  // alternativa de igual para igual: comparar as duas famílias no mesmo
-  // balcão fazia a volta por fora ganhar sempre que a direta ficava um
-  // pouco apertada, e o croqui virava um emaranhado de laçadas.
-  const porFora = avalia(leads.filter((l) => l.after > 0 || l.before > 0), from, to, field, params);
+  // Só então a curva para trás que gira MAIS, e custa reta e metros. É
+  // RECURSO, não alternativa de igual para igual: comparar as duas famílias
+  // no mesmo balcão fazia a volta por fora ganhar sempre que a direta
+  // ficava um pouco apertada, e o croqui virava um emaranhado de laçadas.
   const melhorPorFora = escolhe(porFora, params);
   if (melhorPorFora && serve(melhorPorFora, params)) return melhorPorFora;
 
@@ -280,10 +288,25 @@ export function legCandidates(
   // maneira de fazer a pernada: é um desvio. Numa reta absoluta, sem essa
   // regra, a lista vinha com seis "opções", cinco delas voltas por fora
   // desnecessárias.
+  //
+  // E curva abaixo do raio mínimo não é opção enquanto existir uma que se
+  // galope: sem esta regra, a pernada sem caminho limpo vinha com bicos de
+  // 1 a 3 m de raio oferecidos como alternativa (decisão 49).
+  //
+  // Volta acima do teto de giro só entra quando não há outra, e então só
+  // as próximas da melhor: entre dois saltos lado a lado a volta inteira é
+  // a resposta, mas as de 450 graus que vinham junto não são de ninguém.
   const limpoExiste = todos.some((c) => c.warnings.length === 0);
-  const tetoGiro = melhor.turnDeg + 180;
+  const galopavelExiste = todos.some((c) => galopavel(c, params));
+  const dentroDoTeto = (c: CurveSolution) => !c.warnings.includes('giro-excessivo');
+  const dentroExiste = todos.some(dentroDoTeto);
+  const tetoGiro = melhor.turnDeg + (dentroExiste ? 180 : 45);
   const candidatos = todos.filter(
-    (c) => (!limpoExiste || c.warnings.length === 0) && c.turnDeg <= tetoGiro,
+    (c) =>
+      (!limpoExiste || c.warnings.length === 0) &&
+      (!galopavelExiste || galopavel(c, params)) &&
+      (!dentroExiste || dentroDoTeto(c)) &&
+      c.turnDeg <= tetoGiro,
   );
 
   const porForma = new Map<string, CurveSolution>();
@@ -335,9 +358,19 @@ const serve = (c: CurveSolution, params: RideParams): boolean =>
  * galopável, portanto aceita — e o croqui enchia de rabiscos onde a volta
  * por fora teria resolvido com elegância.
  *
- * Meia volta e um quarto: mais que isso a linha já está se enrolando.
+ * Era 200 graus. Subiu para 270 porque voltas de 200 a 270 graus são
+ * desenho de percurso, não defeito — muitas vezes o percurso é pensado
+ * nelas —, e com 200 o assistente trocava uma direta limpa de 240 graus
+ * por uma volta por fora de 285. A laçada que este degrau barrava agora
+ * é barrada pelo teto de 300 graus (decisão 49).
  */
-const GIRO_MANSO = 200;
+const GIRO_MANSO = 270;
+
+/**
+ * Folga de giro para a volta alongada competir com a direta. Mais que
+ * isso ela já dá uma volta a mais, e é desvio.
+ */
+const GIRO_PARELHO = 10;
 
 const escolhe = (lista: CurveSolution[], params: RideParams): CurveSolution | null =>
   lista.length === 0 ? null : [...lista].sort((a, b) => compara(a, b, params))[0]!;
@@ -361,13 +394,17 @@ function avalia(
   ) => {
     const warnings: CurveWarning[] = [...checkPoints(pontos, field, params)];
     if (minRadiusM < params.tightRadiusM) warnings.push('curva-fechada');
+    const turnDeg = turnOfPoints(pontos);
+    // A cúbica não passava pelo teto de giro, só o arco-reta-arco: uma
+    // laçada desenhada como cúbica entrava limpa.
+    if (turnDeg > params.maxTurnDeg) warnings.push('giro-excessivo');
     candidatos.push({
       nodes,
       lead,
       warnings,
       minRadiusM,
       inflections: inflectionCount(pontos),
-      turnDeg: turnOfPoints(pontos),
+      turnDeg,
       shape,
     });
   };
@@ -386,10 +423,18 @@ function avalia(
 
     // Arco-reta-arco: indispensável nas voltas grandes, onde a cúbica bica.
     for (const raio of radiiForLeg(params)) {
+      // Acima do teto de giro a volta NÃO é descartada: é julgada e sai
+      // marcada. Descartar aqui deixava, entre dois saltos lado a lado no
+      // mesmo sentido — onde a única volta galopável gira 360 graus —,
+      // apenas o bico de 0,1 m como resposta.
       for (const path of dubinsPaths(saida, chegada, raio)) {
-        const giro = path.segments.reduce((t, seg) => t + (seg.kind === 'arco' ? seg.sweep : 0), 0);
-        if (giro > params.maxTurnDeg) continue;
         julga(lead, nodesFromDubins(path), samplePath(path, 0.5), Math.min(raio, teto), 'arco-reta-arco');
+
+        // A mesma rota, arredondada: concorre como curva contínua. É o que
+        // dá à volta grande a forma do croqui — ampla, sem reta cortando
+        // no meio e sem quebra onde a reta vira arco (decisão 51).
+        const redonda = roundDubins(path);
+        julga(lead, redonda.nodes, redonda.pontos, Math.min(redonda.minRadiusM, teto), 'curva');
       }
     }
   }
@@ -458,14 +503,19 @@ const slide = (pose: Pose, metros: number): Pose => ({
 });
 
 /**
- * Raios de arco a tentar, do preferido ao de aperto.
+ * Raios de arco a tentar, do mais amplo ao de aperto.
  *
  * Não há teto ligado ao vão: quem barra a laçada é o limite de giro, e
  * limitar o raio pelo vão só tirava da mesa a curva ampla que resolvia
  * uma virada de 70 graus em 11 m — justamente a boa.
+ *
+ * Começa acima do preferido, em uma vez e meia: a volta grande do croqui
+ * real usa o espaço que tem, com 11 a 17 m de raio, e começar no
+ * preferido deixava só voltas apertadas com uma reta cortando no meio
+ * (decisão 51). Onde a volta larga não cabe, a pista a recusa.
  */
 function radiiForLeg(params: RideParams): number[] {
-  const raios: number[] = [];
+  const raios: number[] = [params.radiusM * 1.5, params.radiusM * 1.25];
   for (let r = params.radiusM; r > params.tightRadiusM; r *= 0.85) raios.push(r);
   raios.push(params.tightRadiusM);
   return raios;
@@ -476,9 +526,14 @@ const galopavel = (c: CurveSolution, params: RideParams) => c.minRadiusM >= para
 /**
  * A ordem do juiz.
  *
- * Primeiro o que é impedimento de fato: sair da pista ou atropelar
- * obstáculo. Depois separa quem dá para galopar de quem não dá — entre as
- * ingalopáveis vale o menor aperto, e nada mais.
+ * Primeiro separa quem dá para galopar de quem não dá: raio abaixo do
+ * piso não é volta, é bico, e não pode ganhar de nenhuma volta de verdade
+ * — nem de uma que encoste na cerca ou passe rente a um obstáculo, que ao
+ * menos mostra ao desenhador um caminho possível e o problema a resolver.
+ * Era essa a ordem que deixava passar o bico de 0,1 m (decisão 49).
+ *
+ * Depois, o que é impedimento de fato: sair da pista, atropelar obstáculo
+ * ou girar além do teto. Entre as ingalopáveis vale o menor aperto.
  *
  * Entre as galopáveis vence o menor CUSTO, que soma o giro total da volta
  * com uma taxa por troca de mão. É a medida de economia, e é ela que
@@ -500,24 +555,107 @@ const galopavel = (c: CurveSolution, params: RideParams) => c.minRadiusM >= para
  * caía no raio de aperto: uma curva de raio 6 gira um tiquinho menos que
  * a mesma curva de raio 11, e ganhava por isso. Empate em degrau devolve
  * a decisão a quem deve tê-la — a curva mais ampla.
+ *
+ * Duas taxas de REDONDEZA entram no custo (decisão 50), porque só giro e
+ * raio deixavam passar voltas que se leem como esquina:
+ *
+ * - O arco-reta-arco paga uma taxa fixa pela quebra: a curvatura salta de
+ *   zero, na reta, ao máximo, no arco, de uma vez. A curva contínua cresce
+ *   e diminui aos poucos, que é como o cavalo vira galopando. Sem a taxa,
+ *   dois graus a mais de giro bastavam para a curva contínua de raio 19,7
+ *   perder para um arco de 11 entre retas.
+ * - Todo aperto abaixo do raio preferido paga em proporção: 30 graus por
+ *   raio preferido inteiro de diferença (a 5,5 m, metade de 11, paga 30).
+ *   É o que impede um arco no raio mínimo de ganhar de uma curva ampla só
+ *   por girar três graus menos.
+ *
+ * O arco-reta-arco continua ganhando onde é insubstituível — voltas por
+ * fora, meias-voltas —, porque ali a curva contínua bica e sai do páreo.
  */
 const TAXA_INFLEXAO = 90;
+const TAXA_QUEBRA = 20;
+const TAXA_APERTO = 30;
+/**
+ * Meio grau por metro de reta ALONGADA. Sem ela, no empate de custo o
+ * desempate pelo raio levava toda volta ao maior raio que coubesse, e a
+ * linha encostava na cerca por nada. Com ela a volta larga só ganha
+ * quando compra redondeza de verdade: a meia-volta de 210 graus que troca
+ * dois arcos apertados e uma reta diagonal por uma volta ampla paga 6
+ * graus pelos 12 m e ainda vence por 8 (decisão 51).
+ */
+const TAXA_ALONGA = 0.5;
 const DEGRAU_CUSTO = 5;
 
 function compara(a: CurveSolution, b: CurveSolution, params: RideParams): number {
-  const duros = (c: CurveSolution) => c.warnings.filter((w) => w !== 'curva-fechada').length;
-  if (duros(a) !== duros(b)) return duros(a) - duros(b);
-
   const ga = galopavel(a, params);
   const gb = galopavel(b, params);
   if (ga !== gb) return ga ? -1 : 1;
 
+  const duros = (c: CurveSolution) => c.warnings.filter((w) => w !== 'curva-fechada').length;
+  if (duros(a) !== duros(b)) return duros(a) - duros(b);
+
   const mexeu = (c: CurveSolution) => Math.abs(c.lead.after) + Math.abs(c.lead.before);
   if (!ga) return b.minRadiusM - a.minRadiusM || mexeu(a) - mexeu(b);
 
-  const custo = (c: CurveSolution) =>
-    Math.round((c.turnDeg + c.inflections * TAXA_INFLEXAO) / DEGRAU_CUSTO);
+  const custo = (c: CurveSolution) => {
+    const quebra = c.shape === 'arco-reta-arco' ? TAXA_QUEBRA : 0;
+    const aperto = TAXA_APERTO * Math.max(0, params.radiusM / c.minRadiusM - 1);
+    const alonga = TAXA_ALONGA * (Math.max(0, c.lead.after) + Math.max(0, c.lead.before));
+    return Math.round(
+      (c.turnDeg + c.inflections * TAXA_INFLEXAO + quebra + aperto + alonga) / DEGRAU_CUSTO,
+    );
+  };
   return custo(a) - custo(b) || b.minRadiusM - a.minRadiusM || mexeu(a) - mexeu(b);
+}
+
+/**
+ * Cúbica entre duas poses com as alças de um arco de círculo.
+ *
+ * Para um arco de ângulo θ e corda c, a Bézier que melhor o imita tem
+ * alças de (4/3)·tan(θ/4)·R, com R = c / (2·sen(θ/2)). Sem giro, cai no
+ * terço da corda, que é a reta. Assim cada pedaço é quase um arco quando
+ * pode ser, e uma transição suave quando junta reta e arco.
+ */
+function arcLikeCubic(a: Pose, b: Pose): Cubic {
+  const corda = distance(a.pos, b.pos);
+  const giro = Math.abs(((((b.heading - a.heading) % 360) + 540) % 360) - 180) * DEG;
+  const alca =
+    giro < 1e-3
+      ? corda / 3
+      : (4 / 3) * Math.tan(giro / 4) * (corda / (2 * Math.sin(giro / 2)));
+  return {
+    p0: a.pos,
+    p1: add(a.pos, scale(fromAngle(a.heading), alca)),
+    p2: sub(b.pos, scale(fromAngle(b.heading), alca)),
+    p3: b.pos,
+  };
+}
+
+/**
+ * O arco-reta-arco arredondado.
+ *
+ * Tira poses ao longo da rota — uma a cada 60 graus de giro, no mínimo
+ * duas partes — e liga cada par por uma cúbica de arco. A rota é a mesma;
+ * o que muda é a curvatura, que deixa de saltar de zero ao máximo na
+ * junta da reta com o arco. É o salto que o olho lê como esquina
+ * (decisão 50).
+ */
+export function roundDubins(path: DubinsPath): { nodes: PathNode[]; pontos: Vec2[]; minRadiusM: number } {
+  const giro = path.segments.reduce((t, seg) => t + (seg.kind === 'arco' ? seg.sweep : 0), 0);
+  const partes = Math.max(2, Math.ceil(giro / 60));
+  const poses = Array.from({ length: partes + 1 }, (_, i) => poseAt(path, (path.length * i) / partes));
+  const cubicas = poses.slice(1).map((b, i) => arcLikeCubic(poses[i]!, b));
+
+  const nodes: PathNode[] = poses.map((p, i) => ({
+    pos: p.pos,
+    type: 'smooth',
+    handleIn: i > 0 ? sub(cubicas[i - 1]!.p2, p.pos) : null,
+    handleOut: i < cubicas.length ? sub(cubicas[i]!.p1, p.pos) : null,
+    anchor: null,
+  }));
+  const pontos = cubicas.flatMap((c, i) => samplesOfCubic(c, 30).slice(i === 0 ? 0 : 1));
+  const minRadiusM = Math.min(...cubicas.map((c) => minRadiusOf(c)));
+  return { nodes, pontos, minRadiusM };
 }
 
 /** A curva em nós do traçado: dois nós, alças na direção dos saltos. */

@@ -85,14 +85,16 @@ describe('traçado por trechos', () => {
     const perna = guiado.legs.findIndex((l) => l.options.length > 1);
     const path = buildFromChoices(withChoice(guiado, perna, 1))!;
 
-    // Nós consecutivos muito distantes seriam um salto na linha: a reta
-    // do obstáculo teria parado onde a curva escolhida não começa.
+    // Buraco é uma emenda que não emendou: a reta do salto termina num nó
+    // sem alça de saída, a curva começa noutro sem alça de entrada, e os
+    // dois não coincidem. Medir a distância entre nós não servia — uma
+    // curva longa legítima tem os dois nós a mais de 60 m.
     for (let i = 1; i < path.nodes.length; i += 1) {
-      const d = Math.hypot(
-        path.nodes[i]!.pos.x - path.nodes[i - 1]!.pos.x,
-        path.nodes[i]!.pos.y - path.nodes[i - 1]!.pos.y,
-      );
-      expect(d).toBeLessThan(60);
+      const antes = path.nodes[i - 1]!;
+      const atual = path.nodes[i]!;
+      if (antes.handleOut === null && atual.handleIn === null) {
+        expect(Math.hypot(atual.pos.x - antes.pos.x, atual.pos.y - antes.pos.y)).toBeLessThan(1e-3);
+      }
     }
   });
 

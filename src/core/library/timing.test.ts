@@ -83,10 +83,13 @@ describe('colocação da cruzada de tempo', () => {
     expect(clampTimingDistance(11.7)).toBe(11.7);
   });
 
-  it('a distância é obrigada a ficar entre 9 e 15 m', () => {
-    expect(clampTimingDistance(3)).toBe(TIMING_DISTANCE.min);
-    expect(clampTimingDistance(40)).toBe(TIMING_DISTANCE.max);
+  it('a distância é obrigada a ficar entre 6 e 15 m', () => {
+    expect(TIMING_DISTANCE.min).toBe(6);
+    expect(TIMING_DISTANCE.max).toBe(15);
+    expect(clampTimingDistance(3)).toBe(6);
+    expect(clampTimingDistance(40)).toBe(15);
     expect(clampTimingDistance(11)).toBe(11);
+    expect(clampTimingDistance(6.5)).toBe(6.5);
 
     const o = salto('1', 40, 25);
     expect(distance(placeTimingLine('start', o, 100).pos, o.pos)).toBeCloseTo(15, 9);

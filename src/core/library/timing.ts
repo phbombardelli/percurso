@@ -69,7 +69,7 @@ export const hasTimingRole = (doc: CourseDocument, role: 'start' | 'finish'): bo
   allTimingLines(doc).some((l) => l.role === role);
 
 /** Limites da distância da cruzada à vara que ela serve, em metros. */
-export const TIMING_DISTANCE = { min: 9, max: 15, padrao: 12, passo: 0.1 };
+export const TIMING_DISTANCE = { min: 6, max: 15, padrao: 12, passo: 0.1 };
 
 /**
  * Meia largura do SALTO, em metros — só as varas, sem paraflanco.

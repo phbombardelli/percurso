@@ -929,3 +929,118 @@ para decidir.
 O rascunho vive no editor, não no documento: some ao sair, e nada vai
 para o arquivo até aplicar.
 
+
+## 49. Limites do traçado, ditos pelo desenhador
+
+Depois de estudar 16 croquis reais (FEI, CCI, Copa do Mundo, provas
+nacionais), o desenhador fixou os limites. São dele, não da calibração:
+
+- **Raio mínimo de 5 m** (10 m de diâmetro), e ele é PISO: volta abaixo
+  disso não é entregue como solução. Raio preferido continua 11 m. O
+  primeiro número dito foi 8 m; era o diâmetro confundido com o raio, e
+  foi corrigido no mesmo dia.
+- **Giro até 300 graus por pernada.** Voltas de 200 a 270 graus são
+  desenho de percurso — muitas vezes o percurso é pensado nelas —, e
+  entre saltos próximos e quase perpendiculares a de 270 é a saída.
+  Acima de 300 praticamente não existe.
+- **Folga da cerca: 1 m** basta quando é preciso encostar.
+- **Partida e chegada entre 6 e 15 m** do primeiro e do último
+  obstáculo (era 9 a 15).
+- **Composto entre 7 e 12 m** de vara a vara, com um ou dois galopes à
+  escolha do desenhador. Linha entre números diferentes é livre: não há
+  regra para linhas de mais de dois galopes.
+- **Cruzamento sempre a 90 graus**, como já era (decisão 40).
+- **Valor único.** O programa não sabe se a prova é indoor ou outdoor, a
+  altura nem o piso. O motor só precisa fazer traçados exequíveis.
+
+O limite do composto é regra esportiva aplicada pelo programa, o que o
+§44 evita. É exceção deliberada, pedida pelo desenhador, e fica só no
+campo da ferramenta de composto.
+
+Três consequências no juiz das voltas:
+
+1. **Galopável vem antes de tudo.** O juiz punha "sai da pista" e "passa
+   por obstáculo" à frente do raio, e por isso um bico de 0,1 m limpo
+   ganhava de qualquer volta de verdade que encostasse na cerca. Agora
+   volta abaixo de 5 m só aparece quando não existe nenhuma galopável.
+2. **Acima de 300 graus a volta é marcada, não descartada.** Entre dois
+   saltos lado a lado no mesmo sentido, a única volta galopável gira 360
+   graus; descartá-la deixava o bico como única resposta. Ela é desenhada
+   e denunciada ("a volta gira mais de 300 graus").
+3. **A direta até 270 graus é aceita** antes de tentar a volta por fora
+   (era 200). Com 200, o assistente trocava uma direta limpa de 240 por
+   uma volta por fora de 285.
+
+No traçado por trechos, a lista de opções perdeu as curvas abaixo de 5 m
+e as laçadas de 450 graus que vinham junto quando não havia caminho
+limpo.
+
+A bancada de calibração passou de 587 m para 714 m, contra 420 m
+oficiais. Não é regressão: três pernadas da transcrição (3-4, 6-7, 9-10)
+pedem voltas de 330 a 356 graus com as posições lidas, e antes eram
+"resolvidas" com bicos. Isso reforça a decisão 47: com a transcrição a
+olho, cuja leitura das inclinações sozinha move o total em 156 m, a
+bancada não serve de gabarito.
+
+## 50. Volta redonda, não esquina
+
+O desenhador apontou, num traçado do assistente, quebras de quase 90
+graus que não se galopam: de um salto ao seguinte a linha andava reta,
+virava de uma vez e seguia reta de novo.
+
+Não era emenda mal feita — a direção da linha é contínua em todos os
+nós. Era a FORMA escolhida. Nas três pernadas apontadas havia uma curva
+contínua melhor (raio mínimo de 19,7 m contra um arco de 11 m; 9,1 m
+contra 5,7 m; 15,1 m contra um arco de 11 entre retas), e ela perdia
+porque o juiz só olhava giro, em degraus de 5 graus, e depois raio:
+dois graus a mais de giro bastavam para perder.
+
+O que o olho lê como quebra é a curvatura saltando de zero ao máximo de
+uma vez, que é o que o arco-reta-arco faz nas pontas do arco. Na curva
+contínua ela cresce e diminui aos poucos, como o cavalo vira.
+
+O custo do juiz ganhou duas taxas de redondeza:
+
+- **Quebra:** o arco-reta-arco paga 20 graus.
+- **Aperto:** toda volta abaixo do raio preferido paga 30 graus por
+  raio preferido inteiro de diferença.
+
+O arco-reta-arco continua ganhando onde é insubstituível — voltas por
+fora e meias-voltas —, porque ali a curva contínua bica e sai do páreo.
+
+**Aprendizado de método.** Os croquis reais que o desenhador manda são
+para observar e ajustar o mecanismo, não para transcrever e comparar
+distância com o oficial. A transcrição a olho do World Challenge saiu
+muito diferente do original; comparar totais em cima dela mediria o erro
+de leitura. A validação do motor é o desenho — onde quebra, onde aperta —
+e os testes de geometria.
+
+## 51. A volta grande usa o espaço
+
+O desenhador apontou a meia-volta do 3 para o 4 em Normandia: no croqui
+original ela é uma volta só, ampla e redonda, que sobe pela lateral e
+vira no alto. O assistente fazia arco apertado, reta diagonal cortando a
+pista e outro arco.
+
+Três causas, três mudanças:
+
+- **O raio nunca passava de 11 m.** Agora se tentam 16,5 e 13,75 antes
+  do preferido. Onde a volta larga não cabe, a pista a recusa.
+- **A curva contínua não fazia volta grande.** A cúbica única bica acima
+  de uns 180 graus, e só sobrava o arco-reta-arco. Agora cada rota em
+  arcos ganha uma versão ARREDONDADA: poses tiradas ao longo dela, a cada
+  60 graus de giro, ligadas por cúbicas de arco. A rota é a mesma; a
+  curvatura deixa de saltar na junta da reta com o arco.
+- **Alongar a reta era sempre "volta por fora".** A volta do original
+  alonga a aproximação do 4 para virar no alto, sem girar mais. Uma volta
+  que alonga reta mas não gira mais de 10 graus além da direta agora
+  concorre com ela no mesmo balcão; a volta por fora que gira MAIS
+  continua sendo recurso de último caso.
+
+Para a volta larga não ganhar à toa, cada metro de reta alongada custa
+meio grau. Sem isso, no empate de custo o desempate pelo raio levava toda
+volta ao maior raio possível, e a linha encostava na cerca por nada.
+
+Na bancada, os compostos passaram a ser endireitados com a ferramenta de
+composto ao montar o percurso — como o desenhador faz no editor. Lidos a
+olho, os elementos saíam tortos e a linha zigue-zagueava dentro do 8abc.

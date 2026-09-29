@@ -23,22 +23,23 @@ export interface RideParams {
   /** Raio de curva preferido. Curva boa é a de maior raio. */
   radiusM: number;
   /**
-   * Raio mais fechado que o cavaleiro aceita quando o espaço aperta. Sem
-   * ele, obstáculo saltado contra o alambrado não teria volta nenhuma —
-   * e o cavaleiro, na pista, simplesmente fecha a curva.
+   * Raio mais fechado que o traçado aceita, e é piso: abaixo dele a volta
+   * não se galopa e o assistente não a entrega como solução. 5 m de raio
+   * (10 m de diâmetro) é o mínimo do desenhador (decisão 49).
    */
   tightRadiusM: number;
-  /** Folga até o alambrado: o traçado não encosta na cerca. */
+  /**
+   * Folga até o alambrado. Pequena de propósito: encostar a linha na
+   * cerca, quando preciso, é do ofício — 1 m basta (decisão 49).
+   */
   railMarginM: number;
   /**
    * Teto de giro entre dois saltos, em graus.
    *
-   * Não serve mais para caçar laçada — quem faz isso é o custo, que
-   * compara o giro de todos os candidatos. Este teto agora só barra o
-   * absurdo, e precisa ser generoso: a CURVA PARA TRÁS, que é a saída
-   * legítima quando o salto seguinte fica logo ao lado e virado para
-   * outro lado, gira mais de 270 graus por definição. Um teto apertado
-   * proibia a única volta possível junto com a laçada.
+   * A curva para trás de 200 a 270 graus é legítima, e muitas vezes o
+   * percurso é desenhado pensando nela. Acima de 300 graus nenhum dos
+   * croquis estudados passa: é laçada, e a volta passa a ser marcada como
+   * problema em vez de entregue como solução (decisão 49).
    */
   maxTurnDeg: number;
 }
@@ -47,9 +48,9 @@ export const DEFAULT_RIDE: RideParams = {
   approachM: 8,
   getawayM: 8,
   radiusM: 11,
-  tightRadiusM: 6,
-  railMarginM: 2,
-  maxTurnDeg: 420,
+  tightRadiusM: 5,
+  railMarginM: 1,
+  maxTurnDeg: 300,
 };
 
 /**
@@ -315,9 +316,9 @@ export function solveLeg(
 
   // Nem alongando as retas existe volta sem laçada: o percurso pede o que
   // o cavalo não faz. Entrega então a volta de MENOR giro possível, que é
-  // a menos absurda, e o aviso denuncia o aperto.
-  const vao = distance(from.pos, to.pos);
-  const ultimo = dubinsPaths(from, to, Math.max(1, Math.min(params.tightRadiusM, vao / 2)))
+  // a menos absurda, e o aviso denuncia o aperto. O raio fica no piso:
+  // fechar abaixo dele desenhava um bico, que não é volta nenhuma.
+  const ultimo = dubinsPaths(from, to, params.tightRadiusM)
     .sort((a, b) => totalTurn(a) - totalTurn(b))[0];
   if (!ultimo) return null;
   return {

@@ -5,7 +5,8 @@ import { createPath, flattenPath } from '@core/model/path';
 import { distance } from '@core/geometry/vec';
 import type { Obstacle } from '@core/model/types';
 import { DEFAULT_RIDE, entryPose, exitPose, fieldFrom } from './ridePath';
-import { legCandidates, solveLegCurve, turnOfPoints } from './legCurve';
+import { legCandidates, roundDubins, solveLegCurve, turnOfPoints } from './legCurve';
+import { dubinsPaths } from '@core/geometry/dubins';
 
 const salto = (numero: string, x: number, y: number, rotation: number): Obstacle => {
   const o = createObstacle('vertical', { x, y }, numero);
@@ -65,6 +66,54 @@ describe('curva para trás', () => {
   });
 });
 
+describe('raio mínimo e teto de giro (decisão 49)', () => {
+  // A mesma cena, 6 m mais perto do alambrado de baixo: a meia-volta de
+  // raio mínimo desce 10 m e já não cabe na pista de 55 m.
+  const cinco = salto('5', 40, 46, 90);
+  const seis = salto('6', 52, 38, 0);
+
+  it('sem espaço, desenha volta galopável e avisa — nunca um bico', () => {
+    const v = volta(cinco, seis);
+    expect(v.minRadiusM).toBeGreaterThanOrEqual(DEFAULT_RIDE.tightRadiusM);
+    expect(v.warnings).toContain('fora-da-pista');
+    expect(v.warnings).not.toContain('curva-fechada');
+  });
+
+  it('não oferece curva abaixo do raio mínimo quando existe uma que se galope', () => {
+    const campo = fieldFrom(pista, [cinco, seis]);
+    const lista = legCandidates(
+      exitPose(cinco, DEFAULT_RIDE, campo),
+      entryPose(seis, DEFAULT_RIDE, campo),
+      campo,
+      DEFAULT_RIDE,
+    );
+    expect(lista.length).toBeGreaterThan(0);
+    for (const c of lista) expect(c.minRadiusM).toBeGreaterThanOrEqual(DEFAULT_RIDE.tightRadiusM);
+  });
+
+  it('volta direta de 200 a 270 graus é aceita, sem ir por fora à toa', () => {
+    // Dois saltos para o norte, o segundo bem à direita e um pouco acima:
+    // a direta gira uns 240 graus e é desenho de percurso, não defeito.
+    const v = volta(salto('1', 20, 40, 0), salto('2', 65, 30, 0));
+    expect(v.warnings).toEqual([]);
+    expect(v.turnDeg).toBeGreaterThan(200);
+    expect(v.turnDeg).toBeLessThanOrEqual(270);
+    expect(v.lead.after).toBeLessThanOrEqual(0);
+    expect(v.lead.before).toBeLessThanOrEqual(0);
+  });
+
+  it('saltos lado a lado: volta inteira galopável e marcada, não bico', () => {
+    // Os dois para o norte, a 10 m um do outro: a única volta que se
+    // galopa gira uns 360 graus. Ela é desenhada e denunciada; o bico que
+    // girava menos era o que saía antes.
+    const v = volta(salto('1', 40, 30, 0), salto('2', 50, 30, 0));
+    expect(v.minRadiusM).toBeGreaterThanOrEqual(DEFAULT_RIDE.tightRadiusM);
+    expect(v.turnDeg).toBeGreaterThan(DEFAULT_RIDE.maxTurnDeg);
+    expect(v.warnings).toContain('giro-excessivo');
+    expect(v.warnings).not.toContain('curva-fechada');
+  });
+});
+
 describe('a volta grande só aparece quando é preciso', () => {
   it('dois saltos alinhados continuam ligados por reta', () => {
     const v = volta(salto('1', 20, 40, 0), salto('2', 20, 12, 0));
@@ -107,7 +156,11 @@ describe('opções da pernada', () => {
   });
 
   it('numa volta de verdade, oferece caminhos diferentes', () => {
-    const lista = opcoes(salto('1', 25, 40, 0), salto('2', 60, 40, 180));
+    // A meia-volta entre dois saltos opostos deixou de servir de exemplo:
+    // as "outras formas" que ela oferecia eram laçadas e bicos, que agora
+    // saem da lista. Aqui a virada de 90 graus tem duas ideias reais: a
+    // curva direta e a que troca de mão para abrir a entrada.
+    const lista = opcoes(salto('1', 30, 40, 0), salto('2', 55, 15, 90));
     expect(lista.length).toBeGreaterThan(1);
 
     // E são ideias diferentes, não a mesma curva com meio grau a mais.
@@ -138,5 +191,50 @@ describe('opções da pernada', () => {
     // A cena do 5 para o 6: colados e virados para lados diferentes.
     const lista = opcoes(salto('5', 40, 40, 90), salto('6', 52, 32, 0));
     expect(lista.some((c) => c.lead.after > 0 || c.lead.before > 0)).toBe(true);
+  });
+});
+
+describe('redondeza (decisão 50)', () => {
+  it('virada de 90 graus com espaço sai em curva contínua, não em arco entre retas', () => {
+    const v = volta(salto('1', 30, 40, 0), salto('2', 55, 15, 90));
+    expect(v.warnings).toEqual([]);
+    expect(v.shape).toBe('curva');
+  });
+
+  it('a volta grande sai pela rota do arco-reta-arco, arredondada (decisão 51)', () => {
+    // A meia-volta para trás: a cúbica única bica, e só a rota em arcos
+    // resolve. Ela sai arredondada — curvatura contínua, sem esquina.
+    const v = volta(salto('5', 40, 40, 90), salto('6', 52, 32, 0));
+    expect(v.shape).toBe('curva');
+    expect(v.turnDeg).toBeGreaterThan(180);
+    expect(v.inflections).toBe(0);
+    expect(v.minRadiusM).toBeGreaterThanOrEqual(DEFAULT_RIDE.tightRadiusM);
+    expect(v.warnings).toEqual([]);
+  });
+
+  it('arredondar não muda a rota: começa e termina nas mesmas poses', () => {
+    const de = { pos: { x: 10, y: 10 }, heading: 0 };
+    const para = { pos: { x: 10, y: 30 }, heading: 180 };
+    const rota = dubinsPaths(de, para, 10)[0]!;
+    const r = roundDubins(rota);
+    expect(r.nodes[0]!.pos.x).toBeCloseTo(de.pos.x, 9);
+    expect(r.nodes[0]!.pos.y).toBeCloseTo(de.pos.y, 9);
+    expect(r.nodes[r.nodes.length - 1]!.pos.x).toBeCloseTo(para.pos.x, 9);
+    expect(r.nodes[r.nodes.length - 1]!.pos.y).toBeCloseTo(para.pos.y, 9);
+    // Uma meia-volta de raio 10 arredondada continua com raio perto de 10.
+    expect(r.minRadiusM).toBeGreaterThan(9);
+  });
+
+  it('entre duas formas de giro parecido, fica a de raio mais aberto', () => {
+    const campo = fieldFrom(pista, []);
+    const a = salto('1', 20, 45, 0);
+    const b = salto('2', 60, 20, 45);
+    const lista = legCandidates(exitPose(a, DEFAULT_RIDE, campo), entryPose(b, DEFAULT_RIDE, campo), campo, DEFAULT_RIDE, 12);
+    const escolhida = lista[0]!;
+    for (const c of lista) {
+      if (Math.abs(c.turnDeg - escolhida.turnDeg) <= 5 && c.inflections === escolhida.inflections) {
+        expect(escolhida.minRadiusM).toBeGreaterThanOrEqual(Math.min(c.minRadiusM, DEFAULT_RIDE.radiusM) - 1e-6);
+      }
+    }
   });
 });

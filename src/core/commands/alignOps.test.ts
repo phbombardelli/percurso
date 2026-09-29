@@ -5,7 +5,7 @@ import { createDocument } from '@core/model/document';
 import { distance } from '@core/geometry/vec';
 import type { CourseDocument, Obstacle, ObstacleType } from '@core/model/types';
 import { addObject } from './ops';
-import { alignCombination, currentGaps, orderAlongLine } from './alignOps';
+import { alignCombination, COMBINATION_GAP, currentGaps, orderAlongLine } from './alignOps';
 
 const salto = (
   tipo: ObstacleType,
@@ -172,5 +172,46 @@ describe('alinhar a combinação', () => {
       alignCombination(d, obstaculos(d).map((o) => o.id), []);
     });
     expect(acha(depois, '1').pos).toEqual(antes);
+  });
+});
+
+describe('vão do composto: de 7 a 12 m (decisão 49)', () => {
+  const composto = (...letras: ('A' | 'B' | 'C')[]) =>
+    cena(
+      ...letras.map((l, i) => {
+        const o = salto('vertical', 40, 40 - i * 8, '5', 0);
+        o.letter = l;
+        return o;
+      }),
+    );
+
+  it('os limites são 7 e 12 m', () => {
+    expect(COMBINATION_GAP).toEqual({ min: 7, max: 12 });
+  });
+
+  it('dentro do composto, vão curto demais sobe para 7 m e longo demais desce para 12 m', () => {
+    const doc = composto('A', 'B', 'C');
+    const alinhado = produce(doc, (d) => {
+      alignCombination(d, obstaculos(d).map((o) => o.id), [5, 20]);
+    });
+    const vaos = currentGaps(orderAlongLine(obstaculos(alinhado)));
+    expect(vaos[0]).toBeCloseTo(7, 9);
+    expect(vaos[1]).toBeCloseTo(12, 9);
+  });
+
+  it('um ou dois galopes ficam como o desenhador pediu', () => {
+    const doc = composto('A', 'B');
+    const alinhado = produce(doc, (d) => {
+      alignCombination(d, obstaculos(d).map((o) => o.id), [10.8]);
+    });
+    expect(currentGaps(orderAlongLine(obstaculos(alinhado)))[0]).toBeCloseTo(10.8, 9);
+  });
+
+  it('linha entre números diferentes tem distância livre', () => {
+    const doc = cena(salto('vertical', 40, 60, '4', 0), salto('vertical', 40, 30, '5', 0));
+    const alinhado = produce(doc, (d) => {
+      alignCombination(d, obstaculos(d).map((o) => o.id), [25.2]);
+    });
+    expect(currentGaps(orderAlongLine(obstaculos(alinhado)))[0]).toBeCloseTo(25.2, 9);
   });
 });

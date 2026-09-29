@@ -20,6 +20,26 @@ import type { CourseDocument, ObjectId, Obstacle } from '@core/model/types';
 const meiaVara = (o: Obstacle): number => (o.spreadM ?? 0) / 2;
 
 /**
+ * Vão de um composto, de vara a vara: de 7 a 12 m, que cobre um ou dois
+ * lances de galope — quantos, é escolha do desenhador (decisão 49).
+ *
+ * Vale só DENTRO de um composto (mesmo número, letras A, B, C). Linha
+ * entre obstáculos de números diferentes tem distância livre: não há regra
+ * para linhas de mais de dois galopes.
+ */
+export const COMBINATION_GAP = { min: 7, max: 12 };
+
+/** Os dois elementos são do mesmo composto: mesmo número, ambos com letra. */
+export const sameCombination = (a: Obstacle, b: Obstacle): boolean =>
+  a.number.trim() !== '' &&
+  a.number.trim() === b.number.trim() &&
+  a.letter !== '' &&
+  b.letter !== '';
+
+export const clampCombinationGap = (metros: number): number =>
+  Math.min(COMBINATION_GAP.max, Math.max(COMBINATION_GAP.min, metros));
+
+/**
  * Ordena os obstáculos na ordem em que o cavalo os encontra.
  *
  * A ordem é a da NUMERAÇÃO: 1, 2, 3a, 3b, 4, 5a, 5b, 5c. É o percurso que
@@ -103,7 +123,8 @@ export function alignCombination(
   for (let i = 1; i < ordenados.length; i += 1) {
     const antes = ordenados[i - 1]!;
     const atual = ordenados[i]!;
-    const vao = gapsM[i - 1] ?? 0;
+    const pedido = gapsM[i - 1] ?? 0;
+    const vao = sameCombination(antes, atual) ? clampCombinationGap(pedido) : pedido;
 
     // Do centro do anterior ao centro deste: meia largura de cada um mais
     // o vão livre entre as varas.
