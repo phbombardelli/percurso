@@ -66,7 +66,7 @@ export function TimingPanel({ line }: { line: TimingLine }) {
         </>
       ) : (
         <p className="note dim">
-          Cruzada solta, sem vínculo com obstáculo. Use os botões Partida e
+          Cruzada solta, sem vínculo com obstáculo. Use Inserir › Partida ou
           Chegada para colocá-la em relação ao percurso.
         </p>
       )}

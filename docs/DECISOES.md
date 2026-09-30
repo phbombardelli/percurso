@@ -1044,3 +1044,45 @@ volta ao maior raio possível, e a linha encostava na cerca por nada.
 Na bancada, os compostos passaram a ser endireitados com a ferramenta de
 composto ao montar o percurso — como o desenhador faz no editor. Lidos a
 olho, os elementos saíam tortos e a linha zigue-zagueava dentro do 8abc.
+
+## 52. Três zonas, cada uma com um papel
+
+A interface cresceu fase a fase e virou uma coleção de botões: o painel
+da direita empilhava folha, margens, escala, grade e interferências o
+tempo todo, e o que importava ficava no fundo; a barra da esquerda
+misturava ferramenta, ação imediata e processo com a mesma cara; havia
+comando repetido ("Ajustar" e "Ajustar à página").
+
+A reorganização separa por FREQUÊNCIA e por PAPEL:
+
+- **Em cima, o arquivo e a vista.** Menus Arquivo, Editar, Inserir,
+  Exibir e Ajuda; desfazer; o modo Pista/Percurso; o botão **Folha**
+  (formato, escala, margens, legenda), que mostra a escala no próprio
+  rótulo; e um controle de zoom só.
+- **À esquerda, só ferramentas de desenhar**, cada uma com uma tecla
+  (V, H, O, T, X). O que tem variantes abre ao lado. Assistente e Por
+  trechos viraram modos da ferramenta Traçado (À mão, Por trechos,
+  Automático).
+- **À direita, só o que está selecionado.** Sem seleção, um resumo da
+  prova. No obstáculo, ficam abertos número, tipo, alturas e direção do
+  salto; suporte, varas, liverpool e rótulos ficam em "Aparência",
+  recolhida. As explicações dos campos só aparecem no "?".
+- **Embaixo, o estado das ajudas de desenho**: Grade, Ímã e
+  Interferências são botões que mostram o estado e abrem os ajustes.
+
+Partida e chegada saíram da barra, com a caixa de distância. Colocam-se
+QUANDO PEDIDAS — menu Inserir, resumo da prova ou painel do primeiro e
+do último obstáculo —, nunca sozinhas. A distância, padrão 12 m, se
+ajusta no painel da própria linha.
+
+"Snap" virou **Ímã** e "Grid" virou **Grade**, por escolha do desenhador.
+
+## 53. Identidade visual do SAPH
+
+O Percurso adotou o tema claro do SAPH: fundo de papel quente, barra de
+cima preta com dourado, dourado como cor de ação (botão primário com
+texto escuro), seleção dourada, rótulos em maiúsculas pequenas e a
+fonte Bahnschrift. As cores de interface viraram tokens em `:root`.
+
+Só a tela muda. O que vai para o PDF e a impressão — traços, cores dos
+obstáculos, textos da folha — continua como era.

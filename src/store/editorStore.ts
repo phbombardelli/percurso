@@ -17,6 +17,9 @@ import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
  * zoom, seleção e ferramenta ativa não são dados do croqui.
  */
 
+/** Janelas que se abrem por menu. Só uma de cada vez. */
+export type DialogId = 'atalhos' | 'modelos' | 'folha' | 'sobre';
+
 export type Tool =
   | 'select'
   | 'pan'
@@ -84,6 +87,13 @@ interface EditorState {
   activeNode: number | null;
   /** Desenhar traçado curvo (padrão) ou em segmentos retos. */
   pathSmooth: boolean;
+  /** Janela aberta por menu, ou nenhuma. */
+  dialog: DialogId | null;
+  /**
+   * Dicas dos painéis visíveis. Começam escondidas: o painel mostra os
+   * campos, e a explicação fica a um clique no "?".
+   */
+  showHints: boolean;
 
   setMode: (mode: ObjectScope) => void;
   setTool: (tool: Tool) => void;
@@ -118,6 +128,8 @@ interface EditorState {
   clearPathDraft: () => void;
   setActiveNode: (index: number | null) => void;
   setPathSmooth: (v: boolean) => void;
+  setDialog: (d: DialogId | null) => void;
+  toggleHints: () => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -141,9 +153,13 @@ export const useEditorStore = create<EditorState>((set) => ({
   pathDraft: null,
   activeNode: null,
   pathSmooth: true,
+  dialog: null,
+  showHints: false,
 
   // Trocar de modo limpa a seleção: o que estava escolhido pode não ser
   // mais selecionável, e uma seleção invisível é fonte de confusão.
+  setDialog: (dialog) => set({ dialog }),
+  toggleHints: () => set((s) => ({ showHints: !s.showHints })),
   setMode: (mode) =>
     set({ mode, selection: [], tool: 'select', draft: null, pathDraft: null, calibration: null }),
   setTool: (tool) => set({ tool }),

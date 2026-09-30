@@ -74,7 +74,7 @@ export function ArenaLibraryPanel() {
 
   return (
     <section>
-      <h3>Repositório de pistas</h3>
+      <h3>Guardar o cenário atual</h3>
 
       <div className="template-save">
         <input

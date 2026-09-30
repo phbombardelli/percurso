@@ -1,272 +1,139 @@
-import { centerOnPage, fitScaleToPage, firstArena } from '@core/model/document';
-import { GRID_STEPS } from '@core/geometry/snap';
-import { PAGE_FORMATS, STANDARD_SCALES, formatMeters } from '@core/scale/units';
-import type { Orientation, PageFormat, SheetCorner } from '@core/scale/units';
+import { useMemo } from 'react';
+import { courseOrder } from '@core/assist/courseRide';
+import { findInterferences } from '@core/assist/interference';
+import { firstArena } from '@core/model/document';
+import { formatDistance, pathLength } from '@core/model/path';
+import type { Obstacle } from '@core/model/types';
+import { formatMeters } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
-import { ArenaLibraryPanel } from './ArenaLibraryPanel';
-import { InterferencePanel } from './InterferencePanel';
+import { insertTimingLine } from '@ui/actions/timingActions';
 import { GuidedPanel } from './GuidedPanel';
 import { ObjectPanel } from './ObjectPanel';
 
-const ROTULO_MARGEM = {
-  top: 'Topo',
-  right: 'Direita',
-  bottom: 'Base',
-  left: 'Esquerda',
-} as const;
-
+/**
+ * Painel da direita: SÓ o que está selecionado.
+ *
+ * Antes ele empilhava folha, margens, escala, grade, interferências e a
+ * seleção, tudo aberto, e o que importava no momento ficava no fundo de
+ * uma coluna longa. A folha foi para o botão "Folha" da barra de cima; a
+ * grade, o ímã e os avisos, para a barra de baixo. Sem seleção, o painel
+ * mostra o resumo do que se está fazendo.
+ */
 export function DocumentPanel() {
-  const { doc, apply } = useDocumentStore();
-  const mode = useEditorStore((s) => s.mode);
-  const arena = firstArena(doc);
+  const { selection, guided, showHints, toggleHints } = useEditorStore();
+
+  let conteudo: React.ReactNode;
+  if (guided) conteudo = <GuidedPanel />;
+  else if (selection.length > 0) conteudo = <ObjectPanel />;
+  else conteudo = <Resumo />;
 
   return (
-    <aside className="panel">
-      <GuidedPanel />
-      <ObjectPanel />
-      {mode === 'pista' && <ArenaLibraryPanel />}
-      <h2>Documento</h2>
-
-      <section>
-        <h3>Página</h3>
-        <Field label="Formato">
-          <select
-            value={doc.page.format}
-            onChange={(e) =>
-              apply('Formato da página', (d) => {
-                d.page.format = e.target.value as PageFormat;
-              })
-            }
-          >
-            {Object.keys(PAGE_FORMATS).map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-            <option value="custom">Personalizado</option>
-          </select>
-        </Field>
-
-        <Field label="Orientação">
-          <select
-            value={doc.page.orientation}
-            onChange={(e) =>
-              apply('Orientação', (d) => {
-                d.page.orientation = e.target.value as Orientation;
-              })
-            }
-          >
-            <option value="landscape">Paisagem</option>
-            <option value="portrait">Retrato</option>
-          </select>
-        </Field>
-
-        <h3>Margens (mm)</h3>
-        <div className="margin-grid">
-          {(['top', 'right', 'bottom', 'left'] as const).map((lado) => (
-            <label key={lado} className="margin-cell">
-              <span>{ROTULO_MARGEM[lado]}</span>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={doc.page.marginsMm[lado]}
-                onChange={(e) => {
-                  const v = Math.max(0, Number(e.target.value) || 0);
-                  apply(`Margem ${ROTULO_MARGEM[lado].toLowerCase()}`, (d) => {
-                    d.page.marginsMm[lado] = v;
-                  });
-                }}
-              />
-            </label>
-          ))}
-        </div>
-        <div className="row-buttons">
-          <button
-            title="Aplica a margem de cima nos quatro lados"
-            onClick={() =>
-              apply('Margens iguais', (d) => {
-                const v = d.page.marginsMm.top;
-                d.page.marginsMm = { top: v, right: v, bottom: v, left: v };
-              })
-            }
-          >
-            Igualar
-          </button>
-        </div>
-      </section>
-
-      <section>
-        <h3>Escala de impressão</h3>
-        <Field label="Escala">
-          <div className="inline">
-            <span>1:</span>
-            <select
-              value={STANDARD_SCALES.includes(doc.page.printScale) ? doc.page.printScale : 'custom'}
-              onChange={(e) => {
-                if (e.target.value === 'custom') return;
-                apply('Escala de impressão', (d) => {
-                  d.page.printScale = Number(e.target.value);
-                });
-              }}
-            >
-              {STANDARD_SCALES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-              {!STANDARD_SCALES.includes(doc.page.printScale) && (
-                <option value="custom">{doc.page.printScale}</option>
-              )}
-            </select>
-          </div>
-        </Field>
-        <div className="row-buttons">
-          <button
-            onClick={() =>
-              apply('Ajustar escala ao papel', (d) => {
-                d.page.printScale = fitScaleToPage(d);
-                centerOnPage(d);
-              })
-            }
-          >
-            Ajustar ao papel
-          </button>
-          <button onClick={() => apply('Centralizar na página', centerOnPage)}>
-            Centralizar
-          </button>
-        </div>
-        <p className="note">
-          1 m no terreno = {formatMeters(1000 / doc.page.printScale, 2)} mm no papel.
-        </p>
-
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={doc.page.scaleLabel.visible}
-            onChange={(e) =>
-              apply('Legenda de escala', (d) => {
-                d.page.scaleLabel.visible = e.target.checked;
-              })
-            }
-          />
-          Imprimir a escala na folha
-        </label>
-        {doc.page.scaleLabel.visible && (
-          <>
-            <Field label="Canto">
-              <select
-                value={doc.page.scaleLabel.corner}
-                onChange={(e) =>
-                  apply('Canto da legenda', (d) => {
-                    d.page.scaleLabel.corner = e.target.value as SheetCorner;
-                  })
-                }
-              >
-                <option value="inferior-direito">Inferior direito</option>
-                <option value="inferior-esquerdo">Inferior esquerdo</option>
-                <option value="superior-direito">Superior direito</option>
-                <option value="superior-esquerdo">Superior esquerdo</option>
-              </select>
-            </Field>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={doc.page.scaleLabel.bar}
-                onChange={(e) =>
-                  apply('Barra de escala', (d) => {
-                    d.page.scaleLabel.bar = e.target.checked;
-                  })
-                }
-              />
-              Barra gráfica
-            </label>
-            <p className="note dim">
-              A barra continua certa mesmo se a folha for copiada reduzida;
-              o número escrito, não.
-            </p>
-          </>
-        )}
-      </section>
-
-      {mode === 'percurso' && <InterferencePanel />}
-
-      <section>
-        <h3>Grid e snap</h3>
-        <Field label="Espaçamento">
-          <select
-            value={doc.grid.stepM}
-            onChange={(e) =>
-              apply('Espaçamento do grid', (d) => {
-                d.grid.stepM = Number(e.target.value);
-              })
-            }
-          >
-            <option value={0}>Automático</option>
-            {GRID_STEPS.map((s) => (
-              <option key={s} value={s}>{formatMeters(s, s < 1 ? 2 : 0)} m</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Linha forte a cada">
-          <input
-            type="number"
-            min={2}
-            max={20}
-            value={doc.grid.subdivisions}
-            onChange={(e) =>
-              apply('Subdivisões do grid', (d) => {
-                d.grid.subdivisions = Math.max(2, Number(e.target.value) || 2);
-              })
-            }
-          />
-        </Field>
-        <Field label="Passo do snap">
-          <select
-            value={doc.grid.snapStepM}
-            onChange={(e) =>
-              apply('Passo do snap', (d) => {
-                d.grid.snapStepM = Number(e.target.value);
-              })
-            }
-          >
-            {GRID_STEPS.map((s) => (
-              <option key={s} value={s}>{formatMeters(s, s < 1 ? 2 : 0)} m</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Snap de ângulo">
-          <select
-            value={doc.grid.angleSnapDeg}
-            onChange={(e) =>
-              apply('Snap de ângulo', (d) => {
-                d.grid.angleSnapDeg = Number(e.target.value);
-              })
-            }
-          >
-            {[1, 5, 10, 15, 22.5, 30, 45, 90].map((a) => (
-              <option key={a} value={a}>{a}°</option>
-            ))}
-          </select>
-        </Field>
-      </section>
-
-      {arena && (
-        <section>
-          <h3>Pista</h3>
-          <p className="note">
-            {formatMeters(arena.widthM, 0)} × {formatMeters(arena.heightM, 0)} m ·{' '}
-            {formatMeters(arena.widthM * arena.heightM, 0)} m²
-          </p>
-          <p className="note dim">Edição da pista na fase 5.</p>
-        </section>
-      )}
+    <aside className={showHints ? 'panel show-hints' : 'panel'}>
+      <div className="panel-tools">
+        <button
+          className={showHints ? 'hint-toggle active' : 'hint-toggle'}
+          onClick={toggleHints}
+          title={showHints ? 'Esconder as explicações' : 'Mostrar as explicações de cada campo'}
+          aria-pressed={showHints}
+        >
+          ?
+        </button>
+      </div>
+      {conteudo}
     </aside>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Resumo() {
+  const mode = useEditorStore((s) => s.mode);
+  return mode === 'pista' ? <ResumoPista /> : <ResumoProva />;
+}
+
+function ResumoProva() {
+  const doc = useDocumentStore((s) => s.doc);
+  const { setSelection } = useEditorStore();
+
+  const obstaculos = doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle');
+  const degraus = courseOrder(obstaculos);
+  const esforcos = degraus.reduce((n, d) => n + d.elements.length, 0);
+  const tracados = doc.objects.filter((o) => o.kind === 'path');
+  const distancia = tracados.length > 0 ? pathLength(tracados[0]!) : null;
+  const achados = useMemo(() => findInterferences(doc), [doc]);
+  const temPartida = doc.objects.some((o) => o.kind === 'timing' && o.role === 'start');
+  const temChegada = doc.objects.some((o) => o.kind === 'timing' && o.role === 'finish');
+
   return (
-    <label className="field">
-      <span>{label}</span>
-      {children}
-    </label>
+    <section className="summary">
+      <h2>Prova</h2>
+      <div className="stat-row">
+        <div className="stat">
+          <b>{degraus.length}</b>
+          <span>obstáculos</span>
+        </div>
+        <div className="stat">
+          <b>{esforcos}</b>
+          <span>esforços</span>
+        </div>
+        <div className="stat">
+          <b>{distancia === null ? '—' : `${formatDistance(distancia, 0)} m`}</b>
+          <span>traçado</span>
+        </div>
+      </div>
+
+      {achados.length === 0 ? (
+        <p className="state ok">Sem interferências</p>
+      ) : (
+        <button className="state warn" onClick={() => setSelection(achados[0]!.ids)}>
+          {achados.length} {achados.length === 1 ? 'interferência' : 'interferências'} · ver a primeira
+        </button>
+      )}
+
+      <h3>Partida e chegada</h3>
+      <div className="row-buttons">
+        <button onClick={() => insertTimingLine('start')}>
+          {temPartida ? 'Recolocar partida' : 'Colocar partida'}
+        </button>
+        <button onClick={() => insertTimingLine('finish')}>
+          {temChegada ? 'Recolocar chegada' : 'Colocar chegada'}
+        </button>
+      </div>
+      <p className="note dim">
+        A partida fica no eixo do primeiro obstáculo e a chegada no do último, a 12 m da
+        vara. Depois de colocada, a distância se ajusta no painel da própria linha.
+      </p>
+
+      <p className="note dim">
+        Selecione um objeto para ver as propriedades dele. Folha e escala ficam no botão
+        Folha, em cima; grade e ímã, na barra de baixo.
+      </p>
+    </section>
+  );
+}
+
+function ResumoPista() {
+  const doc = useDocumentStore((s) => s.doc);
+  const { setDialog } = useEditorStore();
+  const arena = firstArena(doc);
+
+  return (
+    <section className="summary">
+      <h2>Pista</h2>
+      {arena ? (
+        <p className="note">
+          {formatMeters(arena.widthM, 0)} × {formatMeters(arena.heightM, 0)} m ·{' '}
+          {formatMeters(arena.widthM * arena.heightM, 0)} m²
+        </p>
+      ) : (
+        <p className="note">Ainda sem contorno. Use a ferramenta Contorno, à esquerda.</p>
+      )}
+      <div className="row-buttons">
+        <button onClick={() => setDialog('modelos')}>Modelos de pista…</button>
+      </div>
+      <p className="note dim">
+        Modelos guardam o cenário do local (contorno, imagem, árvores) para reusar em
+        outras provas. O percurso fica esmaecido enquanto você configura a pista.
+      </p>
+    </section>
   );
 }

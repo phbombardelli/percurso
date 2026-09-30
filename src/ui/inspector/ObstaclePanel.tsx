@@ -24,16 +24,27 @@ import {
   obstacleDef,
 } from '@core/library/obstacles';
 import type { BarStyle, Obstacle, ObstacleType } from '@core/model/types';
+import { courseOrder } from '@core/assist/courseRide';
 import { useDocumentStore } from '@store/documentStore';
+import { insertTimingLine } from '@ui/actions/timingActions';
 import { NumberField } from './NumberField';
 import { WingStyleField } from './WingStyleField';
 
 const LETRAS: Obstacle['letter'][] = ['', 'A', 'B', 'C'];
 
 export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
-  const { apply } = useDocumentStore();
+  const { doc, apply } = useDocumentStore();
   const def = obstacleDef(obstacle.type);
   const travado = obstacle.locked;
+
+  // Partida e chegada só quando pedidas: o primeiro e o último obstáculo
+  // oferecem o botão, e nada é colocado sozinho.
+  const degraus = courseOrder(doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle'));
+  const ehPrimeiro = degraus[0]?.elements[0]?.id === obstacle.id;
+  const ultimo = degraus[degraus.length - 1];
+  const ehUltimo = ultimo?.elements[ultimo.elements.length - 1]?.id === obstacle.id;
+  const tem = (role: 'start' | 'finish') =>
+    doc.objects.some((o) => o.kind === 'timing' && o.role === role);
 
   return (
     <>
@@ -172,6 +183,58 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
         <p className="note">No croqui: {formatHeights(obstacle)}</p>
       )}
 
+      <h3>Direção do salto</h3>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={obstacle.arrow.visible}
+          disabled={travado}
+          onChange={(e) =>
+            apply('Seta', (d) => setArrow(d, obstacle.id, { visible: e.target.checked }))
+          }
+        />
+        Mostrar a seta
+      </label>
+      {obstacle.arrow.visible && (
+        <>
+          <div className="row-buttons">
+            <button disabled={travado} onClick={() => apply('Inverter a seta', (d) => flipArrow(d, obstacle.id))}>
+              Inverter direção
+            </button>
+          </div>
+          <NumberField
+            label="Comprimento"
+            unit="mm"
+            value={obstacle.arrow.lengthMm}
+            decimals={1}
+            step={0.5}
+            min={1}
+            disabled={travado}
+            onCommit={(v) => apply('Tamanho da seta', (d) => setArrow(d, obstacle.id, { lengthMm: v }))}
+          />
+          <p className="note dim">
+            A seta é perpendicular à frente e gira junto com o obstáculo.
+          </p>
+        </>
+      )}
+
+      {(ehPrimeiro || ehUltimo) && (
+        <div className="row-buttons">
+          {ehPrimeiro && (
+            <button onClick={() => insertTimingLine('start')}>
+              {tem('start') ? 'Recolocar partida' : 'Colocar partida'}
+            </button>
+          )}
+          {ehUltimo && (
+            <button onClick={() => insertTimingLine('finish')}>
+              {tem('finish') ? 'Recolocar chegada' : 'Colocar chegada'}
+            </button>
+          )}
+        </div>
+      )}
+
+      <details className="fold">
+        <summary>Aparência · suporte, varas, liverpool, rótulos</summary>
       {hasBars(obstacle.type) && (
         <>
           <h3>Suporte</h3>
@@ -339,41 +402,6 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
         </>
       )}
 
-      <h3>Direção do salto</h3>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={obstacle.arrow.visible}
-          disabled={travado}
-          onChange={(e) =>
-            apply('Seta', (d) => setArrow(d, obstacle.id, { visible: e.target.checked }))
-          }
-        />
-        Mostrar a seta
-      </label>
-      {obstacle.arrow.visible && (
-        <>
-          <div className="row-buttons">
-            <button disabled={travado} onClick={() => apply('Inverter a seta', (d) => flipArrow(d, obstacle.id))}>
-              Inverter direção
-            </button>
-          </div>
-          <NumberField
-            label="Comprimento"
-            unit="mm"
-            value={obstacle.arrow.lengthMm}
-            decimals={1}
-            step={0.5}
-            min={1}
-            disabled={travado}
-            onCommit={(v) => apply('Tamanho da seta', (d) => setArrow(d, obstacle.id, { lengthMm: v }))}
-          />
-          <p className="note dim">
-            A seta é perpendicular à frente e gira junto com o obstáculo.
-          </p>
-        </>
-      )}
-
       <h3>Rótulos</h3>
       <label className="check">
         <input
@@ -418,7 +446,10 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
         </div>
       )}
 
-      <h3>Observação</h3>
+      </details>
+
+      <details className="fold" open={obstacle.note !== ''}>
+        <summary>Observação</summary>
       <input
         type="text"
         className="full"
@@ -433,6 +464,7 @@ export function ObstaclePanel({ obstacle }: { obstacle: Obstacle }) {
           )
         }
       />
+      </details>
     </>
   );
 }

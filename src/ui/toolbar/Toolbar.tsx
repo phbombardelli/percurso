@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { pageRectMm } from '@core/model/document';
 import { exportDocumentPdf } from '@platform/exportPdf';
 import { printDocument } from '@platform/print';
 import {
@@ -8,30 +7,47 @@ import {
   saveDocument,
   saveDocumentAs,
 } from '@ui/actions/documentActions';
-import { fitToRect, MAX_ZOOM, MIN_ZOOM, ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
-import { clamp } from '@core/geometry/vec';
+import {
+  bringSelectionToFront,
+  copySelection,
+  deleteSelection,
+  duplicateSelection,
+  pasteClipboard,
+  selectAll,
+  sendSelectionToBack,
+} from '@ui/actions/editActions';
+import { actualSize, fitPage, toggleGrid, toggleMagnet, zoomBy } from '@ui/actions/viewActions';
+import { insertHeightTable, insertInfoBox } from '@ui/actions/annotationActions';
+import { insertTimingLine } from '@ui/actions/timingActions';
+import { importBackgroundImage } from '@ui/actions/imageActions';
+import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
+import { Popover } from '@ui/common/Popover';
+import { SheetSettings } from '@ui/inspector/SheetSettings';
 import { Menu, type MenuEntry } from './Menu';
 
 /**
- * Barra superior. Só fica em botão o que se usa o tempo todo enquanto se
- * desenha: modo, ferramenta de seleção e zoom. O resto vive em menu —
- * a barra vinha crescendo a cada fase e deixou de caber na tela.
+ * Barra de cima: o arquivo e a vista.
+ *
+ * As ferramentas de desenhar moram na barra da esquerda; as propriedades,
+ * no painel da direita. Aqui ficam os menus, desfazer, o modo Pista/Percurso,
+ * a folha e o zoom — o que vale para o croqui inteiro.
  */
 export function Toolbar() {
-  const { doc, undo, redo, canUndo, canRedo, apply, dirty, fileName } = useDocumentStore();
+  const { doc, undo, redo, canUndo, canRedo, dirty, fileName } = useDocumentStore();
   const {
     viewport,
-    setViewport,
-    tool,
-    setTool,
     showPageFrame,
     togglePageFrame,
     showInterference,
     toggleInterference,
     mode,
     setMode,
+    setTool,
+    selection,
+    clipboard,
+    setDialog,
   } = useEditorStore();
   const [busy, setBusy] = useState(false);
 
@@ -47,77 +63,104 @@ export function Toolbar() {
     }
   };
 
-  const zoomBy = (factor: number) =>
-    setViewport({ ...viewport, zoom: clamp(viewport.zoom * factor, MIN_ZOOM, MAX_ZOOM) });
+  const check = (on: boolean, texto: string) => `${on ? '✓ ' : '   '}${texto}`;
+  const nada = selection.length === 0;
 
-  const fitPage = () => {
-    const el = document.querySelector('.canvas-svg') as SVGSVGElement | null;
-    if (!el) return;
-    setViewport(fitToRect(pageRectMm(doc), { width: el.clientWidth, height: el.clientHeight }));
+  // Inserir algo do percurso a partir do modo Pista troca de modo antes:
+  // o objeto novo não pode nascer esmaecido e intocável.
+  const noPercurso = (fn: () => void) => () => {
+    if (mode !== 'percurso') setMode('percurso');
+    fn();
   };
 
   const arquivo: MenuEntry[] = [
     { label: 'Novo', shortcut: 'Ctrl+N', onSelect: () => newDocument() },
     { label: 'Abrir…', shortcut: 'Ctrl+O', onSelect: () => void openDocument() },
-    'separator',
     { label: 'Salvar', shortcut: 'Ctrl+S', onSelect: () => void saveDocument() },
     { label: 'Salvar como…', shortcut: 'Ctrl+Shift+S', onSelect: () => void saveDocumentAs() },
     'separator',
     {
       label: busy ? 'Exportando…' : 'Exportar PDF…',
+      shortcut: 'Ctrl+E',
       disabled: busy,
       onSelect: () => void exportPdf(),
     },
-    { label: 'Imprimir…', onSelect: () => printDocument(doc) },
+    { label: 'Imprimir…', shortcut: 'Ctrl+P', onSelect: () => printDocument(doc) },
+    'separator',
+    { label: 'Configurar folha…', onSelect: () => setDialog('folha') },
+    { label: 'Modelos de pista…', onSelect: () => setDialog('modelos') },
+  ];
+
+  const editar: MenuEntry[] = [
+    { label: 'Desfazer', shortcut: 'Ctrl+Z', disabled: !canUndo(), onSelect: undo },
+    { label: 'Refazer', shortcut: 'Ctrl+Y', disabled: !canRedo(), onSelect: redo },
+    'separator',
+    { label: 'Copiar', shortcut: 'Ctrl+C', disabled: nada, onSelect: copySelection },
+    { label: 'Colar', shortcut: 'Ctrl+V', disabled: clipboard.length === 0, onSelect: pasteClipboard },
+    { label: 'Duplicar', shortcut: 'Ctrl+D', disabled: nada, onSelect: duplicateSelection },
+    { label: 'Excluir', shortcut: 'Delete', disabled: nada, onSelect: deleteSelection },
+    'separator',
+    { label: 'Selecionar tudo', shortcut: 'Ctrl+A', onSelect: selectAll },
+    { label: 'Trazer para frente', disabled: nada, onSelect: bringSelectionToFront },
+    { label: 'Enviar para trás', disabled: nada, onSelect: sendSelectionToBack },
+  ];
+
+  const inserir: MenuEntry[] = [
+    { label: 'Obstáculo', shortcut: 'O', onSelect: noPercurso(() => setTool('obstacle')) },
+    { label: 'Texto', shortcut: 'X', onSelect: noPercurso(() => setTool('text')) },
+    'separator',
+    { label: 'Partida', onSelect: noPercurso(() => insertTimingLine('start')) },
+    { label: 'Chegada', onSelect: noPercurso(() => insertTimingLine('finish')) },
+    'separator',
+    { label: 'Quadro técnico', onSelect: noPercurso(insertInfoBox) },
+    { label: 'Tabela de alturas', onSelect: noPercurso(insertHeightTable) },
+    'separator',
+    {
+      label: 'Imagem de fundo…',
+      onSelect: () => {
+        if (mode !== 'pista') setMode('pista');
+        void importBackgroundImage();
+      },
+    },
   ];
 
   const exibir: MenuEntry[] = [
-    {
-      label: `${doc.grid.visible ? '✓ ' : '   '}Grid`,
-      shortcut: 'G',
-      onSelect: () =>
-        apply('Alternar grid', (d) => {
-          d.grid.visible = !d.grid.visible;
-        }),
-    },
-    {
-      label: `${doc.grid.snap ? '✓ ' : '   '}Snap`,
-      shortcut: 'S',
-      onSelect: () =>
-        apply('Alternar snap', (d) => {
-          d.grid.snap = !d.grid.snap;
-        }),
-    },
-    {
-      label: `${showPageFrame ? '✓ ' : '   '}Limites da página`,
-      onSelect: togglePageFrame,
-    },
-    {
-      label: `${showInterference ? '✓ ' : '   '}Avisos de interferência`,
-      onSelect: toggleInterference,
-    },
+    { label: check(doc.grid.visible, 'Grade'), shortcut: 'G', onSelect: toggleGrid },
+    { label: check(doc.grid.snap, 'Ímã'), shortcut: 'S', onSelect: toggleMagnet },
+    { label: check(showPageFrame, 'Limites da folha'), onSelect: togglePageFrame },
+    { label: check(showInterference, 'Avisos de interferência'), onSelect: toggleInterference },
     'separator',
     { label: 'Ajustar à página', shortcut: 'Ctrl+0', onSelect: fitPage },
-    { label: 'Tamanho real (1:1)', onSelect: () => setViewport({ ...viewport, zoom: ZOOM_ACTUAL_SIZE }) },
+    { label: 'Tamanho real', onSelect: actualSize },
+    { label: 'Aproximar', shortcut: '+', onSelect: () => zoomBy(1.25) },
+    { label: 'Afastar', shortcut: '−', onSelect: () => zoomBy(1 / 1.25) },
   ];
+
+  const ajuda: MenuEntry[] = [
+    { label: 'Atalhos do teclado', shortcut: '?', onSelect: () => setDialog('atalhos') },
+    { label: 'Sobre o Percurso', onSelect: () => setDialog('sobre') },
+  ];
+
+  const pct = Math.round((viewport.zoom / ZOOM_ACTUAL_SIZE) * 100);
+  const orient = doc.page.orientation === 'landscape' ? 'paisagem' : 'retrato';
 
   return (
     <header className="toolbar">
       <div className="toolbar-group">
         <span className="brand">Percurso</span>
-      </div>
-
-      <div className="toolbar-group">
         <Menu label="Arquivo" entries={arquivo} />
+        <Menu label="Editar" entries={editar} />
+        <Menu label="Inserir" entries={inserir} />
         <Menu label="Exibir" entries={exibir} />
+        <Menu label="Ajuda" entries={ajuda} />
       </div>
 
       <div className="toolbar-group">
-        <button onClick={undo} disabled={!canUndo()} title="Desfazer (Ctrl+Z)">↶</button>
-        <button onClick={redo} disabled={!canRedo()} title="Refazer (Ctrl+Y)">↷</button>
+        <button className="icon-button" onClick={undo} disabled={!canUndo()} title="Desfazer (Ctrl+Z)">↶</button>
+        <button className="icon-button" onClick={redo} disabled={!canRedo()} title="Refazer (Ctrl+Y)">↷</button>
       </div>
 
-      <div className="toolbar-group mode-switch">
+      <div className="toolbar-group mode-switch" role="group" aria-label="Modo de trabalho">
         <button
           className={mode === 'pista' ? 'active' : ''}
           onClick={() => setMode('pista')}
@@ -134,28 +177,46 @@ export function Toolbar() {
         </button>
       </div>
 
-      <div className="toolbar-group">
-        <button
-          className={tool === 'select' ? 'active' : ''}
-          onClick={() => setTool('select')}
-          title="Selecionar (V)"
-        >
-          ⬉
-        </button>
-        <button
-          className={tool === 'pan' ? 'active' : ''}
-          onClick={() => setTool('pan')}
-          title="Mover a vista (espaço)"
-        >
-          ✋
-        </button>
-      </div>
+      <span className="toolbar-spacer" />
 
       <div className="toolbar-group">
-        <button onClick={() => zoomBy(1 / 1.25)} title="Afastar">−</button>
-        <span className="readout">{Math.round((viewport.zoom / ZOOM_ACTUAL_SIZE) * 100)}%</span>
-        <button onClick={() => zoomBy(1.25)} title="Aproximar">+</button>
-        <button onClick={fitPage} title="Ajustar página (Ctrl+0)">Ajustar</button>
+        <Popover
+          className="sheet-popover"
+          align="right"
+          title={`Folha ${doc.page.format} ${orient}, escala 1:${doc.page.printScale}`}
+          trigger={
+            <>
+              Folha {doc.page.format} · 1:{doc.page.printScale} <span className="caret">▾</span>
+            </>
+          }
+        >
+          <SheetSettings />
+        </Popover>
+
+        <div className="zoom-control">
+          <button className="icon-button" onClick={() => zoomBy(1 / 1.25)} title="Afastar">−</button>
+          <Popover
+            align="right"
+            title="Zoom"
+            trigger={
+              <>
+                {pct}% <span className="caret">▾</span>
+              </>
+            }
+          >
+            {(fecha) => (
+              <div className="menu-list">
+                <button onClick={() => { fitPage(); fecha(); }}>
+                  <span>Ajustar à página</span><em>Ctrl+0</em>
+                </button>
+                <button onClick={() => { actualSize(); fecha(); }}>
+                  <span>Tamanho real</span>
+                </button>
+              </div>
+            )}
+          </Popover>
+          <button className="icon-button" onClick={() => zoomBy(1.25)} title="Aproximar">+</button>
+        </div>
       </div>
 
       {/* O nome do arquivo fica por último: é informação, não comando, e é

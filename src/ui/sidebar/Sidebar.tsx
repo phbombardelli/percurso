@@ -1,228 +1,261 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { OBSTACLES } from '@core/library/obstacles';
 import { ORNAMENTS } from '@core/library/ornaments';
 import { importBackgroundImage } from '@ui/actions/imageActions';
 import { traceCourse } from '@ui/actions/rideActions';
 import { insertHeightTable, insertInfoBox } from '@ui/actions/annotationActions';
-import { insertTimingLine, TIMING_LIMITS } from '@ui/actions/timingActions';
 import { startGuidedRide } from '@ui/actions/guidedActions';
-import { clampTimingDistance } from '@core/library/timing';
-import { useEditorStore } from '@store/editorStore';
+import { useEditorStore, type Tool } from '@store/editorStore';
 
 /**
- * Ferramentas de inserção, filtradas pelo momento do trabalho.
+ * Barra de ferramentas da esquerda.
  *
- * Configurando a pista aparecem só as ferramentas do local; desenhando o
- * percurso, só as da prova. Encurta a lista e, mais importante, deixa
- * claro o que está em jogo naquele momento.
+ * Só ferramentas de desenhar, cada uma com um atalho de uma tecla. O que
+ * tem variantes — tipo de obstáculo, modo do traçado, o que vai na folha —
+ * abre ao lado, em vez de empurrar a barra para baixo. Partida e chegada
+ * saíram daqui: colocam-se quando pedidas, pelo menu Inserir ou pelo
+ * painel do primeiro e do último obstáculo.
  */
 export function Sidebar() {
-  const {
-    mode,
-    tool,
-    setTool,
-    ornamentType,
-    setOrnamentType,
-    obstacleType,
-    setObstacleType,
-    pathSmooth,
-    setPathSmooth,
-    timingDistanceM,
-    setTimingDistance,
-  } = useEditorStore();
+  const { mode, tool, setTool, ornamentType, setOrnamentType, obstacleType, setObstacleType, pathSmooth, setPathSmooth } =
+    useEditorStore();
 
-  const alterna = (alvo: typeof tool) => setTool(tool === alvo ? 'select' : alvo);
-
-  if (mode === 'pista') {
-    return (
-      <nav className="sidebar">
-        <p className="sidebar-title">Cenário do local</p>
-
-        <button
-          onClick={() => void importBackgroundImage()}
-          title="Importa PNG, JPG ou WEBP como camada de referência. O arquivo fica embutido no projeto."
-        >
-          <span className="icon">🖼</span>
-          <span className="label">Imagem de fundo</span>
-        </button>
-
-        <button
-          className={tool === 'arena-rect' ? 'active' : ''}
-          onClick={() => alterna('arena-rect')}
-          title="Arraste para definir a pista. As dimensões exatas se digitam no painel."
-        >
-          <span className="icon">▭</span>
-          <span className="label">Pista</span>
-        </button>
-
-        <button
-          className={tool === 'arena-polygon' ? 'active' : ''}
-          onClick={() => alterna('arena-polygon')}
-          title="Clique para marcar cada vértice. Enter fecha o contorno, Esc cancela."
-        >
-          <span className="icon">⬠</span>
-          <span className="label">Contorno livre</span>
-        </button>
-
-        <button
-          className={tool === 'ornament' ? 'active' : ''}
-          onClick={() => alterna('ornament')}
-          title="Árvores, arbustos e demais elementos fixos do local."
-        >
-          <span className="icon">🌳</span>
-          <span className="label">Ornamento</span>
-        </button>
-
-        {tool === 'ornament' && (
-          <div className="tool-options">
-            {ORNAMENTS.map((o) => (
-              <button
-                key={o.type}
-                className={ornamentType === o.type ? 'active' : ''}
-                onClick={() => setOrnamentType(o.type)}
-              >
-                <span className="label">{o.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <p className="sidebar-hint">
-          O percurso fica esmaecido e não recebe clique enquanto você
-          configura o local.
-        </p>
-      </nav>
-    );
-  }
+  const usa = (alvo: Tool) => setTool(alvo);
+  const nomeObstaculo = OBSTACLES.find((o) => o.type === obstacleType)?.label ?? '';
+  const nomeOrnamento = ORNAMENTS.find((o) => o.type === ornamentType)?.label ?? '';
 
   return (
-    <nav className="sidebar">
-      <p className="sidebar-title">Prova</p>
+    <nav className="rail" aria-label="Ferramentas">
+      <RailButton icon="⬉" label="Selecionar" shortcut="V" active={tool === 'select'} onClick={() => usa('select')} />
+      <RailButton icon="✋" label="Mover vista" shortcut="H" active={tool === 'pan'} onClick={() => usa('pan')} />
+      <hr />
 
-      <button
-        className={tool === 'obstacle' ? 'active' : ''}
-        onClick={() => alterna('obstacle')}
-        title="Clique na pista para inserir. Shift mantém a ferramenta ativa."
-      >
-        <span className="icon">▬</span>
-        <span className="label">Obstáculo</span>
-      </button>
-
-      {tool === 'obstacle' && (
-        <div className="tool-options">
-          {OBSTACLES.map((o) => (
-            <button
-              key={o.type}
-              className={obstacleType === o.type ? 'active' : ''}
-              title={o.hint}
-              onClick={() => setObstacleType(o.type)}
-            >
-              <span className="label">{o.label}</span>
-            </button>
-          ))}
-        </div>
+      {mode === 'percurso' ? (
+        <>
+          <RailFlyout
+            icon="▬"
+            label="Obstáculo"
+            shortcut="O"
+            detail={nomeObstaculo}
+            active={tool === 'obstacle'}
+            onActivate={() => usa('obstacle')}
+            items={OBSTACLES.map((o) => ({
+              label: o.label,
+              hint: o.hint,
+              active: tool === 'obstacle' && obstacleType === o.type,
+              onSelect: () => {
+                setObstacleType(o.type);
+                usa('obstacle');
+              },
+            }))}
+            footer="Clique na pista para inserir. Shift mantém a ferramenta."
+          />
+          <RailFlyout
+            icon="✎"
+            label="Traçado"
+            shortcut="T"
+            active={tool === 'path'}
+            onActivate={() => usa('path')}
+            items={[
+              {
+                label: 'À mão, curvo',
+                hint: 'clique a clique; os cliques viram curva',
+                active: tool === 'path' && pathSmooth,
+                onSelect: () => {
+                  setPathSmooth(true);
+                  usa('path');
+                },
+              },
+              {
+                label: 'À mão, reto',
+                hint: 'clique a clique, em segmentos retos',
+                active: tool === 'path' && !pathSmooth,
+                onSelect: () => {
+                  setPathSmooth(false);
+                  usa('path');
+                },
+              },
+              'separator',
+              {
+                label: 'Por trechos',
+                hint: 'você escolhe a forma de cada volta',
+                onSelect: startGuidedRide,
+              },
+              {
+                label: 'Automático',
+                hint: 'traça tudo pela numeração',
+                onSelect: () => traceCourse(),
+              },
+            ]}
+            footer="Por trechos e Automático seguem a numeração dos obstáculos."
+          />
+          <RailButton icon="T" label="Texto" shortcut="X" active={tool === 'text'} onClick={() => usa('text')} />
+          <hr />
+          <RailFlyout
+            icon="▤"
+            label="Folha"
+            items={[
+              { label: 'Quadro técnico', hint: 'prova, tabela, altura, velocidade…', onSelect: insertInfoBox },
+              { label: 'Tabela de alturas', hint: 'lê as alturas dos obstáculos', onSelect: insertHeightTable },
+            ]}
+          />
+        </>
+      ) : (
+        <>
+          <RailFlyout
+            icon="▭"
+            label="Contorno"
+            active={tool === 'arena-rect' || tool === 'arena-polygon'}
+            onActivate={() => usa('arena-rect')}
+            items={[
+              {
+                label: 'Retângulo',
+                hint: 'arraste; as medidas se digitam no painel',
+                active: tool === 'arena-rect',
+                onSelect: () => usa('arena-rect'),
+              },
+              {
+                label: 'Contorno livre',
+                hint: 'clique cada vértice; Enter fecha',
+                active: tool === 'arena-polygon',
+                onSelect: () => usa('arena-polygon'),
+              },
+            ]}
+          />
+          <RailFlyout
+            icon="🌳"
+            label="Ornamento"
+            detail={nomeOrnamento}
+            active={tool === 'ornament'}
+            onActivate={() => usa('ornament')}
+            items={ORNAMENTS.map((o) => ({
+              label: o.label,
+              active: tool === 'ornament' && ornamentType === o.type,
+              onSelect: () => {
+                setOrnamentType(o.type);
+                usa('ornament');
+              },
+            }))}
+          />
+          <RailButton
+            icon="🖼"
+            label="Imagem"
+            onClick={() => void importBackgroundImage()}
+            title="Importa PNG, JPG ou WEBP como referência. O arquivo fica embutido no projeto."
+          />
+        </>
       )}
-
-      <button
-        className={tool === 'path' ? 'active' : ''}
-        onClick={() => alterna('path')}
-        title="Clique para marcar cada nó; arraste ao clicar para curvar. Enter conclui, Esc cancela."
-      >
-        <span className="icon">✎</span>
-        <span className="label">Traçado</span>
-      </button>
-
-      {tool === 'path' && (
-        <div className="tool-options">
-          <button
-            className={pathSmooth ? 'active' : ''}
-            onClick={() => setPathSmooth(true)}
-            title="Os cliques viram uma curva contínua"
-          >
-            <span className="label">Curvo</span>
-          </button>
-          <button
-            className={!pathSmooth ? 'active' : ''}
-            onClick={() => setPathSmooth(false)}
-            title="Os cliques viram segmentos retos"
-          >
-            <span className="label">Reto</span>
-          </button>
-        </div>
-      )}
-
-      <button
-        className={tool === 'text' ? 'active' : ''}
-        onClick={() => alterna('text')}
-        title="Clique na pista para inserir um texto livre. O texto acompanha o desenho quando a escala muda."
-      >
-        <span className="icon">T</span>
-        <span className="label">Texto</span>
-      </button>
-
-      <button
-        onClick={startGuidedRide}
-        title="Percorre o percurso pernada a pernada e mostra as formas de fazer cada volta, para você escolher."
-      >
-        <span className="icon">◑</span>
-        <span className="label">Por trechos</span>
-      </button>
-
-      <button
-        onClick={() => traceCourse()}
-        title="Desenha a linha que o cavaleiro faria, seguindo a numeração já lançada: partida, obstáculos em ordem, chegada. O resultado é um traçado comum, que você pode editar."
-      >
-        <span className="icon">➰</span>
-        <span className="label">Assistente</span>
-      </button>
-
-      <button
-        onClick={() => insertTimingLine('start')}
-        title="Coloca a partida no eixo do PRIMEIRO obstáculo, à distância escolhida da vara de entrada. Não se clica na pista: o lugar é consequência do percurso."
-      >
-        <span className="icon">⇥</span>
-        <span className="label">Partida</span>
-      </button>
-
-      <button
-        onClick={() => insertTimingLine('finish')}
-        title="Coloca a chegada no eixo do ÚLTIMO obstáculo, medida da vara de saída."
-      >
-        <span className="icon">⇤</span>
-        <span className="label">Chegada</span>
-      </button>
-
-      <label className="tool-options timing-distance">
-        <span>Distância</span>
-        <input
-          type="number"
-          min={TIMING_LIMITS.min}
-          max={TIMING_LIMITS.max}
-          step={TIMING_LIMITS.passo}
-          value={timingDistanceM}
-          onChange={(e) => setTimingDistance(clampTimingDistance(Number(e.target.value) || 0))}
-        />
-        <em>m</em>
-      </label>
-
-      <button
-        onClick={insertInfoBox}
-        title="Quadro técnico da prova: tabela, altura, velocidade, distância, tempo. Fica na folha, no canto da margem."
-      >
-        <span className="icon">▤</span>
-        <span className="label">Quadro técnico</span>
-      </button>
-
-      <button
-        onClick={insertHeightTable}
-        title="Tabela de alturas por obstáculo. Lê os obstáculos do desenho: mudou a altura, a tabela muda junto."
-      >
-        <span className="icon">▦</span>
-        <span className="label">Tabela de alturas</span>
-      </button>
-
-      <p className="sidebar-hint">
-        A pista é fundo: para mexer nela, volte ao modo Pista.
-      </p>
     </nav>
+  );
+}
+
+interface RailButtonProps {
+  icon: ReactNode;
+  label: string;
+  shortcut?: string;
+  active?: boolean;
+  title?: string;
+  onClick: () => void;
+}
+
+function RailButton({ icon, label, shortcut, active, title, onClick }: RailButtonProps) {
+  return (
+    <button
+      className={active ? 'rail-button active' : 'rail-button'}
+      onClick={onClick}
+      title={title ?? (shortcut ? `${label} (${shortcut})` : label)}
+      aria-pressed={active}
+    >
+      <span className="rail-icon">{icon}</span>
+      <span className="rail-label">{label}</span>
+      {shortcut && <kbd className="rail-key">{shortcut}</kbd>}
+    </button>
+  );
+}
+
+type FlyoutItem =
+  | { label: string; hint?: string; active?: boolean; onSelect: () => void }
+  | 'separator';
+
+interface RailFlyoutProps {
+  icon: ReactNode;
+  label: string;
+  shortcut?: string;
+  /** Variante escolhida, mostrada sob o nome: "Oxer", "Árvore". */
+  detail?: string;
+  active?: boolean;
+  /** Clicar no botão já ativa a ferramenta, com a variante atual. */
+  onActivate?: () => void;
+  items: FlyoutItem[];
+  footer?: string;
+}
+
+/**
+ * Botão com opções ao lado. Clicar ativa a ferramenta (quando há uma) e
+ * abre a lista; escolher fecha. O "◢" no canto avisa que há mais.
+ */
+function RailFlyout({ icon, label, shortcut, detail, active, onActivate, items, footer }: RailFlyoutProps) {
+  const [aberto, setAberto] = useState(false);
+  const raiz = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const foraDaqui = (e: PointerEvent) => {
+      if (!raiz.current?.contains(e.target as Node)) setAberto(false);
+    };
+    const noEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAberto(false);
+    };
+    document.addEventListener('pointerdown', foraDaqui, true);
+    document.addEventListener('keydown', noEsc, true);
+    return () => {
+      document.removeEventListener('pointerdown', foraDaqui, true);
+      document.removeEventListener('keydown', noEsc, true);
+    };
+  }, [aberto]);
+
+  return (
+    <div className="rail-flyout" ref={raiz}>
+      <button
+        className={active || aberto ? 'rail-button active' : 'rail-button'}
+        onClick={() => {
+          onActivate?.();
+          setAberto((v) => !v);
+        }}
+        title={shortcut ? `${label} (${shortcut})` : label}
+        aria-haspopup="menu"
+        aria-expanded={aberto}
+      >
+        <span className="rail-icon">{icon}</span>
+        <span className="rail-label">{label}</span>
+        {detail && <span className="rail-detail">{detail}</span>}
+        {shortcut && <kbd className="rail-key">{shortcut}</kbd>}
+        <span className="rail-more" aria-hidden="true">◢</span>
+      </button>
+      {aberto && (
+        <div className="flyout" role="menu">
+          <p className="flyout-title">{label}</p>
+          {items.map((item, i) =>
+            item === 'separator' ? (
+              <hr key={`s${i}`} />
+            ) : (
+              <button
+                key={item.label}
+                role="menuitem"
+                className={item.active ? 'active' : ''}
+                onClick={() => {
+                  setAberto(false);
+                  item.onSelect();
+                }}
+              >
+                <span>{item.label}</span>
+                {item.hint && <em>{item.hint}</em>}
+              </button>
+            ),
+          )}
+          {footer && <p className="flyout-footer">{footer}</p>}
+        </div>
+      )}
+    </div>
   );
 }

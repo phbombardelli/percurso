@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { insertArenaVertex } from '@core/commands/arenaOps';
 import { insertNode } from '@core/commands/pathOps';
 import { allObstacles } from '@core/commands/obstacleOps';
-import { addObject, deleteObjects, duplicateObjects } from '@core/commands/ops';
+import { addObject } from '@core/commands/ops';
 import { snapPoint, toMillimeterPrecision } from '@core/geometry/snap';
 import { distance, type Vec2 } from '@core/geometry/vec';
 import { createObstacle, nextObstacleNumber } from '@core/library/obstacles';
@@ -10,11 +10,8 @@ import { createOrnament } from '@core/library/ornaments';
 import { createTextLabel } from '@core/library/annotations';
 import { createPath, createPathNode, smoothedNodes } from '@core/model/path';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
-import { deepClone } from '@core/model/clone';
-import { newId } from '@core/model/ids';
 import { pageRectMm } from '@core/model/document';
-import { getRotation, objectScope, translate } from '@core/model/transform';
-import type { SceneObject } from '@core/model/types';
+import { getRotation, translate } from '@core/model/transform';
 import { mmPerMeter } from '@core/scale/units';
 import {
   fitToRect,
@@ -35,6 +32,16 @@ import {
   saveDocument,
   saveDocumentAs,
 } from '@ui/actions/documentActions';
+import {
+  copySelection,
+  deleteSelection,
+  duplicateSelection,
+  pasteClipboard,
+  selectAll,
+} from '@ui/actions/editActions';
+import { exportCurrentPdf } from '@ui/actions/exportActions';
+import { toggleGrid, toggleMagnet } from '@ui/actions/viewActions';
+import { printDocument } from '@platform/print';
 import { useElementSize } from '@ui/hooks/useElementSize';
 import { ArenaDraft, ArenaHandles } from './ArenaHandles';
 import { PathDraft, PathHandles } from './PathHandles';
@@ -46,7 +53,6 @@ import { SelectionOverlay } from './SelectionOverlay';
 import { useObjectGestures } from './useObjectGestures';
 
 const ZOOM_STEP = 1.12;
-const PASTE_OFFSET_M = 1;
 
 export function Canvas() {
   const doc = useDocumentStore((s) => s.doc);
@@ -402,45 +408,24 @@ export function Canvas() {
         st.redo();
       } else if (ctrl && key === 'a') {
         e.preventDefault();
-        // Só o que é do modo ativo: selecionar tudo não pode trazer o
-        // cenário junto enquanto se desenha o percurso.
-        ed.setSelection(
-          st.doc.objects
-            .filter((o) => !o.locked && o.visible && objectScope(o) === ed.mode)
-            .map((o) => o.id),
-        );
+        selectAll();
       } else if (ctrl && key === 'c') {
-        ed.setClipboard(
-          st.doc.objects.filter((o) => sel.includes(o.id)).map((o) => deepClone(o)),
-        );
+        copySelection();
       } else if (ctrl && key === 'v') {
-        if (ed.clipboard.length === 0) return;
-        const copies = ed.clipboard.map((o) => ({
-          ...deepClone(o),
-          id: newId(o.kind.slice(0, 3)),
-        })) as SceneObject[];
-        st.apply('Colar', (d) => {
-          for (const c of copies) {
-            addObject(d, c);
-            const added = d.objects[d.objects.length - 1]!;
-            added.id = c.id;
-            translate(added, { x: PASTE_OFFSET_M, y: PASTE_OFFSET_M }, d.page.printScale);
-          }
-        });
-        ed.setSelection(copies.map((c) => c.id));
+        pasteClipboard();
       } else if (ctrl && key === 'd') {
         e.preventDefault();
-        if (sel.length === 0) return;
-        let created: string[] = [];
-        st.apply('Duplicar', (d) => {
-          created = duplicateObjects(d, sel, { x: PASTE_OFFSET_M, y: PASTE_OFFSET_M });
-        });
-        ed.setSelection(created);
+        duplicateSelection();
+      } else if (ctrl && key === 'e') {
+        e.preventDefault();
+        void exportCurrentPdf();
+      } else if (ctrl && key === 'p') {
+        e.preventDefault();
+        printDocument(st.doc);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (sel.length === 0) return;
         e.preventDefault();
-        st.apply('Excluir', (d) => deleteObjects(d, sel));
-        ed.clearSelection();
+        deleteSelection();
       } else if (e.key.startsWith('Arrow')) {
         if (sel.length === 0) return;
         e.preventDefault();
@@ -459,16 +444,25 @@ export function Canvas() {
           },
           'teclado-mover',
         );
+      } else if (e.key === '0' && ctrl) {
+        e.preventDefault();
+        fitPage();
+      } else if (ctrl || e.altKey) {
+        // Letra com modificador não é atalho de ferramenta.
       } else if (key === 'g') {
-        st.apply('Alternar grid', (d) => {
-          d.grid.visible = !d.grid.visible;
-        });
+        toggleGrid();
       } else if (key === 's') {
-        st.apply('Alternar snap', (d) => {
-          d.grid.snap = !d.grid.snap;
-        });
-      } else if (key === 'v' && !ctrl) {
+        toggleMagnet();
+      } else if (key === 'v') {
         ed.setTool('select');
+      } else if (key === 'h') {
+        ed.setTool('pan');
+      } else if (key === 'o' || key === 't' || key === 'x') {
+        // Ferramentas do percurso: vindo do modo Pista, troca de modo antes.
+        if (ed.mode !== 'percurso') ed.setMode('percurso');
+        useEditorStore.getState().setTool(key === 'o' ? 'obstacle' : key === 't' ? 'path' : 'text');
+      } else if (e.key === '?') {
+        ed.setDialog('atalhos');
       } else if (e.key === 'Escape') {
         if (ed.calibration) {
           ed.cancelCalibration();
@@ -477,9 +471,6 @@ export function Canvas() {
         ed.setTool('select');
         ed.setEditingVertices(false);
         ed.clearSelection();
-      } else if (e.key === '0' && ctrl) {
-        e.preventDefault();
-        fitPage();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {

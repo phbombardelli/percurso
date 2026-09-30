@@ -54,17 +54,22 @@ O que falta em [docs/PENDENCIAS.md](docs/PENDENCIAS.md).
 
 ## Atalhos
 
+A lista completa fica em Ajuda › Atalhos do teclado (tecla `?`).
+
 | | |
 |---|---|
+| V / H | selecionar / mover a vista |
+| O / T / X | obstáculo / traçado / texto |
 | roda do mouse | zoom sob o cursor |
 | espaço ou botão do meio | mover a vista |
-| Alt | suspender o snap |
-| G / S | grid / snap |
+| G / S | grade / ímã |
+| Alt | soltar o ímã na hora |
 | Ctrl+Z / Ctrl+Y | desfazer / refazer |
-| Ctrl+N / Ctrl+O | novo / abrir (menu Arquivo) |
+| Ctrl+N / Ctrl+O | novo / abrir |
 | Ctrl+S / Ctrl+Shift+S | salvar / salvar como |
+| Ctrl+E / Ctrl+P | exportar PDF / imprimir |
 | Ctrl+C / V / D | copiar / colar / duplicar |
-| setas / Shift+setas | mover pelo passo do snap / 10x |
+| setas / Shift+setas | mover pelo passo do ímã / 10x |
 | Delete | excluir a seleção |
-| Ctrl+0 | ajustar página |
+| Ctrl+0 | ajustar à página |
 | Esc | limpar seleção |

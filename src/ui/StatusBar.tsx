@@ -1,39 +1,93 @@
+import { useMemo } from 'react';
+import { findInterferences } from '@core/assist/interference';
 import { visibleGridStep } from '@core/geometry/snap';
-import { formatMeters, pageSize } from '@core/scale/units';
+import { formatMeters } from '@core/scale/units';
 import { metersPerPixel } from '@core/scale/viewport';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
+import { Popover } from '@ui/common/Popover';
+import { GridSettings, MagnetSettings } from '@ui/inspector/SheetSettings';
+import { InterferencePanel } from '@ui/inspector/InterferencePanel';
 
+/**
+ * Barra de baixo: onde o cursor está e o estado das ajudas de desenho.
+ *
+ * Grade, ímã e avisos são botões: mostram o estado de relance e abrem os
+ * ajustes num clique. A escala e a folha saíram daqui — estão no botão
+ * Folha, em cima —, e a lista de atalhos virou janela própria.
+ */
 export function StatusBar() {
   const doc = useDocumentStore((s) => s.doc);
-  const { cursorM, viewport, snapSuspended } = useEditorStore();
+  const { cursorM, viewport, snapSuspended, mode, setDialog } = useEditorStore();
 
   const mpp = metersPerPixel(viewport, doc.page.printScale);
   const step = doc.grid.stepM > 0 ? doc.grid.stepM : visibleGridStep(mpp, 8);
-  const { widthMm, heightMm } = pageSize(doc.page);
-  const snapOn = doc.grid.snap && !snapSuspended;
+  const imaLigado = doc.grid.snap && !snapSuspended;
+  const achados = useMemo(() => (mode === 'percurso' ? findInterferences(doc) : []), [doc, mode]);
 
   return (
     <footer className="statusbar">
-      <span className="mono">
+      <span className="mono coords">
         {cursorM
-          ? `X ${formatMeters(cursorM.x)} m   Y ${formatMeters(cursorM.y)} m`
-          : 'X —   Y —'}
-      </span>
-      <span>Grid {formatMeters(step, step < 1 ? 2 : 0)} m</span>
-      <span>
-        Snap {snapOn ? `${formatMeters(doc.grid.snapStepM, 2)} m` : 'desligado'}
-        {snapSuspended ? ' (Alt)' : ''}
-      </span>
-      <span>Escala 1:{doc.page.printScale}</span>
-      <span>
-        {doc.page.format} {doc.page.orientation === 'landscape' ? 'paisagem' : 'retrato'} ·{' '}
-        {widthMm}×{heightMm} mm
+          ? `X ${formatMeters(cursorM.x)} m · Y ${formatMeters(cursorM.y)} m`
+          : 'X — · Y —'}
       </span>
       <span className="spacer" />
-      <span className="hint">
-        roda = zoom · espaço/botão do meio = mover · Alt = suspender snap · G grid · S snap
-      </span>
+
+      <Popover
+        className="chip"
+        placement="up"
+        align="right"
+        title="Grade: só na tela, não sai na folha"
+        trigger={
+          <span className={doc.grid.visible ? '' : 'off'}>
+            Grade {doc.grid.visible ? `${formatMeters(step, step < 1 ? 2 : 0)} m` : 'oculta'}
+          </span>
+        }
+      >
+        <GridSettings />
+      </Popover>
+
+      <Popover
+        className="chip"
+        placement="up"
+        align="right"
+        title="Ímã: posição e giro grudam em passos redondos (Alt solta)"
+        trigger={
+          <span className={imaLigado ? '' : 'off'}>
+            Ímã{' '}
+            {imaLigado
+              ? `${formatMeters(doc.grid.snapStepM, 2)} m · ${String(doc.grid.angleSnapDeg).replace('.', ',')}°`
+              : snapSuspended
+                ? 'solto (Alt)'
+                : 'desligado'}
+          </span>
+        }
+      >
+        <MagnetSettings />
+      </Popover>
+
+      {mode === 'percurso' && (
+        <Popover
+          className={achados.length === 0 ? 'chip ok' : 'chip warn'}
+          placement="up"
+          align="right"
+          title="Obstáculos atravessados ou sobrepostos"
+          trigger={
+            <span>
+              {achados.length === 0
+                ? 'Sem interferências'
+                : `${achados.length} ${achados.length === 1 ? 'interferência' : 'interferências'}`}
+            </span>
+          }
+        >
+          <InterferencePanel />
+        </Popover>
+      )}
+
+      <button className="chip-button" onClick={() => setDialog('atalhos')} title="Atalhos do teclado (?)">
+        ? Atalhos
+      </button>
     </footer>
   );
 }

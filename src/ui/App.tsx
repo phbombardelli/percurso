@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { installUnloadGuard } from './actions/documentActions';
 import { Canvas } from './canvas/Canvas';
+import { Dialogs } from './Dialogs';
 import { DocumentPanel } from './inspector/DocumentPanel';
 import { Sidebar } from './sidebar/Sidebar';
 import { StatusBar } from './StatusBar';
@@ -18,6 +19,7 @@ export function App() {
         <DocumentPanel />
       </div>
       <StatusBar />
+      <Dialogs />
     </div>
   );
 }
