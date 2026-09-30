@@ -1079,10 +1079,17 @@ ajusta no painel da própria linha.
 
 ## 53. Identidade visual do SAPH
 
-O Percurso adotou o tema claro do SAPH: fundo de papel quente, barra de
-cima preta com dourado, dourado como cor de ação (botão primário com
-texto escuro), seleção dourada, rótulos em maiúsculas pequenas e a
-fonte Bahnschrift. As cores de interface viraram tokens em `:root`.
+O Percurso adotou o tema claro do SAPH: fundo de papel quente, dourado
+como cor de ação (botão primário com texto escuro), seleção dourada,
+rótulos em maiúsculas pequenas e a fonte Bahnschrift. As cores de
+interface viraram tokens em `:root`.
+
+A barra de cima começou preta, como a navegação do SAPH, e o desenhador
+recusou: pesava sobre o desenho. Ficou clara, no mesmo bege das réguas,
+com o dourado só nos destaques. Todo texto da interface passa de 5:1 de
+contraste (o mínimo de leitura é 4,5:1): por isso o dourado e o verde e
+o laranja do SAPH ganharam versões mais escuras para quando são TEXTO
+sobre fundo claro.
 
 Só a tela muda. O que vai para o PDF e a impressão — traços, cores dos
 obstáculos, textos da folha — continua como era.

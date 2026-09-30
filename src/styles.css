@@ -11,16 +11,15 @@
   --text-dim: #5C584E;
   --gold: #A8852E;        /* dourado escuro: texto e contorno de ativo */
   --gold-b: #C9A84C;      /* dourado: preenchimento de botão primário */
-  --gold-l: #E8C96A;      /* dourado claro: texto sobre a barra preta */
+  --gold-l: #E8C96A;      /* dourado claro */
+  --gold-ink: #7A5E17;    /* dourado para TEXTO sobre fundo claro: contraste acima de 4,5:1 */
   --gold-soft: rgba(201, 168, 76, 0.16);
   --gold-hover: rgba(201, 168, 76, 0.10);
   --focus: rgba(201, 168, 76, 0.22);
-  --nav: #0D0D0D;         /* barra de cima */
-  --nav-text: #9C9486;
-  --ok: #3E7A50;  --ok-soft: #E4EFE6;
-  --warn: #C05A30; --warn-soft: #F8E6DC;
+  --ok: #2F6440;  --ok-soft: #E4EFE6;  /* verde do SAPH escurecido para texto pequeno */
+  --warn: #9A4420; --warn-soft: #F8E6DC;  /* laranja do SAPH escurecido: texto legível sobre o fundo claro */
   --danger: #A32D2D; --danger-soft: #F6E3E3;
-  --accent: var(--gold);
+  --accent: var(--gold-ink);
   --toolbar-h: 40px;
   --status-h: 26px;
   font-family: 'Bahnschrift', 'Segoe UI', system-ui, sans-serif;
@@ -207,7 +206,7 @@ button.active { background: var(--gold-soft); border-color: var(--accent); }
   padding: 7px 8px 9px;
   margin-bottom: 12px;
 }
-.object-panel h3 { margin-top: 0; color: var(--gold); }
+.object-panel h3 { margin-top: 0; color: var(--gold-ink); }
 .object-panel input[type="color"] { width: 108px; height: 22px; padding: 0; }
 
 button.danger { color: var(--danger); border-color: #E6C3C3; }
@@ -585,24 +584,26 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-weight: 700; letter-spacing: 0.6px; color: var(--text-dim);
 }
 
-/* barra de cima: preta, com dourado — a "nav" do SAPH */
-.toolbar { background: var(--nav); border-bottom: 1px solid rgba(201, 168, 76, 0.3); color: var(--nav-text); }
-.brand { color: var(--gold-b); font-weight: 600; letter-spacing: 0.08em; padding-right: 12px; margin-right: 4px;
-  border-right: 1px solid rgba(201, 168, 76, 0.25); }
-.toolbar .menu-trigger { color: var(--nav-text); font-weight: 500; }
-.toolbar .menu-trigger:hover:not(:disabled), .toolbar .menu-trigger.active { background: rgba(201, 168, 76, 0.12); color: var(--gold-l); }
+/* barra de cima: clara, com o dourado só nos destaques. A preta do SAPH
+   pesava demais sobre o desenho; aqui o contraste de todo texto fica
+   acima de 4,5:1 (decisão 53). */
+.toolbar { background: var(--chrome-2); border-bottom: 1px solid var(--border); color: var(--text); }
+.brand { color: var(--gold-ink); font-weight: 700; letter-spacing: 0.08em; padding-right: 12px; margin-right: 4px;
+  border-right: 1px solid var(--border); }
+.toolbar .menu-trigger { color: var(--text); font-weight: 500; }
+.toolbar .menu-trigger:hover:not(:disabled), .toolbar .menu-trigger.active { background: var(--gold-soft); color: var(--text); }
 .toolbar .icon-button, .toolbar .popover-trigger {
-  background: rgba(201, 168, 76, 0.08); color: var(--gold-l); border-color: rgba(201, 168, 76, 0.3);
+  background: var(--chrome); color: var(--text); border-color: var(--border);
 }
 .toolbar .icon-button:hover:not(:disabled), .toolbar .popover-trigger:hover, .toolbar .popover-trigger.active {
-  background: rgba(201, 168, 76, 0.2); border-color: rgba(201, 168, 76, 0.5);
+  background: var(--gold-hover); border-color: var(--gold-b);
 }
-.toolbar .caret { color: var(--gold-b); }
-.toolbar .doc-name { color: var(--nav-text); }
-.toolbar-group + .toolbar-group { border-left-color: rgba(201, 168, 76, 0.2); }
-.mode-switch { background: rgba(201, 168, 76, 0.1); border-radius: 8px; padding: 2px; gap: 2px; }
-.mode-switch button { background: none; border-color: transparent; color: var(--nav-text); border-radius: 6px; }
-.mode-switch button:hover:not(:disabled) { background: rgba(201, 168, 76, 0.14); color: var(--gold-l); border-color: transparent; }
+.toolbar .caret { color: var(--gold-ink); }
+.toolbar .doc-name { color: var(--text-dim); }
+.toolbar-group + .toolbar-group { border-left-color: var(--border); }
+.mode-switch { background: var(--chrome); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
+.mode-switch button { background: none; border-color: transparent; color: var(--text-dim); border-radius: 6px; }
+.mode-switch button:hover:not(:disabled) { background: var(--gold-hover); color: var(--text); border-color: transparent; }
 .mode-switch button.active { background: var(--gold-b); border-color: var(--gold-b); color: #14120A; }
 .toolbar .popover-panel, .menu-popup { color: var(--text); }
 
@@ -610,15 +611,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .menu-popup, .popover-panel, .flyout, .dialog { background: var(--chrome); border-color: var(--border); border-radius: 10px; }
 .menu-popup { border-radius: 8px; }
 .menu-popup button:hover:not(:disabled), .menu-list button:hover, .flyout button:hover { background: var(--gold-hover); }
-.flyout button.active { background: var(--gold-soft); color: var(--gold); }
+.flyout button.active { background: var(--gold-soft); color: var(--gold-ink); }
 
 /* barra da esquerda e painel */
 .rail, .panel, .statusbar { background: var(--chrome); }
 .rail-button.active { background: var(--gold-soft); border-color: var(--gold-b); }
-.rail-detail { color: var(--gold); font-weight: 600; }
+.rail-detail { color: var(--gold-ink); font-weight: 600; }
 .object-panel { background: var(--chrome); border-color: var(--border); border-radius: 10px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06); }
-.object-panel h3:first-child { color: var(--gold); }
+.object-panel h3:first-child { color: var(--gold-ink); }
 .stat { border-radius: 8px; }
 .state { border-radius: 6px; font-weight: 600; }
 kbd { background: var(--chrome); border-color: var(--border); }
