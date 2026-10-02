@@ -5,6 +5,7 @@ import type {
   ObjectScope,
   ObstacleType,
   OrnamentType,
+  StructureType,
   PathNode,
   SceneObject,
 } from '@core/model/types';
@@ -87,6 +88,11 @@ interface EditorState {
   activeNode: number | null;
   /** Desenhar traçado curvo (padrão) ou em segmentos retos. */
   pathSmooth: boolean;
+  /**
+   * Com valor, as ferramentas de contorno desenham uma CONSTRUÇÃO desse
+   * tipo em vez da pista (decisão 54).
+   */
+  structureType: StructureType | null;
   /** Janela aberta por menu, ou nenhuma. */
   dialog: DialogId | null;
   /**
@@ -128,6 +134,7 @@ interface EditorState {
   clearPathDraft: () => void;
   setActiveNode: (index: number | null) => void;
   setPathSmooth: (v: boolean) => void;
+  setStructureType: (t: StructureType | null) => void;
   setDialog: (d: DialogId | null) => void;
   toggleHints: () => void;
 }
@@ -153,11 +160,13 @@ export const useEditorStore = create<EditorState>((set) => ({
   pathDraft: null,
   activeNode: null,
   pathSmooth: true,
+  structureType: null,
   dialog: null,
   showHints: false,
 
   // Trocar de modo limpa a seleção: o que estava escolhido pode não ser
   // mais selecionável, e uma seleção invisível é fonte de confusão.
+  setStructureType: (structureType) => set({ structureType }),
   setDialog: (dialog) => set({ dialog }),
   toggleHints: () => set((s) => ({ showHints: !s.showHints })),
   setMode: (mode) =>

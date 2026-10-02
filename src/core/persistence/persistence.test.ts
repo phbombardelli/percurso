@@ -38,6 +38,7 @@ function richDocument(): CourseDocument {
       distanceMode: 'total',
       totalLabel: { visible: true, offsetM: { x: 0, y: -1.5 }, decimals: 2, color: '#d32020' },
       style: { dash: 'dashed', strokeMm: 0.35, color: '#6b6b6b' },
+      obstacleDistances: {},
     };
     addObject(d, traco);
   });
@@ -372,5 +373,16 @@ describe('validação direta', () => {
   it('aceita um documento recém-criado', () => {
     const { warnings } = validateDocument(JSON.parse(JSON.stringify(createDocument())));
     expect(warnings).toEqual([]);
+  });
+});
+
+describe('7 -> 8: bandeirolas e distâncias escolhidas (decisão 54)', () => {
+  it('croqui antigo abre sem bandeirola e sem distância entre obstáculos', () => {
+    const antigo = {
+      objects: [{ kind: 'path', id: 'p', nodes: [] }],
+    } as Record<string, unknown>;
+    const migrado = applyMigrations(antigo, 7, 8) as Record<string, unknown>;
+    expect(migrado.flags).toBe(false);
+    expect((migrado.objects as Record<string, unknown>[])[0]!.obstacleDistances).toEqual({});
   });
 });

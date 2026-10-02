@@ -5,9 +5,11 @@ import {
   setArenaSize,
   setArenaStyle,
   setPerimeterRuler,
+  setStructure,
 } from '@core/commands/arenaOps';
+import { STRUCTURES, structureDef } from '@core/library/structures';
 import { arenaArea, arenaPerimeter } from '@core/model/arena';
-import type { Arena, CornerStyle } from '@core/model/types';
+import type { Arena, CornerStyle, StructureType } from '@core/model/types';
 import { formatMeters } from '@core/scale/units';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
@@ -23,9 +25,51 @@ export function ArenaPanel({ arena }: { arena: Arena }) {
   const { apply } = useDocumentStore();
   const { editingVertices, setEditingVertices } = useEditorStore();
   const ruler = arena.perimeterRuler;
+  const obra = arena.structure ?? null;
+  const nome = obra ? 'da construção' : 'da pista';
 
   return (
     <>
+      {obra && (
+        <>
+          <label className="field">
+            <span>Tipo</span>
+            <select
+              value={obra.type}
+              disabled={arena.locked}
+              onChange={(e) => {
+                const tipo = e.target.value as StructureType;
+                apply('Tipo da construção', (d) => {
+                  // Trocar o tipo traz o preenchimento dele, e o rótulo se
+                  // ainda era o padrão do tipo anterior.
+                  const padraoAntigo = structureDef(obra.type).label;
+                  setStructure(d, arena.id, {
+                    type: tipo,
+                    ...(obra.label === padraoAntigo ? { label: structureDef(tipo).label } : {}),
+                  });
+                  setArenaStyle(d, arena.id, { fill: structureDef(tipo).fill });
+                });
+              }}
+            >
+              {STRUCTURES.map((s) => (
+                <option key={s.type} value={s.type}>{s.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Rótulo</span>
+            <input
+              type="text"
+              value={obra.label}
+              disabled={arena.locked}
+              placeholder="sem rótulo"
+              onChange={(e) =>
+                apply('Rótulo da construção', (d) => setStructure(d, arena.id, { label: e.target.value }), `rotulo-${arena.id}`)
+              }
+            />
+          </label>
+        </>
+      )}
       {arena.shape === 'rectangle' ? (
         <>
           <NumberField
@@ -36,7 +80,7 @@ export function ArenaPanel({ arena }: { arena: Arena }) {
             step={1}
             min={1}
             disabled={arena.locked}
-            onCommit={(v) => apply('Largura da pista', (d) => setArenaSize(d, arena.id, v, arena.heightM))}
+            onCommit={(v) => apply(`Largura ${nome}`, (d) => setArenaSize(d, arena.id, v, arena.heightM))}
           />
           <NumberField
             label="Comprimento"
@@ -46,7 +90,7 @@ export function ArenaPanel({ arena }: { arena: Arena }) {
             step={1}
             min={1}
             disabled={arena.locked}
-            onCommit={(v) => apply('Comprimento da pista', (d) => setArenaSize(d, arena.id, arena.widthM, v))}
+            onCommit={(v) => apply(`Comprimento ${nome}`, (d) => setArenaSize(d, arena.id, arena.widthM, v))}
           />
         </>
       ) : (
@@ -99,6 +143,8 @@ export function ArenaPanel({ arena }: { arena: Arena }) {
         />
       )}
 
+      {!obra && (
+        <>
       <h3>Régua de perímetro</h3>
       <label className="check">
         <input
@@ -152,6 +198,9 @@ export function ArenaPanel({ arena }: { arena: Arena }) {
               </label>
             ))}
           </div>
+        </>
+      )}
+
         </>
       )}
 

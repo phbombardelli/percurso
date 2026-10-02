@@ -1093,3 +1093,62 @@ sobre fundo claro.
 
 Só a tela muda. O que vai para o PDF e a impressão — traços, cores dos
 obstáculos, textos da folha — continua como era.
+
+## 54. Construções, distâncias escolhidas e bandeirolas
+
+Três pedidos do desenhador, do uso real.
+
+**Construções no cenário.** Arquibancada, área de concreto, edificação —
+dentro ou fora da pista, como referência do local. Usam a MESMA geometria
+da pista (retângulo ou contorno livre, com edição de vértices), marcada
+com `structure`. Assim herdam de graça desenhar, mover, girar e editar
+vértices; os pontos que procuram "a pista" (assistente de traçado,
+interferências, modelos de pista) passaram a ignorar as construções.
+Cada tipo tem um preenchimento que se lê em preto e branco: degraus na
+arquibancada (paralelos à aresta mais longa, que é a que dá para a pista),
+hachura no concreto, cinza cheio na edificação. As linhas saem já
+recortadas no contorno, sem <pattern> nem recorte — o PDF não garante
+nenhum dos dois.
+
+**Distâncias entre obstáculos, escolhidas.** Com o percurso pronto, o
+desenhador decide quais distâncias vão para o croqui. O painel do traçado
+lista cada par de obstáculos consecutivos pela numeração — incluindo os
+de dentro dos compostos — com a distância medida SOBRE o traçado, de vara
+a vara, e uma caixa para mostrar. O traçado guarda só as chaves marcadas;
+a medida é sempre recalculada, então mover um obstáculo corrige o número.
+
+**Bandeirolas.** Opção do documento (Folha › Sinalização, ou Inserir):
+vermelha à direita e branca à esquerda de quem salta, nos obstáculos e
+nas linhas de partida e chegada. O lado vem do sentido do salto, então
+inverter a seta troca as bandeirolas junto. Com elas ligadas, o número do
+obstáculo passa por fora, em vez de ficar por cima.
+
+O formato do arquivo foi para a versão 8. Croqui antigo abre sem
+bandeirola e sem distância entre obstáculos — exatamente como era impresso.
+
+## 55. Rótulos que não cobrem o desenho, e logos na folha
+
+**Rótulos automáticos.** Números, alturas, "Partida"/"Chegada" e as
+distâncias entre obstáculos nasciam numa posição fixa em relação ao
+objeto e caíam em cima da linha do traçado, de outro obstáculo, das
+bandeirolas ou de outro rótulo. O desenhador apontou: dificulta a leitura.
+
+Agora um leiaute único decide todos juntos (`layoutLabels`). Cada rótulo
+tem candidatos — em volta do objeto, da posição preferida à menos usual,
+em três distâncias; as distâncias, ao longo do trecho e dos dois lados da
+linha — e fica com o de menor custo. O custo pesa o que mais atrapalha:
+cobrir obstáculo ou outro rótulo, depois seta, linha do traçado,
+bandeirola e, por último, o contorno da pista. A posição preferida ganha
+quando está livre, então o croqui só muda onde havia choque. Rótulo
+arrastado à mão não se move e entra como obstáculo para os outros.
+
+Conferido em Normandia com traçado, alturas, todas as distâncias e
+bandeirolas: 32 rótulos, nenhum sobre a linha nem sobre outro, de 1:300 a
+1:500.
+
+**Logos.** Logo ou imagem (da federação, do clube, do evento) entra pelo
+menu Inserir ou pelo botão Folha. Mora em milímetros de PAPEL, como o
+quadro técnico: não muda quando a escala do desenho muda. Nasce no canto
+superior direito da área útil, com a proporção do arquivo; a largura se
+ajusta no painel. O arquivo vai embutido no projeto, como a imagem de
+fundo — o .pcs continua autossuficiente.

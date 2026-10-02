@@ -153,7 +153,23 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   4: v4ToV5,
   5: v5ToV6,
   6: v6ToV7,
+  7: v7ToV8,
 };
+
+/**
+ * 7 -> 8: bandeirolas e distâncias escolhidas no traçado.
+ *
+ * Croqui antigo sai sem bandeirola e sem distância entre obstáculos no
+ * desenho — exatamente como era impresso até aqui. Ligar qualquer das
+ * duas sozinho mudaria a folha de quem só abriu o arquivo.
+ */
+function v7ToV8(doc: RawDocument): RawDocument {
+  if (doc.flags === undefined) doc.flags = false;
+  for (const obj of (doc.objects as Record<string, unknown>[]) ?? []) {
+    if (obj.kind === 'path' && obj.obstacleDistances === undefined) obj.obstacleDistances = {};
+  }
+  return doc;
+}
 
 /**
  * 5 -> 6: legenda de escala na página.

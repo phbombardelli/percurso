@@ -7,6 +7,7 @@ import {
   setAllLegLabels,
   setLegLabel,
   setNodeType,
+  setObstacleDistances,
   setPathStyle,
   straightenLeg,
 } from '@core/commands/pathOps';
@@ -16,16 +17,22 @@ import {
   legStraightDistance,
   pathLength,
 } from '@core/model/path';
-import type { CoursePath, DashPreset, DistanceMode } from '@core/model/types';
+import type { CoursePath, DashPreset, DistanceMode, Obstacle } from '@core/model/types';
+import { obstacleDistancesAlong } from '@core/assist/obstacleDistances';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
 import { NumberField } from './NumberField';
 
 export function PathPanel({ path }: { path: CoursePath }) {
-  const { apply } = useDocumentStore();
+  const { doc, apply } = useDocumentStore();
   const { activeNode, setActiveNode } = useEditorStore();
   const travado = path.locked;
   const total = pathLength(path);
+  const pares = obstacleDistancesAlong(
+    path,
+    doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle'),
+  );
+  const marcadas = pares.filter((p) => path.obstacleDistances?.[p.key]).length;
 
   return (
     <>
@@ -85,6 +92,66 @@ export function PathPanel({ path }: { path: CoursePath }) {
         />
       )}
 
+      <h3>Distâncias entre obstáculos</h3>
+      {pares.length === 0 ? (
+        <p className="note">
+          O traçado ainda não passa por dois obstáculos numerados em sequência.
+        </p>
+      ) : (
+        <>
+          <ul className="pair-list">
+            {pares.map((p) => (
+              <li key={p.key}>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(path.obstacleDistances?.[p.key])}
+                    disabled={travado}
+                    onChange={(e) =>
+                      apply(e.target.checked ? 'Mostrar distância' : 'Ocultar distância', (d) =>
+                        setObstacleDistances(d, path.id, [p.key], e.target.checked),
+                      )
+                    }
+                  />
+                  <span className="pair-name">
+                    {p.fromLabel} → {p.toLabel}
+                  </span>
+                  <span className="pair-value">{formatDistance(p.meters)} m</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="row-buttons">
+            <button
+              disabled={travado || marcadas === pares.length}
+              onClick={() =>
+                apply('Mostrar todas as distâncias', (d) =>
+                  setObstacleDistances(d, path.id, pares.map((p) => p.key), true),
+                )
+              }
+            >
+              Todas
+            </button>
+            <button
+              disabled={travado || marcadas === 0}
+              onClick={() =>
+                apply('Ocultar as distâncias', (d) =>
+                  setObstacleDistances(d, path.id, pares.map((p) => p.key), false),
+                )
+              }
+            >
+              Nenhuma
+            </button>
+          </div>
+          <p className="note dim">
+            Medidas sobre o traçado, de vara a vara. Marque as que devem aparecer no
+            croqui; o rótulo fica no meio do trecho, ao lado da linha.
+          </p>
+        </>
+      )}
+
+      <details className="fold">
+        <summary>Trechos e nós · edição fina</summary>
       <h3>Trechos</h3>
       <div className="leg-list">
         {path.legs.map((leg, i) => {
@@ -195,6 +262,8 @@ export function PathPanel({ path }: { path: CoursePath }) {
         Arraste um nó para movê-lo; a alça do nó ativo curva o traçado. Duplo
         clique no meio de um trecho insere um nó.
       </p>
+
+      </details>
 
       <h3>Traço</h3>
       <label className="field">

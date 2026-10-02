@@ -59,6 +59,19 @@ interface BaseObject {
 /* ---------------------------------------------------------------- pista */
 
 export type ArenaShape = 'rectangle' | 'polygon';
+
+/**
+ * Construção do local: arquibancada, área de concreto, prédio. Usa a mesma
+ * geometria da pista (retângulo ou contorno livre) e pode ficar dentro ou
+ * fora dela — é referência de cenário, não limite do traçado (decisão 54).
+ */
+export type StructureType = 'arquibancada' | 'concreto' | 'edificacao' | 'outra';
+
+export interface StructureInfo {
+  type: StructureType;
+  /** Texto escrito no desenho: "Arquibancada", "Tribuna". Vazio = sem rótulo. */
+  label: string;
+}
 export type CornerStyle = 'square' | 'rounded' | 'chamfer';
 
 export interface Arena extends BaseObject {
@@ -79,6 +92,11 @@ export interface Arena extends BaseObject {
     sides: { top: boolean; right: boolean; bottom: boolean; left: boolean };
   };
   style: { strokeMm: Millimeters; fill: string; stroke: string };
+  /**
+   * Presente quando o contorno é uma CONSTRUÇÃO, e não a pista. Ausente ou
+   * nulo é a pista — que é o que todo croqui antigo tem.
+   */
+  structure?: StructureInfo | null;
 }
 
 /* ----------------------------------------------------------- obstáculos */
@@ -211,6 +229,12 @@ export interface CoursePath extends BaseObject {
   /** Rótulo do comprimento total, quando o modo é `total`. */
   totalLabel: DistanceLabel;
   style: { dash: DashPreset; strokeMm: Millimeters; color: string };
+  /**
+   * Distâncias entre obstáculos consecutivos que aparecem no croqui,
+   * medidas ao longo deste traçado, de vara a vara. Chave "idDe>idPara";
+   * ausente = oculta (decisão 54).
+   */
+  obstacleDistances: Record<string, boolean>;
 }
 
 /* ------------------------------------------------------------ anotações */
@@ -251,6 +275,21 @@ export interface HeightTable extends BaseObject {
   showSpread: boolean;
   showNote: boolean;
   style: { sizeMm: Millimeters; rowHeightMm: Millimeters };
+}
+
+/**
+ * Logo ou imagem na FOLHA (decisão 55): da federação, do clube, do
+ * patrocinador. Como o quadro técnico, mora em milímetros de papel — não
+ * cresce nem encolhe quando a escala do desenho muda.
+ */
+export interface Logo extends BaseObject {
+  kind: 'logo';
+  posMm: Vec2;
+  widthMm: Millimeters;
+  assetId: string;
+  /** Proporção do arquivo: a altura sai da largura, sem deformar. */
+  widthPx: number;
+  heightPx: number;
 }
 
 /* --------------------------------------------- partida e chegada */
@@ -342,7 +381,8 @@ export type SceneObject =
   | InfoBox
   | HeightTable
   | BackgroundImage
-  | Ornament;
+  | Ornament
+  | Logo;
 
 export type ObjectKind = SceneObject['kind'];
 
@@ -384,6 +424,11 @@ export interface CourseDocument {
   layers: Layer[];
   objects: SceneObject[];
   assets: Record<string, Asset>;
+  /**
+   * Bandeirolas nos obstáculos e nas cruzadas de tempo: vermelha à
+   * direita, branca à esquerda, no sentido do salto (decisão 54).
+   */
+  flags: boolean;
 }
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;

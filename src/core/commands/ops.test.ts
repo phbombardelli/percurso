@@ -145,6 +145,7 @@ describe('duplicar e excluir', () => {
       distanceMode: 'nenhum',
       totalLabel: { visible: false, offsetM: { x: 0, y: 0 }, decimals: 2, color: '#d32020' },
       style: { dash: 'dashed', strokeMm: 0.35, color: '#6b6b6b' },
+      obstacleDistances: {},
     };
     doc = edit(doc, (d) => addObject(d, path));
 
@@ -169,6 +170,7 @@ describe('duplicar e excluir', () => {
       distanceMode: 'nenhum',
       totalLabel: { visible: false, offsetM: { x: 0, y: 0 }, decimals: 2, color: '#d32020' },
       style: { dash: 'dashed', strokeMm: 0.35, color: '#6b6b6b' },
+      obstacleDistances: {},
     };
     doc = edit(doc, (d) => addObject(d, path));
     let ids: string[] = [];

@@ -1,6 +1,8 @@
 import type { Vec2 } from '@core/geometry/vec';
 import { arenaExtent, arenaPoints } from '@core/model/arena';
 import { polygonPathD } from '@core/geometry/outline';
+import { hatchSegments, longestEdgeAngle, polygonCentroid } from '@core/geometry/hatch';
+import { structureDef } from '@core/library/structures';
 import { mmPerMeter } from '@core/scale/units';
 import type { Arena } from '@core/model/types';
 import { color, font, stroke, text } from '@render/style/tokens';
@@ -40,8 +42,56 @@ export function ArenaLayer({ arena, printScale, originMm, selected, onPointerDow
         onPointerDown={onPointerDown}
         style={{ cursor: 'pointer' }}
       />
-      {arena.perimeterRuler.visible && (
-        <PerimeterRuler arena={arena} k={k} toPaper={toPaper} />
+      {arena.structure ? (
+        <StructureDetails arena={arena} toPaper={toPaper} />
+      ) : (
+        arena.perimeterRuler.visible && <PerimeterRuler arena={arena} k={k} toPaper={toPaper} />
+      )}
+    </g>
+  );
+}
+
+/**
+ * O miolo de uma construção: degraus ou hachura e o rótulo (decisão 54).
+ * As linhas saem já recortadas no contorno — nada de <pattern> nem de
+ * recorte, que o PDF não garante.
+ */
+function StructureDetails({ arena, toPaper }: { arena: Arena; toPaper: (p: Vec2) => Vec2 }) {
+  const info = arena.structure!;
+  const def = structureDef(info.type);
+  const pts = arenaPoints(arena);
+  const aresta = longestEdgeAngle(pts);
+  const linhas = def.hatch
+    ? hatchSegments(pts, def.hatch.angle === 'aresta' ? aresta : def.hatch.angle, def.hatch.spacingM)
+    : [];
+  const centro = toPaper(polygonCentroid(pts));
+  // O rótulo acompanha a aresta longa, mas nunca de cabeça para baixo.
+  let giro = ((aresta % 180) + 180) % 180;
+  if (giro > 90) giro -= 180;
+
+  return (
+    <g data-part="structure" pointerEvents="none">
+      {linhas.map(([a, b], i) => {
+        const pa = toPaper(a);
+        const pb = toPaper(b);
+        return (
+          <line key={i} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke={def.hatch!.color} strokeWidth={stroke.hairline} />
+        );
+      })}
+      {info.label.trim() !== '' && (
+        <text
+          x={centro.x}
+          y={centro.y}
+          transform={giro !== 0 ? `rotate(${giro} ${centro.x} ${centro.y})` : undefined}
+          fontFamily={font.family}
+          fontSize={text.regular}
+          fontWeight="bold"
+          fill={color.ink}
+          textAnchor="middle"
+          dominantBaseline="middle"
+        >
+          {info.label}
+        </text>
       )}
     </g>
   );

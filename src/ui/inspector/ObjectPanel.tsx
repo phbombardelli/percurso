@@ -14,6 +14,7 @@ import { HeightTablePanel } from './HeightTablePanel';
 import { InfoBoxPanel } from './InfoBoxPanel';
 import { TextPanel } from './TextPanel';
 import { TimingPanel } from './TimingPanel';
+import { LogoPanel } from './LogoPanel';
 import { NumberField } from './NumberField';
 
 const KIND_LABEL: Record<SceneObject['kind'], string> = {
@@ -26,6 +27,7 @@ const KIND_LABEL: Record<SceneObject['kind'], string> = {
   image: 'Imagem de fundo',
   ornament: 'Ornamento',
   timing: 'Linha de cronometragem',
+  logo: 'Logo ou imagem',
 };
 
 export function ObjectPanel() {
@@ -48,7 +50,11 @@ export function ObjectPanel() {
   return (
     <section className="object-panel">
       <h3>
-        {single ? KIND_LABEL[single.kind] : `${objs.length} objetos selecionados`}
+        {single
+          ? single.kind === 'arena' && single.structure
+            ? 'Construção'
+            : KIND_LABEL[single.kind]
+          : `${objs.length} objetos selecionados`}
       </h3>
 
       {single && (
@@ -104,6 +110,7 @@ export function ObjectPanel() {
           {single.kind === 'text' && <TextPanel label={single} />}
           {single.kind === 'infobox' && <InfoBoxPanel box={single} />}
           {single.kind === 'heighttable' && <HeightTablePanel table={single} />}
+          {single.kind === 'logo' && <LogoPanel logo={single} />}
           {single.kind === 'ornament' && (
             <>
               <label className="field">

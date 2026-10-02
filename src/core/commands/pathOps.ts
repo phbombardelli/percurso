@@ -157,6 +157,26 @@ export function sharpenPath(doc: CourseDocument, id: ObjectId): void {
   }
 }
 
+/**
+ * Liga ou desliga, no croqui, as distâncias entre obstáculos escolhidas.
+ * `visivel` em cada chave "idDe>idPara" (decisão 54).
+ */
+export function setObstacleDistances(
+  doc: CourseDocument,
+  id: ObjectId,
+  chaves: string[],
+  visivel: boolean,
+): void {
+  const path = pathOf(doc, id);
+  if (!path) return;
+  const atual = { ...(path.obstacleDistances ?? {}) };
+  for (const k of chaves) {
+    if (visivel) atual[k] = true;
+    else delete atual[k];
+  }
+  path.obstacleDistances = atual;
+}
+
 export function setDistanceMode(doc: CourseDocument, id: ObjectId, mode: DistanceMode): void {
   const path = pathOf(doc, id);
   if (path) path.distanceMode = mode;

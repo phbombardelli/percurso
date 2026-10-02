@@ -71,6 +71,7 @@ export function createDocument(): CourseDocument {
     layers: defaultLayers(),
     objects: [arena],
     assets: {},
+    flags: false,
   };
 }
 
@@ -205,8 +206,9 @@ export function objectsOfLayer(doc: CourseDocument, layer: LayerId): SceneObject
   return doc.objects.filter((o) => o.layer === layer).sort((a, b) => a.z - b.z);
 }
 
+/** A pista — o primeiro contorno que NÃO é construção. */
 export function firstArena(doc: CourseDocument): Arena | undefined {
-  return doc.objects.find((o): o is Arena => o.kind === 'arena');
+  return doc.objects.find((o): o is Arena => o.kind === 'arena' && !o.structure);
 }
 
 export function isLayerLocked(doc: CourseDocument, layer: LayerId): boolean {

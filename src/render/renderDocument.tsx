@@ -15,7 +15,10 @@ import { HeightTableLayer } from './layers/HeightTableLayer';
 import { ScaleLegend } from './layers/ScaleLegend';
 import { PathLayer } from './layers/PathLayer';
 import { TimingLayer } from './layers/TimingLayer';
+import { LogoLayer } from './layers/LogoLayer';
 import { color, stroke } from './style/tokens';
+import { useMemo } from 'react';
+import { layoutLabels } from '@core/assist/labelLayout';
 
 /** Ordem de empilhamento: camada primeiro, depois z dentro da camada. */
 function sortForRender(doc: CourseDocument): SceneObject[] {
@@ -52,6 +55,9 @@ export function RenderDocument(opts: RenderOptions) {
   const { doc, mode, selection, viewBoxMm, metersPerPixel, showPageFrame } = opts;
   const { widthMm, heightMm } = pageSize(doc.page);
   const isSelected = (id: ObjectId) => selection.includes(id);
+  // Um leiaute só para todos os rótulos automáticos: cada um foge dos
+  // outros, então precisam ser decididos juntos (decisão 55).
+  const rotulos = useMemo(() => layoutLabels(doc), [doc]);
 
   return (
     <>
@@ -132,6 +138,9 @@ export function RenderDocument(opts: RenderOptions) {
                 obstacle={obj}
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
+                flags={doc.flags}
+                numberAt={rotulos.number.get(obj.id)}
+                heightsAt={rotulos.heights.get(obj.id)}
                 onPointerDown={onPointerDown}
               />
             );
@@ -140,6 +149,8 @@ export function RenderDocument(opts: RenderOptions) {
               <PathLayer
                 key={obj.id}
                 path={obj}
+                obstacles={doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle')}
+                distanceAt={rotulos.distances.get(obj.id)}
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
                 onPointerDown={onPointerDown}
@@ -152,6 +163,8 @@ export function RenderDocument(opts: RenderOptions) {
                 line={obj}
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
+                flags={doc.flags}
+                labelAt={rotulos.timing.get(obj.id)}
                 onPointerDown={onPointerDown}
               />
             );
@@ -172,6 +185,15 @@ export function RenderDocument(opts: RenderOptions) {
                 label={obj}
                 printScale={doc.page.printScale}
                 originMm={doc.originMm}
+                onPointerDown={onPointerDown}
+              />
+            );
+          case 'logo':
+            return (
+              <LogoLayer
+                key={obj.id}
+                logo={obj}
+                asset={doc.assets[obj.assetId]}
                 onPointerDown={onPointerDown}
               />
             );

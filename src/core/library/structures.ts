@@ -1,0 +1,61 @@
+import type { Vec2 } from '@core/geometry/vec';
+import { createPolygonArena, createRectangleArena } from '@core/model/arena';
+import type { Arena, StructureType } from '@core/model/types';
+
+/**
+ * Construções do local (decisão 54).
+ *
+ * Cada tipo tem um preenchimento que se lê em preto e branco, porque o
+ * croqui circula impresso e fotocopiado: degraus para a arquibancada,
+ * hachura para o concreto, cinza cheio para a edificação.
+ */
+export interface StructureDef {
+  type: StructureType;
+  label: string;
+  fill: string;
+  /** Linhas internas: degraus ou hachura. `null` = sem linhas. */
+  hatch: { angle: 'aresta' | number; spacingM: number; color: string } | null;
+}
+
+export const STRUCTURES: readonly StructureDef[] = [
+  {
+    type: 'arquibancada',
+    label: 'Arquibancada',
+    fill: '#ececec',
+    // Degraus paralelos à aresta mais longa: é o lado que dá para a pista.
+    hatch: { angle: 'aresta', spacingM: 0.9, color: '#8a8a8a' },
+  },
+  {
+    type: 'concreto',
+    label: 'Concreto',
+    fill: '#dedede',
+    hatch: { angle: 45, spacingM: 1.2, color: '#a0a0a0' },
+  },
+  { type: 'edificacao', label: 'Edificação', fill: '#c4c4c4', hatch: null },
+  { type: 'outra', label: 'Construção', fill: '#efefef', hatch: null },
+] as const;
+
+export const structureDef = (type: StructureType): StructureDef =>
+  STRUCTURES.find((s) => s.type === type) ?? STRUCTURES[STRUCTURES.length - 1]!;
+
+/** Põe o rótulo, o preenchimento e o traço de construção num contorno novo. */
+function asStructure(arena: Arena, type: StructureType): Arena {
+  const def = structureDef(type);
+  return {
+    ...arena,
+    structure: { type, label: def.label },
+    corner: { style: 'square', radiusM: 0 },
+    perimeterRuler: { ...arena.perimeterRuler, visible: false },
+    style: { strokeMm: 0.25, fill: def.fill, stroke: '#3a3a3a' },
+  };
+}
+
+export const createRectangleStructure = (
+  origin: Vec2,
+  widthM: number,
+  heightM: number,
+  type: StructureType,
+): Arena => asStructure(createRectangleArena(origin, widthM, heightM), type);
+
+export const createPolygonStructure = (points: Vec2[], type: StructureType): Arena =>
+  asStructure(createPolygonArena(points), type);

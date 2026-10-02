@@ -46,6 +46,7 @@ export function createPath(nodes: PathNode[]): CoursePath {
     distanceMode: 'total',
     totalLabel: distanceLabel(-1.5),
     style: { dash: 'dashed', strokeMm: 0.4, color: '#333333' },
+    obstacleDistances: {},
   };
 }
 

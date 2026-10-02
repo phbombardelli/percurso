@@ -7,7 +7,11 @@ import { arenaPoints } from './arena';
 import { flattenPath } from './path';
 import { paperToMeters } from '@core/scale/units';
 import type { Meters, PrintScale } from '@core/scale/units';
-import type { CourseDocument, ObjectScope, Obstacle, SceneObject } from './types';
+import type { CourseDocument, Logo, ObjectScope, Obstacle, SceneObject } from './types';
+
+/** Altura do logo na folha: sai da largura e da proporção do arquivo. */
+export const logoHeightMm = (logo: Logo): number =>
+  (logo.widthMm * logo.heightPx) / Math.max(1, logo.widthPx);
 
 /**
  * Acesso genérico a posição, rotação e envoltória de qualquer objeto da
@@ -45,7 +49,7 @@ export const objectScope = (obj: SceneObject): ObjectScope =>
 
 /** Objetos posicionados em milímetros de papel, não em metros do terreno. */
 export function isPaperAnchored(obj: SceneObject): boolean {
-  return obj.kind === 'infobox' || obj.kind === 'heighttable';
+  return obj.kind === 'infobox' || obj.kind === 'heighttable' || obj.kind === 'logo';
 }
 
 export function getPosition(obj: SceneObject, printScale: PrintScale): Vec2 {
@@ -58,6 +62,7 @@ export function getPosition(obj: SceneObject, printScale: PrintScale): Vec2 {
       return obj.nodes[0]?.pos ?? { x: 0, y: 0 };
     case 'infobox':
     case 'heighttable':
+    case 'logo':
       return {
         x: paperToMeters(obj.posMm.x, printScale),
         y: paperToMeters(obj.posMm.y, printScale),
@@ -80,7 +85,8 @@ export function translate(obj: SceneObject, deltaM: Vec2, printScale: PrintScale
       for (const node of obj.nodes) node.pos = add(node.pos, deltaM);
       return;
     case 'infobox':
-    case 'heighttable': {
+    case 'heighttable':
+    case 'logo': {
       const k = 1000 / printScale;
       obj.posMm = { x: obj.posMm.x + deltaM.x * k, y: obj.posMm.y + deltaM.y * k };
       return;
@@ -216,6 +222,16 @@ export function getBounds(
         max: {
           x: pos.x + paperToMeters(l.widthMm, printScale),
           y: pos.y + paperToMeters(l.heightMm, printScale),
+        },
+      };
+    }
+    case 'logo': {
+      const pos = getPosition(obj, printScale);
+      return {
+        min: pos,
+        max: {
+          x: pos.x + paperToMeters(obj.widthMm, printScale),
+          y: pos.y + paperToMeters(logoHeightMm(obj), printScale),
         },
       };
     }

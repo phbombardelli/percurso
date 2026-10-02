@@ -628,3 +628,10 @@ kbd { background: var(--chrome); border-color: var(--border); }
 .chip .popover-trigger, .chip-button { border-radius: 999px; font-weight: 600; }
 .statusbar .coords { color: var(--text); }
 .ruler-corner { background: var(--chrome-2); border-color: var(--border); }
+
+/* ----- distâncias entre obstáculos (decisão 54) */
+.pair-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.pair-list li { padding: 1px 0; }
+.pair-list .check { width: 100%; }
+.pair-name { flex: 1; }
+.pair-value { font-variant-numeric: tabular-nums; color: var(--text-dim); }

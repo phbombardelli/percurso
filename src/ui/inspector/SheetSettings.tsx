@@ -134,6 +134,22 @@ export function SheetSettings() {
       </section>
 
       <section>
+        <h3>Sinalização</h3>
+        <label className="check" title="Vermelha à direita e branca à esquerda de quem salta, nos obstáculos e nas linhas de partida e chegada">
+          <input
+            type="checkbox"
+            checked={doc.flags}
+            onChange={(e) =>
+              apply(e.target.checked ? 'Mostrar bandeirolas' : 'Ocultar bandeirolas', (d) => {
+                d.flags = e.target.checked;
+              })
+            }
+          />
+          Bandeirolas (vermelha à direita, branca à esquerda)
+        </label>
+      </section>
+
+      <section>
         <h3>Legenda de escala</h3>
         <label className="check">
           <input

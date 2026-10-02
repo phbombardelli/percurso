@@ -10,6 +10,7 @@ import { createOrnament } from '@core/library/ornaments';
 import { createTextLabel } from '@core/library/annotations';
 import { createPath, createPathNode, smoothedNodes } from '@core/model/path';
 import { createPolygonArena, createRectangleArena } from '@core/model/arena';
+import { createPolygonStructure, createRectangleStructure } from '@core/library/structures';
 import { pageRectMm } from '@core/model/document';
 import { getRotation, translate } from '@core/model/transform';
 import { mmPerMeter } from '@core/scale/units';
@@ -127,8 +128,9 @@ export function Canvas() {
     const points = ed.draft?.points ?? [];
     ed.clearDraft();
     if (points.length < 3) return;
-    const arena = createPolygonArena(points);
-    useDocumentStore.getState().apply('Desenhar pista', (d) => addObject(d, arena));
+    const tipo = ed.structureType;
+    const arena = tipo ? createPolygonStructure(points, tipo) : createPolygonArena(points);
+    useDocumentStore.getState().apply(tipo ? 'Desenhar construção' : 'Desenhar pista', (d) => addObject(d, arena));
     ed.setSelection([arena.id]);
     ed.setEditingVertices(true);
     ed.setTool('select');
@@ -163,12 +165,12 @@ export function Canvas() {
     const heightM = Math.abs(b.y - a.y);
     // Arrasto muito curto costuma ser clique acidental.
     if (widthM < 2 || heightM < 2) return;
-    const arena = createRectangleArena(
-      { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) },
-      widthM,
-      heightM,
-    );
-    useDocumentStore.getState().apply('Criar pista', (d) => addObject(d, arena));
+    const canto = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) };
+    const tipo = ed.structureType;
+    const arena = tipo
+      ? createRectangleStructure(canto, widthM, heightM, tipo)
+      : createRectangleArena(canto, widthM, heightM);
+    useDocumentStore.getState().apply(tipo ? 'Criar construção' : 'Criar pista', (d) => addObject(d, arena));
     ed.setSelection([arena.id]);
     ed.setTool('select');
   }, []);

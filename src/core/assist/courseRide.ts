@@ -195,7 +195,7 @@ export function courseGates(
 ): CoursePrep | null {
   const obstacles = doc.objects.filter((o): o is Obstacle => o.kind === 'obstacle');
   const timings = doc.objects.filter((o): o is TimingLine => o.kind === 'timing');
-  const arena = doc.objects.find((o) => o.kind === 'arena');
+  const arena = doc.objects.find((o) => o.kind === 'arena' && !o.structure);
   const field: Field = fieldFrom(arena?.kind === 'arena' ? arena : null, obstacles);
 
   const partida = timings.find((t) => t.role === 'start');

@@ -200,6 +200,7 @@ export function PathDraft({
     distanceMode: 'nenhum',
     totalLabel: { visible: false, offsetM: { x: 0, y: 0 }, decimals: 2, color: '#d32020' },
     style: { dash: 'dashed', strokeMm: 0.4, color: color.selection },
+    obstacleDistances: {},
   };
 
   return (

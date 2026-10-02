@@ -148,6 +148,16 @@ export function setPerimeterRuler(
   if (arena.perimeterRuler.stepM <= 0) arena.perimeterRuler.stepM = 5;
 }
 
+/** Tipo e rótulo de uma construção. Na pista não faz nada. */
+export function setStructure(
+  doc: CourseDocument,
+  id: ObjectId,
+  patch: Partial<NonNullable<Arena['structure']>>,
+): void {
+  const arena = arenaOf(doc, id);
+  if (arena?.structure) arena.structure = { ...arena.structure, ...patch };
+}
+
 export function setArenaStyle(
   doc: CourseDocument,
   id: ObjectId,

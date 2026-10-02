@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { OBSTACLES } from '@core/library/obstacles';
 import { ORNAMENTS } from '@core/library/ornaments';
+import { STRUCTURES } from '@core/library/structures';
 import { importBackgroundImage } from '@ui/actions/imageActions';
 import { traceCourse } from '@ui/actions/rideActions';
 import { insertHeightTable, insertInfoBox } from '@ui/actions/annotationActions';
 import { startGuidedRide } from '@ui/actions/guidedActions';
+import { insertLogo } from '@ui/actions/logoActions';
 import { useEditorStore, type Tool } from '@store/editorStore';
 
 /**
@@ -17,10 +19,33 @@ import { useEditorStore, type Tool } from '@store/editorStore';
  * painel do primeiro e do último obstáculo.
  */
 export function Sidebar() {
-  const { mode, tool, setTool, ornamentType, setOrnamentType, obstacleType, setObstacleType, pathSmooth, setPathSmooth } =
-    useEditorStore();
+  const {
+    mode,
+    tool,
+    setTool,
+    ornamentType,
+    setOrnamentType,
+    obstacleType,
+    setObstacleType,
+    pathSmooth,
+    setPathSmooth,
+    structureType,
+    setStructureType,
+  } = useEditorStore();
 
   const usa = (alvo: Tool) => setTool(alvo);
+  const desenhandoContorno = tool === 'arena-rect' || tool === 'arena-polygon';
+  // A pista e as construções usam as mesmas ferramentas de contorno; o que
+  // muda é o que se cria. Escolher pista zera o tipo de construção.
+  const contornoDaPista = (alvo: Tool) => {
+    setStructureType(null);
+    usa(alvo);
+  };
+  const construcao = (tipo: (typeof STRUCTURES)[number]['type'], alvo: Tool) => {
+    setStructureType(tipo);
+    usa(alvo);
+  };
+  const nomeConstrucao = STRUCTURES.find((s) => s.type === structureType)?.label ?? 'Arquibancada';
   const nomeObstaculo = OBSTACLES.find((o) => o.type === obstacleType)?.label ?? '';
   const nomeOrnamento = ORNAMENTS.find((o) => o.type === ornamentType)?.label ?? '';
 
@@ -97,6 +122,7 @@ export function Sidebar() {
             items={[
               { label: 'Quadro técnico', hint: 'prova, tabela, altura, velocidade…', onSelect: insertInfoBox },
               { label: 'Tabela de alturas', hint: 'lê as alturas dos obstáculos', onSelect: insertHeightTable },
+              { label: 'Logo ou imagem', hint: 'PNG, JPG ou WEBP, posicionado na folha', onSelect: () => void insertLogo() },
             ]}
           />
         </>
@@ -105,22 +131,45 @@ export function Sidebar() {
           <RailFlyout
             icon="▭"
             label="Contorno"
-            active={tool === 'arena-rect' || tool === 'arena-polygon'}
-            onActivate={() => usa('arena-rect')}
+            active={desenhandoContorno && structureType === null}
+            onActivate={() => contornoDaPista('arena-rect')}
             items={[
               {
                 label: 'Retângulo',
                 hint: 'arraste; as medidas se digitam no painel',
-                active: tool === 'arena-rect',
-                onSelect: () => usa('arena-rect'),
+                active: tool === 'arena-rect' && structureType === null,
+                onSelect: () => contornoDaPista('arena-rect'),
               },
               {
                 label: 'Contorno livre',
                 hint: 'clique cada vértice; Enter fecha',
-                active: tool === 'arena-polygon',
-                onSelect: () => usa('arena-polygon'),
+                active: tool === 'arena-polygon' && structureType === null,
+                onSelect: () => contornoDaPista('arena-polygon'),
               },
             ]}
+          />
+          <RailFlyout
+            icon="▦"
+            label="Construção"
+            detail={structureType ? nomeConstrucao : undefined}
+            active={desenhandoContorno && structureType !== null}
+            onActivate={() => construcao(structureType ?? 'arquibancada', 'arena-rect')}
+            items={[
+              ...STRUCTURES.map((s) => ({
+                label: s.label,
+                hint: 'arraste um retângulo, dentro ou fora da pista',
+                active: tool === 'arena-rect' && structureType === s.type,
+                onSelect: () => construcao(s.type, 'arena-rect'),
+              })),
+              'separator' as const,
+              {
+                label: `${nomeConstrucao} em contorno livre`,
+                hint: 'clique cada vértice; Enter fecha',
+                active: tool === 'arena-polygon' && structureType !== null,
+                onSelect: () => construcao(structureType ?? 'arquibancada', 'arena-polygon'),
+              },
+            ]}
+            footer="Referência do local: arquibancada, área de concreto, prédios. Não limita o traçado."
           />
           <RailFlyout
             icon="🌳"

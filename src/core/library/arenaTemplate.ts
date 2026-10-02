@@ -47,7 +47,7 @@ export function buildTemplate(
     if (usados.has(key)) assets[key] = deepClone(asset);
   }
 
-  const arena = objects.find((o) => o.kind === 'arena');
+  const arena = objects.find((o) => o.kind === 'arena' && !o.structure);
   return {
     format: TEMPLATE_FORMAT,
     schemaVersion,

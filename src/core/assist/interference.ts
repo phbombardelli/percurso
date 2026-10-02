@@ -170,7 +170,7 @@ export function findInterferences(doc: CourseDocument): Interference[] {
     (o): o is Obstacle => o.kind === 'obstacle' && o.visible,
   );
   const paths = doc.objects.filter((o): o is CoursePath => o.kind === 'path' && o.visible);
-  const arena = doc.objects.find((o): o is Arena => o.kind === 'arena');
+  const arena = doc.objects.find((o): o is Arena => o.kind === 'arena' && !o.structure);
   const out: Interference[] = [];
 
   // Obstáculo montado por cima de outro: erro de montagem, não de traçado.

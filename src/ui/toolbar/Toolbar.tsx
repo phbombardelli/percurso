@@ -20,6 +20,7 @@ import { actualSize, fitPage, toggleGrid, toggleMagnet, zoomBy } from '@ui/actio
 import { insertHeightTable, insertInfoBox } from '@ui/actions/annotationActions';
 import { insertTimingLine } from '@ui/actions/timingActions';
 import { importBackgroundImage } from '@ui/actions/imageActions';
+import { insertLogo } from '@ui/actions/logoActions';
 import { ZOOM_ACTUAL_SIZE } from '@core/scale/viewport';
 import { useDocumentStore } from '@store/documentStore';
 import { useEditorStore } from '@store/editorStore';
@@ -35,7 +36,7 @@ import { Menu, type MenuEntry } from './Menu';
  * a folha e o zoom — o que vale para o croqui inteiro.
  */
 export function Toolbar() {
-  const { doc, undo, redo, canUndo, canRedo, dirty, fileName } = useDocumentStore();
+  const { doc, apply, undo, redo, canUndo, canRedo, dirty, fileName } = useDocumentStore();
   const {
     viewport,
     showPageFrame,
@@ -114,6 +115,14 @@ export function Toolbar() {
     'separator',
     { label: 'Quadro técnico', onSelect: noPercurso(insertInfoBox) },
     { label: 'Tabela de alturas', onSelect: noPercurso(insertHeightTable) },
+    { label: 'Logo ou imagem…', onSelect: () => void insertLogo() },
+    {
+      label: check(doc.flags, 'Bandeirolas'),
+      onSelect: () =>
+        apply(doc.flags ? 'Ocultar bandeirolas' : 'Mostrar bandeirolas', (d) => {
+          d.flags = !d.flags;
+        }),
+    },
     'separator',
     {
       label: 'Imagem de fundo…',
