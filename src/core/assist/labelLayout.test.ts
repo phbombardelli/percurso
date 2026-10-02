@@ -5,7 +5,7 @@ import { createObstacle } from '@core/library/obstacles';
 import { createDocument } from '@core/model/document';
 import { createPath, createPathNode } from '@core/model/path';
 import type { CourseDocument, Obstacle } from '@core/model/types';
-import { LABEL_FONT_MM, layoutLabels } from './labelLayout';
+import { LABEL_FONT_MM, layoutLabels, onLinePlacement } from './labelLayout';
 
 const k = 1000 / 300;
 
@@ -67,5 +67,30 @@ describe('rótulos automáticos não cobrem o desenho (decisão 55)', () => {
     });
     const o = doc.objects[0] as Obstacle;
     expect(layoutLabels(doc).number.get(o.id)).toEqual({ x: 35, y: 30 });
+  });
+});
+
+describe('distância escrita sobre a linha (decisão 56)', () => {
+  it('linha horizontal: texto reto, logo acima dela', () => {
+    const l = onLinePlacement({ x: 10, y: 10 }, { x: 1, y: 0 }, 1, 0.2);
+    expect(l.angle).toBeCloseTo(0, 9);
+    expect(l.pos.x).toBeCloseTo(10, 9);
+    expect(l.pos.y).toBeCloseTo(10 - 0.7, 9);
+  });
+
+  it('linha percorrida da direita para a esquerda: o texto não fica de cabeça para baixo', () => {
+    const l = onLinePlacement({ x: 10, y: 10 }, { x: -1, y: 0 }, 1, 0.2);
+    expect(Math.abs(l.angle)).toBeLessThan(1e-9);
+    expect(l.pos.y).toBeLessThan(10);
+  });
+
+  it('linha inclinada: o texto gira junto, entre −90 e 90 graus', () => {
+    for (const [tx, ty] of [[1, 1], [-1, 1], [1, -1], [-1, -1], [0, 1], [0, -1]]) {
+      const l = onLinePlacement({ x: 0, y: 0 }, { x: tx!, y: ty! }, 1, 0.2);
+      expect(l.angle).toBeGreaterThan(-90 - 1e-9);
+      expect(l.angle).toBeLessThanOrEqual(90 + 1e-9);
+      // O centro fica a meia altura mais a folga da linha.
+      expect(Math.hypot(l.pos.x, l.pos.y)).toBeCloseTo(0.7, 9);
+    }
   });
 });

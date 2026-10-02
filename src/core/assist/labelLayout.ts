@@ -2,7 +2,7 @@ import { add, fromAngle, rotate, scale, type Vec2 } from '@core/geometry/vec';
 import { formatHeights, obstacleExtent, obstacleLabel } from '@core/library/obstacles';
 import { timingExtent } from '@core/library/timing';
 import { arenaPoints } from '@core/model/arena';
-import { formatDistance } from '@core/model/path';
+import { formatDistance, legLength, pathLength } from '@core/model/path';
 import type { CourseDocument, Obstacle, ObjectId, TimingLine } from '@core/model/types';
 import { mmPerMeter } from '@core/scale/units';
 import { insidePolygon, obstacleFootprint } from './ridePath';
@@ -32,8 +32,52 @@ export interface LabelLayout {
   heights: Map<ObjectId, Vec2>;
   /** Centro do rótulo da cruzada de tempo ("Partida", "Chegada"). */
   timing: Map<ObjectId, Vec2>;
-  /** Por traçado, o centro de cada distância entre obstáculos mostrada. */
-  distances: Map<ObjectId, Map<string, Vec2>>;
+  /**
+   * Por traçado, cada distância entre obstáculos mostrada: o centro do
+   * texto e o giro. O número é escrito SOBRE a linha, apoiado nela e
+   * paralelo a ela, como uma cota (decisão 56).
+   */
+  distances: Map<ObjectId, Map<string, OnLineLabel>>;
+}
+
+export interface OnLineLabel {
+  /** Centro do texto, em metros. */
+  pos: Vec2;
+  /** Giro do texto em graus, sempre entre −90 e 90: nunca de cabeça para baixo. */
+  angle: number;
+}
+
+/** Folga entre a linha e a base do texto, em mm de papel. */
+export const ON_LINE_GAP_MM = 0.5;
+
+/** Chaves de `LabelLayout.distances` para o total e para cada trecho. */
+export const TOTAL_KEY = 'total';
+export const legKey = (i: number): string => `trecho:${i}`;
+
+/**
+ * Onde um texto apoiado na linha fica: o giro acompanha a tangente,
+ * corrigido para não ler de cabeça para baixo, e o centro sobe meia
+ * altura (mais a folga) para o lado de cima do texto.
+ */
+export function onLinePlacement(ponto: Vec2, tangente: Vec2, alturaM: number, folgaM: number): OnLineLabel {
+  let angle = (Math.atan2(tangente.y, tangente.x) * 180) / Math.PI;
+  if (angle > 90) angle -= 180;
+  if (angle <= -90) angle += 180;
+  const a = (angle * Math.PI) / 180;
+  // "Para cima" do texto girado: (0, −1) girado pelo mesmo ângulo.
+  const cima = { x: Math.sin(a), y: -Math.cos(a) };
+  const d = alturaM / 2 + folgaM;
+  return { pos: { x: ponto.x + cima.x * d, y: ponto.y + cima.y * d }, angle };
+}
+
+/** Caixa alinhada aos eixos que contém o texto girado. */
+function rotatedTextBox(lbl: OnLineLabel, texto: string, fontMm: number, k: number): Box {
+  const w = (Math.max(1, texto.length) * fontMm * 0.6) / k;
+  const h = (fontMm * 1.05) / k;
+  const a = (lbl.angle * Math.PI) / 180;
+  const hw = (Math.abs(Math.cos(a)) * w + Math.abs(Math.sin(a)) * h) / 2;
+  const hh = (Math.abs(Math.sin(a)) * w + Math.abs(Math.cos(a)) * h) / 2;
+  return { min: { x: lbl.pos.x - hw, y: lbl.pos.y - hh }, max: { x: lbl.pos.x + hw, y: lbl.pos.y + hh } };
 }
 
 /** Corpos de letra usados no desenho, em mm de papel (tokens de texto). */
@@ -351,29 +395,74 @@ export function layoutLabels(doc: CourseDocument): LabelLayout {
 
   /* ------------------------------------------ distâncias no traçado */
 
+  // Escritas sobre a linha: o candidato muda só de lugar AO LONGO do trecho.
+  // A própria linha não conta como choque — o texto mora nela —, mas as
+  // outras linhas, obstáculos, setas, bandeirolas e rótulos contam.
   for (const p of tracados) {
     if (p.kind !== 'path') continue;
     const marcadas = p.obstacleDistances ?? {};
-    if (!Object.values(marcadas).some(Boolean)) continue;
+    const temTotal = p.distanceMode === 'total' && p.totalLabel.visible && p.nodes.length > 1;
+    const temTrechos = p.distanceMode === 'trecho';
+    if (!temTotal && !temTrechos && !Object.values(marcadas).some(Boolean)) continue;
     const amostra = pathSampler(p);
     if (!amostra) continue;
-    const mapa = new Map<string, Vec2>();
+    const outrasLinhas = groupSegments(
+      tracados
+        .filter((q) => q !== p && q.kind === 'path')
+        .flatMap((q) => {
+          const a = q.kind === 'path' ? pathSampler(q) : null;
+          return a ? a.pts.slice(1).map((pt, i) => [a.pts[i]!, pt] as Segment) : [];
+        }),
+    );
+    const altura = (LABEL_FONT_MM.distance * 1.05) / k;
+    const mapa = new Map<string, OnLineLabel>();
+    // Procura, entre sFrom e sTo, o ponto do traçado onde o número não cobre nada.
+    const colocar = (chave: string, sDe: number, sAte: number, texto: string): void => {
+      let melhor: { lbl: OnLineLabel; box: Box } | null = null;
+      let melhorCusto = Infinity;
+      [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82].forEach((f, i) => {
+        const s = sDe + (sAte - sDe) * f;
+        const { p: ponto, normal } = amostra.pointAt(s);
+        const tangente = { x: normal.y, y: -normal.x };
+        const lbl = onLinePlacement(ponto, tangente, altura, ON_LINE_GAP_MM / k);
+        const box = rotatedTextBox(lbl, texto, LABEL_FONT_MM.distance, k);
+        const b = inflate(box, folga * 0.5);
+        let c = i * 0.8;
+        corpos.forEach((poly) => {
+          if (polygonHitsBox(poly, b)) c += PESO.obstaculo;
+        });
+        // A seta corre sobre a própria linha: a ponta dela, larga, encosta
+        // no número mesmo quando o eixo não toca a caixa.
+        c += PESO.seta * Math.min(3, hitsAny(gruposSetas, inflate(box, 1.5 / k)));
+        c += PESO.tracado * Math.min(4, hitsAny(outrasLinhas, b));
+        for (const fl of bandeirolas) if (boxesTouch(fl, b)) c += PESO.bandeirola;
+        for (const r of colocados) if (boxesTouch(r, b)) c += PESO.rotulo;
+        if (c < melhorCusto) {
+          melhorCusto = c;
+          melhor = { lbl, box };
+        }
+      });
+      if (melhor) {
+        const m = melhor as { lbl: OnLineLabel; box: Box };
+        colocados.push(m.box);
+        mapa.set(chave, m.lbl);
+      }
+    };
+    if (temTotal) {
+      const total = pathLength(p);
+      colocar(TOTAL_KEY, 0, total, formatDistance(total, p.totalLabel.decimals));
+    }
+    if (temTrechos) {
+      let s0 = 0;
+      p.legs.forEach((leg, i) => {
+        const len = legLength(p, i);
+        if (leg.label.visible) colocar(legKey(i), s0, s0 + len, formatDistance(len, leg.label.decimals));
+        s0 += len;
+      });
+    }
     for (const d of obstacleDistancesAlong(p, obstaculos)) {
       if (!marcadas[d.key]) continue;
-      const texto = `${formatDistance(d.meters, 2)} m`;
-      const candidatos: Box[] = [];
-      // Ao longo do trecho, dos dois lados da linha, cada vez mais longe.
-      for (const afasta of [3.4, 5.2]) {
-        for (const f of [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74]) {
-          const { p: ponto, normal } = amostra.pointAt(d.sFrom + (d.sTo - d.sFrom) * f);
-          for (const lado of [1, -1]) {
-            const base = textBox({ x: 0, y: 0 }, texto, LABEL_FONT_MM.distance, k, false);
-            const r = afasta / k + Math.abs(normal.x) * base.max.x + Math.abs(normal.y) * base.max.y;
-            candidatos.push(textBox(add(ponto, scale(normal, lado * r)), texto, LABEL_FONT_MM.distance, k, false));
-          }
-        }
-      }
-      mapa.set(d.key, centro(escolhe(candidatos, null)));
+      colocar(d.key, d.sFrom, d.sTo, `${formatDistance(d.meters, 2)} m`);
     }
     resultado.distances.set(p.id, mapa);
   }

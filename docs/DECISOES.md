@@ -1152,3 +1152,17 @@ quadro técnico: não muda quando a escala do desenho muda. Nasce no canto
 superior direito da área útil, com a proporção do arquivo; a largura se
 ajusta no painel. O arquivo vai embutido no projeto, como a imagem de
 fundo — o .pcs continua autossuficiente.
+
+## 56. Distância escrita sobre a linha
+
+Todo número de distância do traçado — o total, os trechos e as distâncias
+escolhidas entre obstáculos — é escrito SOBRE a linha tracejada, paralelo
+a ela, como uma cota: a linha serve de pauta para o número. O texto nunca
+fica de cabeça para baixo (o ângulo é sempre entre −90° e 90°) e fica meio
+milímetro acima do traço.
+
+O leiaute de rótulos (decisão 55) escolhe ONDE ao longo do trecho o número
+vai: tenta o meio e depois pontos cada vez mais afastados, até achar um
+lugar que não cubra obstáculo, seta, bandeirola, outra linha ou outro
+rótulo. A seta de salto corre sobre a própria linha, então conta com a
+largura da ponta, não só com o eixo.

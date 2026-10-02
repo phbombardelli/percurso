@@ -1,14 +1,20 @@
 import {
   formatDistance,
   legLength,
-  legMidpoint,
   pathD,
   pathLength,
-  pathMidpoint,
 } from '@core/model/path';
 import type { Vec2 } from '@core/geometry/vec';
 import type { CoursePath, Obstacle } from '@core/model/types';
-import { obstacleDistancesAlong } from '@core/assist/obstacleDistances';
+import { obstacleDistancesAlong, pathSampler } from '@core/assist/obstacleDistances';
+import {
+  LABEL_FONT_MM,
+  ON_LINE_GAP_MM,
+  TOTAL_KEY,
+  legKey,
+  onLinePlacement,
+  type OnLineLabel,
+} from '@core/assist/labelLayout';
 import { mmPerMeter } from '@core/scale/units';
 import { dashPattern, font, text } from '@render/style/tokens';
 
@@ -18,13 +24,11 @@ interface Props {
   originMm: Vec2;
   /** Obstáculos do croqui: para as distâncias entre eles (decisão 54). */
   obstacles?: Obstacle[];
-  /** Centros escolhidos pelo leiaute de rótulos (decisão 55), em metros. */
-  distanceAt?: Map<string, Vec2>;
+  /** Posição e giro escolhidos pelo leiaute de rótulos (decisões 55 e 56). */
+  distanceAt?: Map<string, OnLineLabel>;
   onPointerDown?: (e: React.PointerEvent) => void;
 }
 
-/** Afastamento do rótulo de distância em relação à linha, em mm de papel. */
-const AFASTA_MM = 3.4;
 
 /**
  * Traçado do percurso e as distâncias de cada trecho.
@@ -35,6 +39,22 @@ const AFASTA_MM = 3.4;
 export function PathLayer({ path, printScale, originMm, obstacles = [], distanceAt, onPointerDown }: Props) {
   const k = mmPerMeter(printScale);
   const toPaper = (p: Vec2): Vec2 => ({ x: originMm.x + p.x * k, y: originMm.y + p.y * k });
+  // Toda distância do traçado é escrita SOBRE a linha, paralela a ela, como
+  // uma cota (decisão 56). O leiaute escolhe o lugar ao longo do trecho
+  // para não cobrir nada; sem leiaute, fica no meio.
+  const amostra = path.distanceMode !== 'nenhum' ? pathSampler(path) : null;
+  const altura = (LABEL_FONT_MM.distance * 1.05) / k;
+  const sobreALinha = (s: number): OnLineLabel | null => {
+    if (!amostra) return null;
+    const { p, normal } = amostra.pointAt(s);
+    return onLinePlacement(p, { x: normal.y, y: -normal.x }, altura, ON_LINE_GAP_MM / k);
+  };
+  const inicioDoTrecho = (i: number): number => {
+    let s = 0;
+    for (let j = 0; j < i; j += 1) s += legLength(path, j);
+    return s;
+  };
+
   const escolhidas = Object.values(path.obstacleDistances ?? {}).some(Boolean)
     ? obstacleDistancesAlong(path, obstacles).filter((d) => path.obstacleDistances[d.key])
     : [];
@@ -61,28 +81,27 @@ export function PathLayer({ path, printScale, originMm, obstacles = [], distance
         pointerEvents="none"
       />
 
-      {path.distanceMode === 'total' && path.totalLabel.visible && path.nodes.length > 1 && (
-        <DistanceText
-          at={toPaper({
-            x: pathMidpoint(path).x + path.totalLabel.offsetM.x,
-            y: pathMidpoint(path).y + path.totalLabel.offsetM.y,
-          })}
-          value={formatDistance(pathLength(path), path.totalLabel.decimals)}
-          color={path.totalLabel.color}
-        />
-      )}
+      {path.distanceMode === 'total' && path.totalLabel.visible && path.nodes.length > 1 && (() => {
+        const lbl = distanceAt?.get(TOTAL_KEY) ?? sobreALinha(pathLength(path) / 2);
+        return lbl ? (
+          <DistanceText
+            at={toPaper(lbl.pos)}
+            angle={lbl.angle}
+            value={formatDistance(pathLength(path), path.totalLabel.decimals)}
+            color={path.totalLabel.color}
+          />
+        ) : null;
+      })()}
 
       {path.distanceMode === 'trecho' && path.legs.map((leg, i) => {
         if (!leg.label.visible) return null;
-        const meio = legMidpoint(path, i);
-        const p = toPaper({
-          x: meio.x + leg.label.offsetM.x,
-          y: meio.y + leg.label.offsetM.y,
-        });
+        const lbl = distanceAt?.get(legKey(i)) ?? sobreALinha(inicioDoTrecho(i) + legLength(path, i) / 2);
+        if (!lbl) return null;
         return (
           <DistanceText
             key={i}
-            at={p}
+            at={toPaper(lbl.pos)}
+            angle={lbl.angle}
             value={formatDistance(legLength(path, i), leg.label.decimals)}
             color={leg.label.color}
           />
@@ -90,12 +109,15 @@ export function PathLayer({ path, printScale, originMm, obstacles = [], distance
       })}
 
       {escolhidas.map((d) => {
-        const escolhido = distanceAt?.get(d.key);
-        const p = toPaper(escolhido ?? d.at);
+        // Sem leiaute (traçado provisório), fica no meio do trecho.
+        const lbl =
+          distanceAt?.get(d.key) ??
+          onLinePlacement(d.at, { x: d.normal.y, y: -d.normal.x }, altura, ON_LINE_GAP_MM / k);
         return (
           <DistanceText
             key={d.key}
-            at={escolhido ? p : { x: p.x + d.normal.x * AFASTA_MM, y: p.y + d.normal.y * AFASTA_MM }}
+            at={toPaper(lbl.pos)}
+            angle={lbl.angle}
             value={`${formatDistance(d.meters, 2)} m`}
             color={path.totalLabel.color}
           />
@@ -107,10 +129,13 @@ export function PathLayer({ path, printScale, originMm, obstacles = [], distance
 
 function DistanceText({
   at,
+  angle = 0,
   value,
   color,
 }: {
   at: Vec2;
+  /** Giro do texto, em graus: o da linha onde ele se apoia. */
+  angle?: number;
   value: string;
   color: string;
 }) {
@@ -118,6 +143,7 @@ function DistanceText({
     <text
       x={round(at.x)}
       y={round(at.y)}
+      transform={angle !== 0 ? `rotate(${round(angle)} ${round(at.x)} ${round(at.y)})` : undefined}
       fontFamily={font.family}
       fontSize={text.small}
       fill={color}
